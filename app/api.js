@@ -373,6 +373,14 @@ const API = (function() {
     // Public API
     // ===================
 
+    /**
+     * Get cached user email (synchronous)
+     * @returns {string|null}
+     */
+    function getUserEmail() {
+        return currentUser?.email || null;
+    }
+
     return {
         // Auth
         register,
@@ -382,6 +390,7 @@ const API = (function() {
         isAuthenticated,
         logout,
         getCurrentUser,
+        getUserEmail,
 
         // Location
         publishLocation,

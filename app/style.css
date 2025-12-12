@@ -1261,3 +1261,91 @@ body {
     width: 100%;
     max-width: 300px;
 }
+
+/* ===================
+   Settings (Phase 5)
+   =================== */
+
+.settings-btn {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+}
+
+.settings-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.settings-icon {
+    font-size: 1.5rem;
+    color: var(--color-text-muted);
+}
+
+.settings-content {
+    padding: 1rem;
+}
+
+.settings-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.settings-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.75rem;
+}
+
+.settings-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-item-label {
+    color: var(--color-text);
+    font-size: 0.95rem;
+}
+
+.settings-item-value {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+}
+
+.settings-item-hint {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.settings-item-disabled {
+    opacity: 0.5;
+}
+
+.settings-logout {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+/* Header needs position relative for settings button */
+.header {
+    position: relative;
+}

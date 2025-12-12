@@ -147,14 +147,10 @@
         serverStatusIcon: document.querySelector('.server-status-icon'),
         serverStatusText: document.querySelector('.server-status-text'),
 
-        // Auth controls
-        authControls: document.getElementById('auth-controls'),
-        loggedOutControls: document.getElementById('logged-out-controls'),
-        loggedInControls: document.getElementById('logged-in-controls'),
-        showLoginBtn: document.getElementById('show-login-btn'),
-        showRegisterBtn: document.getElementById('show-register-btn'),
-        logoutBtn: document.getElementById('logout-btn'),
-        currentUserName: document.getElementById('current-user-name'),
+        // Settings
+        settingsBtn: document.getElementById('settings-btn'),
+        settingsUserEmail: document.getElementById('settings-user-email'),
+        settingsLogoutBtn: document.getElementById('settings-logout-btn'),
 
         // Auth modal
         authModal: document.getElementById('auth-modal'),
@@ -449,12 +445,13 @@
 
     function updateAuthUI() {
         if (API.isAuthenticated()) {
-            elements.loggedOutControls.classList.add('hidden');
-            elements.loggedInControls.classList.remove('hidden');
             elements.contactsSection.classList.remove('hidden');
+            // Update settings email display
+            const userEmail = API.getUserEmail?.() || '--';
+            if (elements.settingsUserEmail) {
+                elements.settingsUserEmail.textContent = userEmail;
+            }
         } else {
-            elements.loggedOutControls.classList.remove('hidden');
-            elements.loggedInControls.classList.add('hidden');
             elements.contactsSection.classList.add('hidden');
         }
     }
@@ -1271,10 +1268,10 @@
         elements.modalForm.addEventListener('submit', handleSaveLocation);
         elements.modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
 
-        // Auth buttons
-        elements.showLoginBtn.addEventListener('click', () => openAuthModal(true));
-        elements.showRegisterBtn.addEventListener('click', () => openAuthModal(false));
-        elements.logoutBtn.addEventListener('click', handleLogout);
+        // Settings button
+        elements.settingsBtn?.addEventListener('click', () => ViewManager.navigate('settings'));
+        document.getElementById('settings-back-btn')?.addEventListener('click', () => ViewManager.goBack());
+        elements.settingsLogoutBtn?.addEventListener('click', handleLogout);
 
         // Welcome screen buttons
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
@@ -1425,6 +1422,17 @@
             onExit: () => {
                 // Clear selected contact when leaving
             }
+        });
+
+        ViewManager.register('settings', {
+            onEnter: () => {
+                // Update settings email on enter
+                const userEmail = API.getUserEmail?.() || '--';
+                if (elements.settingsUserEmail) {
+                    elements.settingsUserEmail.textContent = userEmail;
+                }
+            },
+            onExit: () => {}
         });
 
         setupEventListeners();

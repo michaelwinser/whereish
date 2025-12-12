@@ -46,17 +46,9 @@
         <section class="view hidden" data-view="main" id="view-main">
             <header class="header">
                 <h1 class="logo">Whereish</h1>
-                <!-- Auth controls -->
-                <div id="auth-controls" class="auth-controls">
-                    <div id="logged-out-controls" class="auth-state">
-                        <button id="show-login-btn" class="btn btn-small">Log In</button>
-                        <button id="show-register-btn" class="btn btn-small btn-secondary">Sign Up</button>
-                    </div>
-                    <div id="logged-in-controls" class="auth-state hidden">
-                        <span id="current-user-name" class="current-user-name"></span>
-                        <button id="logout-btn" class="btn btn-small btn-secondary">Log Out</button>
-                    </div>
-                </div>
+                <button id="settings-btn" class="settings-btn" aria-label="Settings">
+                    <span class="settings-icon">&#9881;</span>
+                </button>
                 <p class="tagline">You are at</p>
             </header>
 
@@ -222,6 +214,51 @@
             </main>
         </section>
         <!-- End Contact Detail View -->
+
+        <!-- Settings View -->
+        <section class="view hidden" data-view="settings" id="view-settings">
+            <header class="screen-header">
+                <button class="back-btn" id="settings-back-btn" aria-label="Back">&larr;</button>
+                <h1>Settings</h1>
+            </header>
+            <main class="main settings-content">
+                <!-- Account Section -->
+                <section class="settings-section">
+                    <h2 class="settings-section-title">Account</h2>
+                    <div class="settings-item">
+                        <span class="settings-item-label">Signed in as</span>
+                        <span class="settings-item-value" id="settings-user-email">--</span>
+                    </div>
+                    <button id="settings-logout-btn" class="btn btn-secondary settings-logout">Log Out</button>
+                </section>
+
+                <!-- Privacy Section (placeholders) -->
+                <section class="settings-section">
+                    <h2 class="settings-section-title">Privacy</h2>
+                    <div class="settings-item settings-item-disabled">
+                        <span class="settings-item-label">Go Dark</span>
+                        <span class="settings-item-hint">Coming soon</span>
+                    </div>
+                    <div class="settings-item settings-item-disabled">
+                        <span class="settings-item-label">Sharing Summary</span>
+                        <span class="settings-item-hint">Coming soon</span>
+                    </div>
+                </section>
+
+                <!-- About Section -->
+                <section class="settings-section">
+                    <h2 class="settings-section-title">About</h2>
+                    <div class="settings-item">
+                        <span class="settings-item-label">Version</span>
+                        <span class="settings-item-value">0.5.0</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="settings-item-label">Privacy-first location sharing</span>
+                    </div>
+                </section>
+            </main>
+        </section>
+        <!-- End Settings View -->
 
         <!-- Tab Bar (only visible when logged in) -->
         <nav class="tab-bar hidden" id="tab-bar">
