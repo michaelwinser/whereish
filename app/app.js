@@ -113,17 +113,9 @@
     // ===================
 
     const elements = {
-        // Status and location display
-        status: document.getElementById('status'),
-        statusIcon: document.querySelector('.status-icon'),
-        statusText: document.querySelector('.status-text'),
-        hierarchy: document.getElementById('location-hierarchy'),
+        // Location error display
         error: document.getElementById('error-message'),
         errorText: document.querySelector('.error-text'),
-
-        // Named location match display
-        namedMatch: document.getElementById('named-location-match'),
-        namedMatchLabel: document.querySelector('.named-match-label'),
 
         // Buttons
         refreshBtn: document.getElementById('refresh-btn'),
@@ -287,68 +279,69 @@
     // ===================
 
     function showLoading() {
-        elements.status.classList.remove('located');
-        elements.statusIcon.textContent = '📍';
-        elements.statusText.textContent = 'Locating...';
-        elements.hierarchy.classList.add('hidden');
+        // Update location bar to loading state
+        const primaryEl = document.getElementById('location-bar-primary');
+        const secondaryEl = document.getElementById('location-bar-secondary');
+        if (primaryEl) primaryEl.textContent = 'Locating...';
+        if (secondaryEl) secondaryEl.classList.add('hidden');
+
         elements.error.classList.add('hidden');
-        elements.namedMatch.classList.add('hidden');
         elements.refreshBtn.disabled = true;
         elements.saveLocationBtn.disabled = true;
     }
 
     function showError(message) {
-        elements.status.classList.remove('located');
-        elements.statusIcon.textContent = '❌';
-        elements.statusText.textContent = 'Location unavailable';
-        elements.hierarchy.classList.add('hidden');
+        // Update location bar to show error state
+        const primaryEl = document.getElementById('location-bar-primary');
+        const secondaryEl = document.getElementById('location-bar-secondary');
+        if (primaryEl) primaryEl.textContent = 'Location unavailable';
+        if (secondaryEl) secondaryEl.classList.add('hidden');
+
         elements.error.classList.remove('hidden');
-        elements.namedMatch.classList.add('hidden');
         elements.errorText.textContent = message;
         elements.refreshBtn.disabled = false;
         elements.saveLocationBtn.disabled = true;
     }
 
     function displayLocation(hierarchy, match) {
-        elements.status.classList.add('located');
-        elements.statusIcon.textContent = '✓';
         elements.error.classList.add('hidden');
 
-        if (match) {
-            elements.namedMatch.classList.remove('hidden');
-            elements.namedMatchLabel.textContent = match.label;
-            elements.statusText.textContent = match.label;
-        } else {
-            elements.namedMatch.classList.add('hidden');
-            const mostSpecific = findMostSpecificLevel(hierarchy);
-            elements.statusText.textContent = mostSpecific || 'Planet Earth';
-        }
+        // Update compact location bar
+        updateLocationBar(hierarchy, match);
 
-        elements.hierarchy.innerHTML = '';
-        const levelsToShow = HIERARCHY_LEVELS.filter(level => hierarchy[level.key]);
-
-        levelsToShow.forEach((level, index) => {
-            const value = hierarchy[level.key];
-            if (!value) return;
-
-            const levelElement = document.createElement('div');
-            levelElement.className = 'hierarchy-level';
-
-            if (index === 0 && !match) {
-                levelElement.classList.add('primary');
-            }
-
-            levelElement.innerHTML = `
-                <span class="hierarchy-label">${level.label}</span>
-                <span class="hierarchy-value">${escapeHtml(value)}</span>
-            `;
-
-            elements.hierarchy.appendChild(levelElement);
-        });
-
-        elements.hierarchy.classList.remove('hidden');
         elements.refreshBtn.disabled = false;
         elements.saveLocationBtn.disabled = false;
+    }
+
+    /**
+     * Update the compact location bar on the main screen
+     */
+    function updateLocationBar(hierarchy, match) {
+        const primaryEl = document.getElementById('location-bar-primary');
+        const secondaryEl = document.getElementById('location-bar-secondary');
+
+        if (!primaryEl) return;
+
+        if (!hierarchy) {
+            primaryEl.textContent = 'Locating...';
+            secondaryEl?.classList.add('hidden');
+            return;
+        }
+
+        const mostSpecific = findMostSpecificLevel(hierarchy);
+
+        if (match) {
+            // Show named location as primary, actual location as secondary
+            primaryEl.textContent = match.label;
+            if (secondaryEl) {
+                secondaryEl.textContent = mostSpecific || 'Planet Earth';
+                secondaryEl.classList.remove('hidden');
+            }
+        } else {
+            // Show most specific location as primary, no secondary
+            primaryEl.textContent = mostSpecific || 'Planet Earth';
+            secondaryEl?.classList.add('hidden');
+        }
     }
 
     function findMostSpecificLevel(hierarchy) {

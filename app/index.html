@@ -59,38 +59,31 @@
             </div>
 
             <main class="main">
-            <!-- Current Location Display -->
-            <section id="location-display" class="location-card">
-                <div id="status" class="status">
-                    <span class="status-icon">📍</span>
-                    <span class="status-text">Locating...</span>
+            <!-- Compact Location Bar -->
+            <div id="location-bar" class="location-bar">
+                <span class="location-bar-icon">📍</span>
+                <div class="location-bar-content">
+                    <span class="location-bar-primary" id="location-bar-primary">Locating...</span>
+                    <span class="location-bar-secondary hidden" id="location-bar-secondary"></span>
                 </div>
-
-                <!-- Named Location Match -->
-                <div id="named-location-match" class="named-match hidden">
-                    <span class="named-match-icon">🏠</span>
-                    <span class="named-match-label"></span>
+                <div class="location-bar-actions">
+                    <button id="save-location-btn" class="btn-icon" title="Save Location" disabled>💾</button>
+                    <button id="refresh-btn" class="btn-icon" title="Refresh" disabled>🔄</button>
                 </div>
+            </div>
 
-                <div id="location-hierarchy" class="hierarchy hidden">
-                    <!-- Populated by JavaScript -->
-                </div>
+            <!-- Location Error (shown when location fails) -->
+            <div id="error-message" class="location-error hidden">
+                <p class="error-text"></p>
+                <button id="retry-btn" class="btn btn-small">Try Again</button>
+            </div>
 
-                <div id="error-message" class="error hidden">
-                    <p class="error-text"></p>
-                    <button id="retry-btn" class="btn">Try Again</button>
-                </div>
-            </section>
-
-            <!-- Action Buttons -->
-            <section class="actions">
-                <button id="refresh-btn" class="btn btn-primary" disabled>
-                    Refresh Location
-                </button>
-                <button id="save-location-btn" class="btn btn-secondary" disabled>
-                    Save This Location
-                </button>
-            </section>
+            <!-- Hidden elements for backwards compatibility -->
+            <div id="location-display" class="hidden">
+                <div id="status" class="hidden"><span class="status-text"></span></div>
+                <div id="named-location-match" class="hidden"><span class="named-match-label"></span></div>
+                <div id="location-hierarchy" class="hidden"></div>
+            </div>
 
             <!-- Contacts Section -->
             <section id="contacts-section" class="contacts-section hidden">

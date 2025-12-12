@@ -1392,3 +1392,81 @@ body {
     font-weight: 300;
     margin-left: 0.25rem;
 }
+
+/* ===================
+   Compact Location Bar (Phase 7)
+   =================== */
+
+.location-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.location-bar-icon {
+    font-size: 1.25rem;
+}
+
+.location-bar-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.location-bar-primary {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.location-bar-secondary {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--color-primary);
+    margin-top: 0.15rem;
+}
+
+.location-bar-secondary.hidden {
+    display: none;
+}
+
+.location-bar-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.location-bar-actions .btn-icon {
+    font-size: 1.1rem;
+    padding: 0.5rem;
+}
+
+.location-error {
+    background: #fff5f5;
+    color: var(--color-error);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.location-error .error-text {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    .location-error {
+        background: rgba(229, 62, 62, 0.1);
+    }
+}
