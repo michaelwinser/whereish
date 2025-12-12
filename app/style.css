@@ -1,0 +1,577 @@
+/* Reset and base styles */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --color-bg: #f7fafc;
+    --color-card: #ffffff;
+    --color-text: #2d3748;
+    --color-text-muted: #718096;
+    --color-primary: #4a7c59;
+    --color-primary-dark: #3d6649;
+    --color-accent: #68d391;
+    --color-error: #e53e3e;
+    --color-border: #e2e8f0;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --radius: 12px;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* App container */
+.app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    padding: 2rem 0 1rem;
+}
+
+.logo {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    letter-spacing: -0.5px;
+}
+
+.tagline {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    margin-top: 0.25rem;
+}
+
+/* Main content */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Location card */
+.location-card {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+}
+
+/* Status display */
+.status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--color-bg);
+    border-radius: calc(var(--radius) - 4px);
+}
+
+.status-icon {
+    font-size: 1.5rem;
+    animation: pulse 2s infinite;
+}
+
+.status-text {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status.located .status-icon {
+    animation: none;
+}
+
+/* Location hierarchy */
+.hierarchy {
+    margin-top: 1.5rem;
+}
+
+.hierarchy-level {
+    display: flex;
+    align-items: baseline;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.hierarchy-level:last-child {
+    border-bottom: none;
+}
+
+.hierarchy-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    width: 80px;
+    flex-shrink: 0;
+}
+
+.hierarchy-value {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.hierarchy-level.primary .hierarchy-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* Error state */
+.error {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #fff5f5;
+    border-radius: calc(var(--radius) - 4px);
+    border: 1px solid #feb2b2;
+}
+
+.error-text {
+    color: var(--color-error);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    width: 100%;
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Actions section */
+.actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Info section */
+.info {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+}
+
+.info summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.info summary:hover {
+    color: var(--color-text);
+}
+
+.info p {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 2rem 0 1rem;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+/* Utility classes */
+.hidden {
+    display: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 380px) {
+    .hierarchy-label {
+        width: 70px;
+        font-size: 0.7rem;
+    }
+
+    .hierarchy-value {
+        font-size: 1rem;
+    }
+
+    .hierarchy-level.primary .hierarchy-value {
+        font-size: 1.25rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-bg: #1a202c;
+        --color-card: #2d3748;
+        --color-text: #f7fafc;
+        --color-text-muted: #a0aec0;
+        --color-border: #4a5568;
+        --color-primary: #68d391;
+        --color-primary-dark: #48bb78;
+    }
+
+    .error {
+        background: #2d2d2d;
+        border-color: #e53e3e;
+    }
+}
+
+/* PWA install prompt styling */
+.install-prompt {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    z-index: 1000;
+}
+
+.install-prompt-text {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.install-prompt .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* ===================
+   Milestone 2: Named Locations
+   =================== */
+
+/* Secondary button */
+.btn-secondary {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--color-border);
+}
+
+/* Danger button */
+.btn-danger {
+    background: transparent;
+    color: var(--color-error);
+    padding: 0.5rem;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #fff5f5;
+}
+
+/* Actions with two buttons */
+.actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.actions .btn {
+    flex: 1;
+}
+
+/* Named location match display */
+.named-match {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    border-radius: calc(var(--radius) - 4px);
+    color: white;
+}
+
+.named-match-icon {
+    font-size: 1.5rem;
+}
+
+.named-match-label {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+/* Named locations section */
+.named-locations-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.badge {
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+}
+
+.named-locations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.empty-state {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem;
+}
+
+/* Named location item */
+.named-location-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--color-bg);
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+.named-location-item:hover {
+    background: var(--color-border);
+}
+
+.named-location-item.active {
+    background: rgba(74, 124, 89, 0.1);
+    border: 1px solid var(--color-primary);
+}
+
+.location-item-icon {
+    font-size: 1.25rem;
+    width: 2rem;
+    text-align: center;
+}
+
+.location-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.location-item-label {
+    font-weight: 500;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.location-item-meta {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.location-item-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    position: relative;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--color-text);
+}
+
+.modal-body {
+    padding: 1.25rem;
+}
+
+/* Form styles */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group:last-of-type {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.1);
+}
+
+.form-help {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-top: 0.5rem;
+}
+
+.form-static {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    padding: 0.5rem 0;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.modal-actions .btn {
+    flex: 1;
+}
+
+/* Dark mode additions */
+@media (prefers-color-scheme: dark) {
+    .named-location-item.active {
+        background: rgba(104, 211, 145, 0.1);
+        border-color: var(--color-primary);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background: rgba(229, 62, 62, 0.1);
+    }
+}

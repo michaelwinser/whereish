@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2d3748">
+    <meta name="description" content="Privacy-first semantic location sharing">
+    <title>Whereish</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1 class="logo">Whereish</h1>
+            <p class="tagline">You are at</p>
+        </header>
+
+        <main class="main">
+            <!-- Current Location Display -->
+            <section id="location-display" class="location-card">
+                <div id="status" class="status">
+                    <span class="status-icon">📍</span>
+                    <span class="status-text">Locating...</span>
+                </div>
+
+                <!-- Named Location Match -->
+                <div id="named-location-match" class="named-match hidden">
+                    <span class="named-match-icon">🏠</span>
+                    <span class="named-match-label"></span>
+                </div>
+
+                <div id="location-hierarchy" class="hierarchy hidden">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <div id="error-message" class="error hidden">
+                    <p class="error-text"></p>
+                    <button id="retry-btn" class="btn">Try Again</button>
+                </div>
+            </section>
+
+            <!-- Action Buttons -->
+            <section class="actions">
+                <button id="refresh-btn" class="btn btn-primary" disabled>
+                    Refresh Location
+                </button>
+                <button id="save-location-btn" class="btn btn-secondary" disabled>
+                    Save This Location
+                </button>
+            </section>
+
+            <!-- Named Locations List -->
+            <section id="named-locations-section" class="named-locations-section">
+                <div class="section-header">
+                    <h2>My Places</h2>
+                    <span id="places-count" class="badge">0</span>
+                </div>
+                <div id="named-locations-list" class="named-locations-list">
+                    <p class="empty-state">No saved places yet. Save your current location to get started.</p>
+                </div>
+            </section>
+
+            <!-- Info Section -->
+            <section class="info">
+                <details>
+                    <summary>How it works</summary>
+                    <p>
+                        Whereish shows your location as meaningful labels, not coordinates.
+                        Your exact position stays on your device - we only display
+                        human-readable places like "Seattle, Washington."
+                    </p>
+                    <p>
+                        <strong>Named places:</strong> Save locations with custom names like
+                        "Home" or "Office". When you're at a saved place, you'll see its
+                        name instead of just the address.
+                    </p>
+                    <p>
+                        <strong>Privacy note:</strong> This prototype uses OpenStreetMap
+                        for geocoding. Production version will use on-device geocoding.
+                    </p>
+                </details>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Planet Earth, at minimum</p>
+        </footer>
+    </div>
+
+    <!-- Modal for saving location -->
+    <div id="save-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Save This Place</h2>
+                <button id="modal-close-btn" class="modal-close">&times;</button>
+            </div>
+            <form id="save-location-form" class="modal-body">
+                <div class="form-group">
+                    <label for="location-label">Name</label>
+                    <input
+                        type="text"
+                        id="location-label"
+                        name="label"
+                        placeholder="e.g., Home, Office, Gym"
+                        required
+                        maxlength="50"
+                        autocomplete="off"
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="location-radius">Radius</label>
+                    <select id="location-radius" name="radius">
+                        <option value="25">25 m (small room)</option>
+                        <option value="50">50 m (building)</option>
+                        <option value="100" selected>100 m (city block)</option>
+                        <option value="250">250 m (neighborhood)</option>
+                        <option value="500">500 m (large area)</option>
+                        <option value="1000">1 km (district)</option>
+                    </select>
+                    <p class="form-help">How close do you need to be to count as "here"?</p>
+                </div>
+                <div class="form-group">
+                    <label>Current Location</label>
+                    <p id="modal-current-location" class="form-static">Loading...</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="modal-cancel-btn" class="btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Place</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts (order matters) -->
+    <script src="storage.js"></script>
+    <script src="geofence.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a7c59"/>
+      <stop offset="100%" style="stop-color:#68d391"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bg)"/>
+
+  <!-- Location pin (simplified, friendly) -->
+  <g transform="translate(256, 240)">
+    <!-- Pin body -->
+    <path d="M0,-120 C66,-120 120,-66 120,0 C120,66 0,160 0,160 C0,160 -120,66 -120,0 C-120,-66 -66,-120 0,-120 Z"
+          fill="#ffffff"
+          opacity="0.95"/>
+
+    <!-- Inner circle -->
+    <circle cx="0" cy="-10" r="45" fill="url(#bg)"/>
+
+    <!-- Pulse rings (suggesting "ish" / approximate) -->
+    <circle cx="0" cy="-10" r="70" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.3"/>
+    <circle cx="0" cy="-10" r="95" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.15"/>
+  </g>
+</svg>
