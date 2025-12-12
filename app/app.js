@@ -102,6 +102,7 @@
     let serverConnected = false;
     let currentUserId = null;
     let contacts = [];
+    let selectedContact = null;  // Currently viewed contact in detail screen
     let permissionLevels = [];
     let contactsRefreshTimer = null;
     let locationPublishTimer = null;
@@ -637,6 +638,22 @@
         // Add event listeners to permission selects
         elements.contactsList.querySelectorAll('.permission-select').forEach(select => {
             select.addEventListener('change', handlePermissionChange);
+            // Prevent click from bubbling to contact item
+            select.addEventListener('click', (e) => e.stopPropagation());
+        });
+
+        // Add click handlers to contact items
+        elements.contactsList.querySelectorAll('.contact-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const contactId = item.dataset.id;
+                const contact = contacts.find(c => c.id === contactId || c.contactId === contactId);
+                if (contact) {
+                    // Ensure contactId is set for API calls
+                    contact.contactId = contact.contactId || contact.id;
+                    openContactDetail(contact);
+                }
+            });
+            item.style.cursor = 'pointer';
         });
     }
 
@@ -802,6 +819,159 @@
         if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
         if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
         return `${Math.floor(seconds / 86400)}d ago`;
+    }
+
+    // ===================
+    // Contact Detail UI
+    // ===================
+
+    function openContactDetail(contact) {
+        selectedContact = contact;
+        ViewManager.navigate('contact-detail', { contactId: contact.contactId });
+    }
+
+    function renderContactDetail() {
+        if (!selectedContact) return;
+
+        const contact = selectedContact;
+        const firstName = contact.name.split(' ')[0];
+
+        // Update header
+        document.getElementById('contact-detail-name').textContent = contact.name;
+
+        // Update contact info
+        document.getElementById('contact-avatar-large').textContent =
+            contact.name.charAt(0).toUpperCase();
+        document.getElementById('contact-detail-fullname').textContent = contact.name;
+        document.getElementById('contact-detail-email').textContent = contact.email;
+
+        // Update first name placeholders
+        document.querySelectorAll('.contact-first-name').forEach(el => {
+            el.textContent = firstName;
+        });
+
+        // Update their location
+        const locationDisplay = document.getElementById('contact-location-display');
+        const distanceEl = document.getElementById('contact-distance');
+        const lastUpdatedEl = document.getElementById('contact-last-updated');
+
+        if (contact.location) {
+            locationDisplay.innerHTML = `<span class="location-text">${escapeHtml(contact.location)}</span>`;
+
+            // Calculate distance if we have coordinates
+            if (currentCoordinates && contact.latitude && contact.longitude) {
+                const distance = Geofence.calculateDistance(
+                    currentCoordinates.latitude,
+                    currentCoordinates.longitude,
+                    contact.latitude,
+                    contact.longitude
+                );
+                distanceEl.textContent = Geofence.formatDistance(distance) + ' away';
+            } else {
+                distanceEl.textContent = '';
+            }
+
+            // Show last updated
+            if (contact.locationUpdatedAt) {
+                const lastUpdate = new Date(contact.locationUpdatedAt);
+                lastUpdatedEl.textContent = 'Last updated ' + formatTimeAgo(lastUpdate);
+            } else {
+                lastUpdatedEl.textContent = '';
+            }
+        } else {
+            locationDisplay.innerHTML = '<span class="location-text">Location not shared</span>';
+            distanceEl.textContent = '';
+            lastUpdatedEl.textContent = '';
+        }
+
+        // Update permission dropdown
+        const permissionSelect = document.getElementById('detail-permission-select');
+        permissionSelect.innerHTML = permissionLevels.map(level => `
+            <option value="${level}" ${contact.permissionGranted === level ? 'selected' : ''}>
+                ${level.charAt(0).toUpperCase() + level.slice(1)}
+            </option>
+        `).join('');
+
+        // Update permission preview
+        updatePermissionPreview(contact.permissionGranted);
+
+        // Update received permission level
+        document.getElementById('received-permission-level').textContent =
+            contact.permissionReceived ?
+                contact.permissionReceived.charAt(0).toUpperCase() + contact.permissionReceived.slice(1) :
+                'Not shared';
+    }
+
+    function updatePermissionPreview(level) {
+        const previewEl = document.getElementById('permission-preview-value');
+        if (!currentHierarchy) {
+            previewEl.textContent = '--';
+            return;
+        }
+
+        // Get the location text for this permission level
+        const levelIndex = HIERARCHY_LEVELS.findIndex(l => l.key === level);
+        if (levelIndex === -1) {
+            previewEl.textContent = 'Planet Earth';
+            return;
+        }
+
+        // Find the first available level from the granted level up
+        for (let i = levelIndex; i < HIERARCHY_LEVELS.length; i++) {
+            const key = HIERARCHY_LEVELS[i].key;
+            if (currentHierarchy[key]) {
+                previewEl.textContent = currentHierarchy[key];
+                return;
+            }
+        }
+        previewEl.textContent = 'Planet Earth';
+    }
+
+    async function handleDetailPermissionChange(event) {
+        if (!selectedContact) return;
+
+        const newLevel = event.target.value;
+        const select = event.target;
+
+        select.disabled = true;
+        try {
+            await API.updateContactPermission(selectedContact.contactId, newLevel);
+            selectedContact.permissionGranted = newLevel;
+            updatePermissionPreview(newLevel);
+
+            // Also update the contact in the main list
+            const contactIndex = contacts.findIndex(c => c.contactId === selectedContact.contactId);
+            if (contactIndex !== -1) {
+                contacts[contactIndex].permissionGranted = newLevel;
+            }
+
+            // Visual feedback
+            select.classList.add('updated');
+            setTimeout(() => select.classList.remove('updated'), 1000);
+        } catch (error) {
+            console.error('Failed to update permission:', error);
+            alert('Failed to update permission. Please try again.');
+            // Revert selection
+            select.value = selectedContact.permissionGranted;
+        }
+        select.disabled = false;
+    }
+
+    async function handleRemoveContact() {
+        if (!selectedContact) return;
+
+        if (confirm(`Remove ${selectedContact.name} from your contacts?`)) {
+            try {
+                await API.removeContact(selectedContact.contactId);
+                contacts = contacts.filter(c => c.contactId !== selectedContact.contactId);
+                selectedContact = null;
+                ViewManager.goBack();
+                renderContactsList();
+            } catch (error) {
+                console.error('Failed to remove contact:', error);
+                alert('Failed to remove contact. Please try again.');
+            }
+        }
     }
 
     // ===================
@@ -1135,6 +1305,11 @@
         // Contacts
         elements.refreshContactsBtn.addEventListener('click', refreshContacts);
 
+        // Contact detail
+        document.getElementById('contact-detail-back-btn')?.addEventListener('click', () => ViewManager.goBack());
+        document.getElementById('detail-permission-select')?.addEventListener('change', handleDetailPermissionChange);
+        document.getElementById('remove-contact-btn')?.addEventListener('click', handleRemoveContact);
+
         // Escape key for modals
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
@@ -1241,6 +1416,15 @@
                 renderPlacesList();
             },
             onExit: () => {}
+        });
+
+        ViewManager.register('contact-detail', {
+            onEnter: () => {
+                renderContactDetail();
+            },
+            onExit: () => {
+                // Clear selected contact when leaving
+            }
         });
 
         setupEventListeners();

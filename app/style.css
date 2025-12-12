@@ -1130,3 +1130,134 @@ body {
     top: 0;
     z-index: 10;
 }
+
+/* ===================
+   Contact Detail (Phase 4)
+   =================== */
+
+.detail-content {
+    padding: 1rem;
+}
+
+.contact-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.contact-avatar-large {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.contact-detail-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.contact-detail-fullname {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.contact-detail-email {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.detail-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.detail-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.75rem;
+}
+
+.contact-location-display {
+    font-size: 1.1rem;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+}
+
+.contact-distance {
+    font-size: 0.9rem;
+    color: var(--color-primary);
+    margin-bottom: 0.25rem;
+}
+
+.contact-last-updated {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.permission-control-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.permission-control-detail label {
+    font-size: 0.9rem;
+    color: var(--color-text);
+}
+
+.permission-preview {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--color-bg);
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.preview-label {
+    color: var(--color-text-muted);
+}
+
+.preview-value {
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+.permission-info {
+    padding: 0.5rem 0;
+}
+
+.detail-actions {
+    background: transparent;
+    box-shadow: none;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+.detail-actions .btn-danger {
+    width: 100%;
+    max-width: 300px;
+}

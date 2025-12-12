@@ -166,6 +166,63 @@
         </section>
         <!-- End Places View -->
 
+        <!-- Contact Detail View -->
+        <section class="view hidden" data-view="contact-detail" id="view-contact-detail">
+            <header class="screen-header">
+                <button class="back-btn" id="contact-detail-back-btn" aria-label="Back">&larr;</button>
+                <h1 id="contact-detail-name">Contact</h1>
+            </header>
+            <main class="main detail-content">
+                <!-- Contact Info -->
+                <div class="contact-detail-header">
+                    <div class="contact-avatar-large" id="contact-avatar-large">?</div>
+                    <div class="contact-detail-info">
+                        <div class="contact-detail-fullname" id="contact-detail-fullname">Name</div>
+                        <div class="contact-detail-email" id="contact-detail-email">email@example.com</div>
+                    </div>
+                </div>
+
+                <!-- Their Location -->
+                <section class="detail-section">
+                    <h2 class="detail-section-title">Their Location</h2>
+                    <div id="contact-location-display" class="contact-location-display">
+                        <span class="location-text">Unknown</span>
+                    </div>
+                    <div id="contact-distance" class="contact-distance"></div>
+                    <div id="contact-last-updated" class="contact-last-updated"></div>
+                </section>
+
+                <!-- What They See of You -->
+                <section class="detail-section">
+                    <h2 class="detail-section-title">What <span class="contact-first-name">They</span> See of You</h2>
+                    <div class="permission-control-detail">
+                        <label for="detail-permission-select">Share level:</label>
+                        <select id="detail-permission-select" class="permission-select">
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+                    <div id="permission-preview" class="permission-preview">
+                        <span class="preview-label">Preview:</span>
+                        <span class="preview-value" id="permission-preview-value">--</span>
+                    </div>
+                </section>
+
+                <!-- What You See of Them -->
+                <section class="detail-section">
+                    <h2 class="detail-section-title">What You See of <span class="contact-first-name">Them</span></h2>
+                    <div class="permission-info">
+                        <span id="received-permission-level" class="permission-received">Unknown</span>
+                    </div>
+                </section>
+
+                <!-- Actions -->
+                <section class="detail-section detail-actions">
+                    <button id="remove-contact-btn" class="btn btn-danger">Remove Contact</button>
+                </section>
+            </main>
+        </section>
+        <!-- End Contact Detail View -->
+
         <!-- Tab Bar (only visible when logged in) -->
         <nav class="tab-bar hidden" id="tab-bar">
             <button class="tab-item active" data-tab="main">
