@@ -1390,7 +1390,7 @@
             onEnter: () => {
                 // Main view entered - refresh data if needed
                 if (API.isAuthenticated()) {
-                    loadContacts();
+                    refreshContacts();
                 }
             },
             onExit: () => {
