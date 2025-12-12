@@ -13,8 +13,37 @@
 </head>
 <body>
     <div class="app">
+        <!-- Welcome View (logged-out entry point) -->
+        <section class="view hidden" data-view="welcome" id="view-welcome">
+            <div class="welcome-screen">
+                <header class="welcome-header">
+                    <h1 class="logo">Whereish</h1>
+                    <p class="welcome-tagline">Privacy-first location sharing</p>
+                </header>
+
+                <div class="welcome-location">
+                    <p class="welcome-label">You are at:</p>
+                    <div id="welcome-hierarchy" class="welcome-hierarchy">
+                        <div class="welcome-hierarchy-level">
+                            <span class="welcome-hierarchy-icon">📍</span>
+                            <span class="welcome-hierarchy-text">Locating...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="welcome-pitch">
+                    Share as much or as little as you want with each contact.
+                </p>
+
+                <div class="welcome-actions">
+                    <button id="welcome-login-btn" class="btn btn-primary">Log In</button>
+                    <button id="welcome-signup-btn" class="btn btn-secondary">Sign Up</button>
+                </div>
+            </div>
+        </section>
+
         <!-- Main View (logged-in home screen) -->
-        <section class="view" data-view="main" id="view-main">
+        <section class="view hidden" data-view="main" id="view-main">
             <header class="header">
                 <h1 class="logo">Whereish</h1>
                 <!-- Auth controls -->

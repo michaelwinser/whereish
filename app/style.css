@@ -958,3 +958,94 @@ body {
 .back-btn:hover {
     opacity: 0.7;
 }
+
+/* ===================
+   Welcome Screen (Phase 2)
+   =================== */
+
+.welcome-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+    text-align: center;
+}
+
+.welcome-header {
+    margin-bottom: 2rem;
+}
+
+.welcome-tagline {
+    color: var(--color-text-muted);
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+}
+
+.welcome-location {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 320px;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.welcome-label {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.welcome-hierarchy {
+    text-align: left;
+}
+
+.welcome-hierarchy-level {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.welcome-hierarchy-level:last-child {
+    border-bottom: none;
+}
+
+.welcome-hierarchy-icon {
+    margin-right: 0.75rem;
+    font-size: 1rem;
+    width: 1.5rem;
+    text-align: center;
+}
+
+.welcome-hierarchy-text {
+    font-size: 1rem;
+    color: var(--color-text);
+}
+
+.welcome-hierarchy-level.primary .welcome-hierarchy-text {
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.welcome-pitch {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+    max-width: 280px;
+}
+
+.welcome-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 280px;
+}
+
+.welcome-actions .btn {
+    width: 100%;
+}

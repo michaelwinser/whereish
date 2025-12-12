@@ -370,6 +370,52 @@
         return div.innerHTML;
     }
 
+    /**
+     * Render the full location hierarchy on the welcome screen
+     */
+    function renderWelcomeHierarchy() {
+        const container = document.getElementById('welcome-hierarchy');
+        if (!container) return;
+
+        if (!currentHierarchy) {
+            container.innerHTML = `
+                <div class="welcome-hierarchy-level">
+                    <span class="welcome-hierarchy-icon">📍</span>
+                    <span class="welcome-hierarchy-text">Locating...</span>
+                </div>
+            `;
+            return;
+        }
+
+        // Build hierarchy from most specific to least specific, ending with Planet Earth
+        const levels = [];
+
+        // Add all hierarchy levels that have values
+        for (const level of HIERARCHY_LEVELS) {
+            if (currentHierarchy[level.key]) {
+                levels.push({
+                    icon: '📍',
+                    text: currentHierarchy[level.key],
+                    primary: levels.length === 0  // First one is most specific
+                });
+            }
+        }
+
+        // Always add Planet Earth at the end
+        levels.push({
+            icon: '🌍',
+            text: 'Planet Earth',
+            primary: false
+        });
+
+        container.innerHTML = levels.map((level, index) => `
+            <div class="welcome-hierarchy-level${level.primary ? ' primary' : ''}">
+                <span class="welcome-hierarchy-icon">${level.icon}</span>
+                <span class="welcome-hierarchy-text">${escapeHtml(level.text)}</span>
+            </div>
+        `).join('');
+    }
+
     // ===================
     // Server Status UI
     // ===================
@@ -471,6 +517,9 @@
             updateAuthUI();
             closeAuthModal();
 
+            // Navigate to main view
+            ViewManager.navigate('main');
+
             // Load user's data
             await loadNamedLocations();
             renderNamedLocationsList();
@@ -500,6 +549,9 @@
         renderNamedLocationsList();
         displayLocation(currentHierarchy, null);
         updateAuthUI();
+
+        // Navigate to welcome screen
+        ViewManager.navigate('welcome');
     }
 
     // ===================
@@ -1050,6 +1102,10 @@
         elements.showRegisterBtn.addEventListener('click', () => openAuthModal(false));
         elements.logoutBtn.addEventListener('click', handleLogout);
 
+        // Welcome screen buttons
+        document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
+        document.getElementById('welcome-signup-btn')?.addEventListener('click', () => openAuthModal(false));
+
         // Auth modal
         elements.authModalCloseBtn.addEventListener('click', closeAuthModal);
         elements.authForm.addEventListener('submit', handleAuthSubmit);
@@ -1145,6 +1201,14 @@
 
     async function init() {
         // Register views with ViewManager
+        ViewManager.register('welcome', {
+            onEnter: () => {
+                // Update welcome screen with current location
+                renderWelcomeHierarchy();
+            },
+            onExit: () => {}
+        });
+
         ViewManager.register('main', {
             onEnter: () => {
                 // Main view entered - refresh data if needed
@@ -1157,14 +1221,18 @@
             }
         });
 
-        // Navigate to main view (sets up initial state)
-        ViewManager.navigate('main', {}, false);
-
         setupEventListeners();
         registerServiceWorker();
 
         // Check server connection (this will load user data if authenticated)
         await checkServerConnection();
+
+        // Determine initial view based on auth state
+        if (API.isAuthenticated()) {
+            ViewManager.navigate('main', {}, false);
+        } else {
+            ViewManager.navigate('welcome', {}, false);
+        }
 
         // Show empty named locations list if not logged in
         renderNamedLocationsList();
@@ -1184,6 +1252,7 @@
             }
 
             displayLocation(currentHierarchy, currentMatch);
+            renderWelcomeHierarchy();  // Also update welcome screen
             elements.statusText.textContent += ' (updating...)';
         }
 
