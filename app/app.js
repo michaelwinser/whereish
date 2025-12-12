@@ -102,6 +102,7 @@
     let serverConnected = false;
     let testUsers = [];
     let contacts = [];
+    let permissionLevels = [];
     let contactsRefreshTimer = null;
     let locationPublishTimer = null;
 
@@ -456,14 +457,14 @@
 
         elements.contactsList.innerHTML = contacts.map(contact => {
             const initial = contact.name.charAt(0).toUpperCase();
-            let locationText = 'Location unknown';
+            let locationText = 'Planet Earth';
             let locationClass = 'no-location';
             let timeText = '';
 
             if (contact.location && contact.location.data) {
                 const data = contact.location.data;
-                // Get the most specific level from their hierarchy
-                locationText = data.namedLocation || findMostSpecificLevel(data.hierarchy) || 'Unknown';
+                // Get the most specific level from their filtered hierarchy
+                locationText = data.namedLocation || findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
                 locationClass = contact.location.stale ? 'stale' : '';
 
                 if (contact.location.updated_at) {
@@ -471,17 +472,98 @@
                 }
             }
 
+            // Permission they've granted to me (what I can see)
+            const receivedLabel = formatPermissionLabel(contact.permissionReceived || 'planet');
+            // Permission I've granted to them (what they can see of me)
+            const grantedLevel = contact.permissionGranted || 'planet';
+
+            // Build permission selector options
+            const permissionOptions = permissionLevels.map(level => {
+                const selected = level === grantedLevel ? 'selected' : '';
+                return `<option value="${level}" ${selected}>${formatPermissionLabel(level)}</option>`;
+            }).join('');
+
             return `
                 <div class="contact-item" data-id="${contact.id}">
                     <div class="contact-avatar">${initial}</div>
                     <div class="contact-info">
                         <div class="contact-name">${escapeHtml(contact.name)}</div>
                         <div class="contact-location ${locationClass}">${escapeHtml(locationText)}</div>
+                        <div class="contact-permission-info">
+                            <span class="permission-received">Can see: ${receivedLabel}</span>
+                        </div>
                     </div>
-                    ${timeText ? `<div class="contact-time">${timeText}</div>` : ''}
+                    <div class="contact-controls">
+                        ${timeText ? `<div class="contact-time">${timeText}</div>` : ''}
+                        <div class="permission-control">
+                            <label class="permission-label">Share:</label>
+                            <select class="permission-select" data-contact-id="${contact.id}">
+                                ${permissionOptions}
+                            </select>
+                        </div>
+                    </div>
                 </div>
             `;
         }).join('');
+
+        // Add event listeners to permission selects
+        elements.contactsList.querySelectorAll('.permission-select').forEach(select => {
+            select.addEventListener('change', handlePermissionChange);
+        });
+    }
+
+    /**
+     * Format permission level for display
+     */
+    function formatPermissionLabel(level) {
+        const labels = {
+            'planet': 'Planet',
+            'continent': 'Continent',
+            'country': 'Country',
+            'state': 'State',
+            'county': 'County',
+            'city': 'City',
+            'zip': 'Zip',
+            'street': 'Street',
+            'address': 'Address'
+        };
+        return labels[level] || level;
+    }
+
+    /**
+     * Handle permission level change
+     */
+    async function handlePermissionChange(event) {
+        const select = event.target;
+        const contactId = select.dataset.contactId;
+        const newLevel = select.value;
+
+        // Disable select during update
+        select.disabled = true;
+
+        try {
+            await API.updateContactPermission(contactId, newLevel);
+
+            // Update local state
+            const contact = contacts.find(c => c.id === contactId);
+            if (contact) {
+                contact.permissionGranted = newLevel;
+            }
+
+            // Show brief feedback
+            select.classList.add('updated');
+            setTimeout(() => select.classList.remove('updated'), 1000);
+        } catch (error) {
+            console.error('Failed to update permission:', error);
+            // Revert to previous value
+            const contact = contacts.find(c => c.id === contactId);
+            if (contact) {
+                select.value = contact.permissionGranted || 'planet';
+            }
+            alert('Failed to update permission. Please try again.');
+        } finally {
+            select.disabled = false;
+        }
     }
 
     function formatTimeAgo(date) {
@@ -817,6 +899,8 @@
             updateServerStatus(healthy);
 
             if (healthy) {
+                // Load permission levels and test users
+                await loadPermissionLevels();
                 await loadTestUsers();
 
                 // If already have a token, refresh contacts
@@ -827,6 +911,17 @@
         } catch (error) {
             console.warn('Server connection check failed:', error);
             updateServerStatus(false);
+        }
+    }
+
+    async function loadPermissionLevels() {
+        try {
+            const data = await API.getPermissionLevels();
+            permissionLevels = data.levels || [];
+        } catch (error) {
+            console.warn('Could not load permission levels:', error);
+            // Fallback to default levels
+            permissionLevels = ['planet', 'continent', 'country', 'state', 'county', 'city', 'zip', 'street', 'address'];
         }
     }
 

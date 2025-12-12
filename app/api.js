@@ -223,18 +223,44 @@ const API = (function() {
         const data = await request('/api/contacts/locations');
         const contacts = data.contacts || [];
 
-        // Parse location payloads
-        for (const contact of contacts) {
-            if (contact.location && contact.location.payload) {
-                try {
-                    contact.location.data = JSON.parse(contact.location.payload);
-                } catch (e) {
-                    console.warn(`Failed to parse location for ${contact.id}:`, e);
-                }
-            }
-        }
+        // Note: Server now returns pre-filtered location.data (no payload parsing needed)
+        // The response includes permissionGranted and permissionReceived for each contact
 
         return contacts;
+    }
+
+    // ===================
+    // Permissions
+    // ===================
+
+    /**
+     * Get available permission levels
+     * @returns {Promise<Object>} { levels: string[], default: string }
+     */
+    async function getPermissionLevels() {
+        return request('/api/permission-levels');
+    }
+
+    /**
+     * Get permission level for a specific contact
+     * @param {string} contactId
+     * @returns {Promise<Object>} { contactId, permissionGranted, permissionReceived }
+     */
+    async function getContactPermission(contactId) {
+        return request(`/api/contacts/${contactId}/permission`);
+    }
+
+    /**
+     * Update permission level for a contact (what they can see of my location)
+     * @param {string} contactId
+     * @param {string} level - Permission level (e.g., 'city', 'state', 'planet')
+     * @returns {Promise<Object>}
+     */
+    async function updateContactPermission(contactId, level) {
+        return request(`/api/contacts/${contactId}/permission`, {
+            method: 'PUT',
+            body: JSON.stringify({ level })
+        });
     }
 
     // ===================
@@ -293,6 +319,11 @@ const API = (function() {
         getContacts,
         getContactLocation,
         getContactsWithLocations,
+
+        // Permissions
+        getPermissionLevels,
+        getContactPermission,
+        updateContactPermission,
 
         // Utility
         checkHealth,

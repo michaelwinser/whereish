@@ -1,12 +1,11 @@
 """
 Whereish Backend Server
-Milestone 3: Simple Backend
+Milestone 5: Contacts & Permissions
 
 A minimal Flask server for location storage and retrieval.
 Uses SQLite for prototype, designed to swap to Postgres/Firestore.
 
-Key principle: Server treats location payloads as opaque blobs.
-In production, these would be encrypted client-side.
+Key principle: Server filters location based on permission level.
 """
 
 import os
@@ -28,7 +27,72 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-i
 LOCATION_EXPIRY_MINUTES = 30
 
 # ===================
-# Hardcoded Test Users (Milestone 3 only)
+# Permission Levels
+# ===================
+
+# Ordered from least specific to most specific
+# Index 0 = least detail, higher index = more detail
+PERMISSION_LEVELS = [
+    'planet',      # 0 - "Planet Earth" (effectively nothing)
+    'continent',   # 1
+    'country',     # 2
+    'state',       # 3
+    'county',      # 4
+    'city',        # 5
+    'zip',         # 6
+    'street',      # 7
+    'address'      # 8 - Most specific
+]
+
+# Default permission level for new contacts
+DEFAULT_PERMISSION_LEVEL = 'planet'
+
+def get_permission_index(level):
+    """Get numeric index for permission level."""
+    try:
+        return PERMISSION_LEVELS.index(level)
+    except ValueError:
+        return 0  # Default to planet
+
+def filter_hierarchy_by_permission(hierarchy, permission_level):
+    """
+    Filter a location hierarchy based on permission level.
+    Returns only the levels the viewer is allowed to see.
+    """
+    if not hierarchy:
+        return {}
+
+    allowed_index = get_permission_index(permission_level)
+    filtered = {}
+
+    # Map hierarchy keys to permission levels
+    key_to_level = {
+        'continent': 'continent',
+        'country': 'country',
+        'state': 'state',
+        'county': 'county',
+        'city': 'city',
+        'zip': 'zip',
+        'street': 'street',
+        'neighborhood': 'city',  # Treat neighborhood as city-level
+        'address': 'address'
+    }
+
+    for key, value in hierarchy.items():
+        level = key_to_level.get(key)
+        if level:
+            level_index = get_permission_index(level)
+            if level_index <= allowed_index:
+                filtered[key] = value
+
+    # Always include continent as fallback
+    if 'continent' not in filtered and 'continent' in hierarchy:
+        filtered['continent'] = hierarchy['continent']
+
+    return filtered
+
+# ===================
+# Hardcoded Test Users (Prototype only)
 # ===================
 
 TEST_USERS = {
@@ -50,7 +114,6 @@ TEST_USERS = {
 }
 
 # Hardcoded contact relationships (bidirectional for test)
-# In production, this comes from the database
 TEST_CONTACTS = {
     'alice': ['bob', 'charlie'],
     'bob': ['alice', 'charlie'],
@@ -91,6 +154,14 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_locations_updated
         ON locations(updated_at);
+
+        CREATE TABLE IF NOT EXISTS permissions (
+            granter_id TEXT NOT NULL,
+            grantee_id TEXT NOT NULL,
+            permission_level TEXT NOT NULL DEFAULT 'planet',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (granter_id, grantee_id)
+        );
     ''')
     db.commit()
 
@@ -104,23 +175,50 @@ def before_request():
 app.teardown_appcontext(close_db)
 
 # ===================
-# Authentication (Simplified for Milestone 3)
+# Permission Helpers
+# ===================
+
+def get_permission_level(granter_id, grantee_id):
+    """Get the permission level granter has given to grantee."""
+    db = get_db()
+    row = db.execute(
+        'SELECT permission_level FROM permissions WHERE granter_id = ? AND grantee_id = ?',
+        (granter_id, grantee_id)
+    ).fetchone()
+
+    if row:
+        return row['permission_level']
+    return DEFAULT_PERMISSION_LEVEL
+
+
+def set_permission_level(granter_id, grantee_id, level):
+    """Set the permission level granter gives to grantee."""
+    if level not in PERMISSION_LEVELS:
+        raise ValueError(f'Invalid permission level: {level}')
+
+    db = get_db()
+    db.execute('''
+        INSERT INTO permissions (granter_id, grantee_id, permission_level, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(granter_id, grantee_id) DO UPDATE SET
+            permission_level = excluded.permission_level,
+            updated_at = excluded.updated_at
+    ''', (granter_id, grantee_id, level, datetime.utcnow()))
+    db.commit()
+
+# ===================
+# Authentication (Simplified for Prototype)
 # ===================
 
 def get_current_user():
-    """
-    Get current user from Authorization header.
-    For Milestone 3, uses simple token matching.
-    Production would use JWT or session-based auth.
-    """
+    """Get current user from Authorization header."""
     auth_header = request.headers.get('Authorization', '')
 
     if not auth_header.startswith('Bearer '):
         return None
 
-    token = auth_header[7:]  # Remove 'Bearer ' prefix
+    token = auth_header[7:]
 
-    # Find user by token
     for user_id, user in TEST_USERS.items():
         if user['token'] == token:
             return user
@@ -140,7 +238,7 @@ def require_auth(f):
     return decorated
 
 # ===================
-# API Routes
+# API Routes - General
 # ===================
 
 @app.route('/api/health', methods=['GET'])
@@ -154,10 +252,7 @@ def health_check():
 
 @app.route('/api/auth/test-tokens', methods=['GET'])
 def get_test_tokens():
-    """
-    Return test tokens for development.
-    REMOVE THIS IN PRODUCTION.
-    """
+    """Return test tokens for development. REMOVE IN PRODUCTION."""
     return jsonify({
         'users': [
             {'id': u['id'], 'name': u['name'], 'token': u['token']}
@@ -177,17 +272,22 @@ def get_current_user_info():
     })
 
 
+@app.route('/api/permission-levels', methods=['GET'])
+def get_permission_levels():
+    """Get available permission levels."""
+    return jsonify({
+        'levels': PERMISSION_LEVELS,
+        'default': DEFAULT_PERMISSION_LEVEL
+    })
+
+# ===================
+# API Routes - Location
+# ===================
+
 @app.route('/api/location', methods=['POST'])
 @require_auth
 def publish_location():
-    """
-    Publish current user's location.
-
-    Body: { "payload": "<opaque string>" }
-
-    The payload is treated as opaque - server doesn't parse it.
-    In production, this would be encrypted client-side.
-    """
+    """Publish current user's location."""
     user = g.current_user
     data = request.get_json()
 
@@ -196,7 +296,6 @@ def publish_location():
 
     payload = data['payload']
 
-    # Store location (upsert)
     db = get_db()
     db.execute('''
         INSERT INTO locations (user_id, payload, updated_at)
@@ -235,14 +334,14 @@ def get_my_location():
         }
     })
 
+# ===================
+# API Routes - Contacts
+# ===================
 
 @app.route('/api/contacts', methods=['GET'])
 @require_auth
 def get_contacts():
-    """
-    Get list of contacts for current user.
-    For Milestone 3, returns hardcoded contacts.
-    """
+    """Get list of contacts with permission info."""
     user = g.current_user
     contact_ids = TEST_CONTACTS.get(user['id'], [])
 
@@ -250,27 +349,83 @@ def get_contacts():
     for contact_id in contact_ids:
         if contact_id in TEST_USERS:
             contact = TEST_USERS[contact_id]
+            # Get permission I've granted to this contact
+            granted_level = get_permission_level(user['id'], contact_id)
+            # Get permission this contact has granted to me
+            received_level = get_permission_level(contact_id, user['id'])
+
             contacts.append({
                 'id': contact['id'],
-                'name': contact['name']
+                'name': contact['name'],
+                'permissionGranted': granted_level,  # What they can see of my location
+                'permissionReceived': received_level  # What I can see of their location
             })
 
     return jsonify({'contacts': contacts})
 
 
-@app.route('/api/contacts/<contact_id>/location', methods=['GET'])
+@app.route('/api/contacts/<contact_id>/permission', methods=['GET'])
 @require_auth
-def get_contact_location(contact_id):
-    """
-    Get a contact's location.
-    Only returns location if contact is in user's contact list.
-    """
+def get_contact_permission(contact_id):
+    """Get permission level for a specific contact."""
     user = g.current_user
 
-    # Check if contact_id is in user's contacts
+    # Verify contact exists
     contact_ids = TEST_CONTACTS.get(user['id'], [])
     if contact_id not in contact_ids:
         return jsonify({'error': 'Not a contact'}), 403
+
+    granted_level = get_permission_level(user['id'], contact_id)
+    received_level = get_permission_level(contact_id, user['id'])
+
+    return jsonify({
+        'contactId': contact_id,
+        'permissionGranted': granted_level,
+        'permissionReceived': received_level
+    })
+
+
+@app.route('/api/contacts/<contact_id>/permission', methods=['PUT'])
+@require_auth
+def update_contact_permission(contact_id):
+    """Update permission level for a contact."""
+    user = g.current_user
+    data = request.get_json()
+
+    # Verify contact exists
+    contact_ids = TEST_CONTACTS.get(user['id'], [])
+    if contact_id not in contact_ids:
+        return jsonify({'error': 'Not a contact'}), 403
+
+    if not data or 'level' not in data:
+        return jsonify({'error': 'Missing level'}), 400
+
+    level = data['level']
+    if level not in PERMISSION_LEVELS:
+        return jsonify({'error': f'Invalid level. Must be one of: {PERMISSION_LEVELS}'}), 400
+
+    set_permission_level(user['id'], contact_id, level)
+
+    return jsonify({
+        'success': True,
+        'contactId': contact_id,
+        'permissionGranted': level
+    })
+
+
+@app.route('/api/contacts/<contact_id>/location', methods=['GET'])
+@require_auth
+def get_contact_location(contact_id):
+    """Get a contact's location filtered by permission level."""
+    user = g.current_user
+
+    # Verify contact exists
+    contact_ids = TEST_CONTACTS.get(user['id'], [])
+    if contact_id not in contact_ids:
+        return jsonify({'error': 'Not a contact'}), 403
+
+    # Get permission level contact has granted to me
+    permission_level = get_permission_level(contact_id, user['id'])
 
     # Get contact's location
     db = get_db()
@@ -280,37 +435,54 @@ def get_contact_location(contact_id):
     ).fetchone()
 
     if not row:
-        return jsonify({'location': None})
+        return jsonify({'location': None, 'permissionLevel': permission_level})
 
-    # Check if location is stale
+    # Parse and filter the location
+    try:
+        location_data = json.loads(row['payload'])
+    except json.JSONDecodeError:
+        return jsonify({'location': None, 'permissionLevel': permission_level})
+
+    # Filter hierarchy based on permission
+    filtered_hierarchy = filter_hierarchy_by_permission(
+        location_data.get('hierarchy', {}),
+        permission_level
+    )
+
+    # Filter named location (only show if permission is high enough)
+    # Named locations are considered street-level precision
+    filtered_named = None
+    if get_permission_index(permission_level) >= get_permission_index('street'):
+        filtered_named = location_data.get('namedLocation')
+
+    # Build filtered payload
+    filtered_data = {
+        'hierarchy': filtered_hierarchy,
+        'namedLocation': filtered_named,
+        'timestamp': location_data.get('timestamp')
+    }
+
+    # Check staleness
     updated_at = row['updated_at']
+    is_stale = False
     if updated_at:
         expiry_time = datetime.utcnow() - timedelta(minutes=LOCATION_EXPIRY_MINUTES)
-        if updated_at < expiry_time:
-            return jsonify({
-                'location': {
-                    'payload': row['payload'],
-                    'updated_at': updated_at.isoformat(),
-                    'stale': True
-                }
-            })
+        is_stale = updated_at < expiry_time
 
     return jsonify({
         'location': {
-            'payload': row['payload'],
+            'data': filtered_data,
             'updated_at': updated_at.isoformat() if updated_at else None,
-            'stale': False
-        }
+            'stale': is_stale
+        },
+        'permissionLevel': permission_level
     })
 
 
 @app.route('/api/contacts/locations', methods=['GET'])
 @require_auth
 def get_all_contact_locations():
-    """
-    Get locations for all contacts.
-    More efficient than fetching one at a time.
-    """
+    """Get locations for all contacts with permission filtering."""
     user = g.current_user
     contact_ids = TEST_CONTACTS.get(user['id'], [])
 
@@ -324,10 +496,7 @@ def get_all_contact_locations():
         contact_ids
     ).fetchall()
 
-    # Build location map
     location_map = {row['user_id']: row for row in rows}
-
-    # Build response with contact info
     expiry_time = datetime.utcnow() - timedelta(minutes=LOCATION_EXPIRY_MINUTES)
     contacts = []
 
@@ -336,9 +505,17 @@ def get_all_contact_locations():
             continue
 
         contact = TEST_USERS[contact_id]
+
+        # Get permission level this contact has granted to me
+        permission_level = get_permission_level(contact_id, user['id'])
+        # Get permission level I've granted to this contact
+        granted_level = get_permission_level(user['id'], contact_id)
+
         contact_data = {
             'id': contact['id'],
             'name': contact['name'],
+            'permissionGranted': granted_level,
+            'permissionReceived': permission_level,
             'location': None
         }
 
@@ -347,8 +524,29 @@ def get_all_contact_locations():
             updated_at = row['updated_at']
             is_stale = updated_at and updated_at < expiry_time
 
+            # Parse and filter location
+            try:
+                location_data = json.loads(row['payload'])
+            except json.JSONDecodeError:
+                location_data = {}
+
+            # Filter hierarchy based on permission
+            filtered_hierarchy = filter_hierarchy_by_permission(
+                location_data.get('hierarchy', {}),
+                permission_level
+            )
+
+            # Filter named location
+            filtered_named = None
+            if get_permission_index(permission_level) >= get_permission_index('street'):
+                filtered_named = location_data.get('namedLocation')
+
             contact_data['location'] = {
-                'payload': row['payload'],
+                'data': {
+                    'hierarchy': filtered_hierarchy,
+                    'namedLocation': filtered_named,
+                    'timestamp': location_data.get('timestamp')
+                },
                 'updated_at': updated_at.isoformat() if updated_at else None,
                 'stale': is_stale
             }
@@ -401,7 +599,7 @@ if __name__ == '__main__':
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║   Whereish Backend Server                                    ║
+║   Whereish Backend Server (Milestone 5)                      ║
 ║                                                              ║
 ║   Local:   http://localhost:{port}                            ║
 ║   Health:  http://localhost:{port}/api/health                 ║
