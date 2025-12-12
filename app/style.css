@@ -911,3 +911,50 @@ body {
         background: rgba(254, 243, 199, 0.1);
     }
 }
+
+/* ===================
+   View System (Phase 0)
+   =================== */
+
+/* View container - each screen is a view */
+.view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.view.hidden {
+    display: none !important;
+}
+
+/* Screen header with back button */
+.screen-header {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: var(--color-card);
+    border-bottom: 1px solid var(--color-border);
+    margin: -1rem -1rem 1rem -1rem;
+}
+
+.screen-header h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    flex: 1;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    margin-right: 0.5rem;
+    margin-left: -0.5rem;
+    color: var(--color-primary);
+    line-height: 1;
+}
+
+.back-btn:hover {
+    opacity: 0.7;
+}

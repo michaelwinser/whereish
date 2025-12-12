@@ -105,6 +105,7 @@
     let permissionLevels = [];
     let contactsRefreshTimer = null;
     let locationPublishTimer = null;
+    let currentView = 'main';  // Track current view for navigation
 
     // ===================
     // DOM Elements

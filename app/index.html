@@ -13,29 +13,31 @@
 </head>
 <body>
     <div class="app">
-        <header class="header">
-            <h1 class="logo">Whereish</h1>
-            <!-- Auth controls -->
-            <div id="auth-controls" class="auth-controls">
-                <div id="logged-out-controls" class="auth-state">
-                    <button id="show-login-btn" class="btn btn-small">Log In</button>
-                    <button id="show-register-btn" class="btn btn-small btn-secondary">Sign Up</button>
+        <!-- Main View (logged-in home screen) -->
+        <section class="view" data-view="main" id="view-main">
+            <header class="header">
+                <h1 class="logo">Whereish</h1>
+                <!-- Auth controls -->
+                <div id="auth-controls" class="auth-controls">
+                    <div id="logged-out-controls" class="auth-state">
+                        <button id="show-login-btn" class="btn btn-small">Log In</button>
+                        <button id="show-register-btn" class="btn btn-small btn-secondary">Sign Up</button>
+                    </div>
+                    <div id="logged-in-controls" class="auth-state hidden">
+                        <span id="current-user-name" class="current-user-name"></span>
+                        <button id="logout-btn" class="btn btn-small btn-secondary">Log Out</button>
+                    </div>
                 </div>
-                <div id="logged-in-controls" class="auth-state hidden">
-                    <span id="current-user-name" class="current-user-name"></span>
-                    <button id="logout-btn" class="btn btn-small btn-secondary">Log Out</button>
-                </div>
+                <p class="tagline">You are at</p>
+            </header>
+
+            <!-- Server Status Banner -->
+            <div id="server-status" class="server-status hidden">
+                <span class="server-status-icon">⚠️</span>
+                <span class="server-status-text">Backend server not connected</span>
             </div>
-            <p class="tagline">You are at</p>
-        </header>
 
-        <!-- Server Status Banner -->
-        <div id="server-status" class="server-status hidden">
-            <span class="server-status-icon">⚠️</span>
-            <span class="server-status-text">Backend server not connected</span>
-        </div>
-
-        <main class="main">
+            <main class="main">
             <!-- Current Location Display -->
             <section id="location-display" class="location-card">
                 <div id="status" class="status">
@@ -123,11 +125,13 @@
                     </p>
                 </details>
             </section>
-        </main>
+            </main>
 
-        <footer class="footer">
-            <p>Planet Earth, at minimum</p>
-        </footer>
+            <footer class="footer">
+                <p>Planet Earth, at minimum</p>
+            </footer>
+        </section>
+        <!-- End Main View -->
     </div>
 
     <!-- Modal for saving location -->
