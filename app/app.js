@@ -1,12 +1,13 @@
 /**
  * Whereish - Semantic Location Sharing
- * Milestone 2: Named Locations
+ * Milestone 3: Backend Integration
  *
  * This module handles:
  * - Browser geolocation
  * - Reverse geocoding via OpenStreetMap Nominatim
  * - Geographic hierarchy display
  * - Named locations (create, store, match)
+ * - Backend integration (publish location, fetch contacts)
  */
 
 (function() {
@@ -17,18 +18,17 @@
     // ===================
 
     const CONFIG = {
-        // Nominatim API (OpenStreetMap) - free, no API key required
         geocodeUrl: 'https://nominatim.openstreetmap.org/reverse',
-
-        // Geolocation options
         geolocation: {
-            enableHighAccuracy: false,  // Battery conscious
-            timeout: 10000,             // 10 seconds
-            maximumAge: 300000          // 5 minutes cache
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000
         },
-
-        // User-Agent for Nominatim (required by their ToS)
-        userAgent: 'Whereish/1.0 (semantic-location-prototype)'
+        userAgent: 'Whereish/1.0 (semantic-location-prototype)',
+        // How often to refresh contacts (ms)
+        contactsRefreshInterval: 60000,  // 1 minute
+        // How often to publish location (ms)
+        locationPublishInterval: 300000   // 5 minutes
     };
 
     // ===================
@@ -99,6 +99,11 @@
     let currentHierarchy = null;
     let namedLocations = [];
     let currentMatch = null;
+    let serverConnected = false;
+    let testUsers = [];
+    let contacts = [];
+    let contactsRefreshTimer = null;
+    let locationPublishTimer = null;
 
     // ===================
     // DOM Elements
@@ -133,7 +138,20 @@
         modalCancelBtn: document.getElementById('modal-cancel-btn'),
         modalCurrentLocation: document.getElementById('modal-current-location'),
         locationLabelInput: document.getElementById('location-label'),
-        locationRadiusSelect: document.getElementById('location-radius')
+        locationRadiusSelect: document.getElementById('location-radius'),
+
+        // Server/user (Milestone 3)
+        serverStatus: document.getElementById('server-status'),
+        serverStatusIcon: document.querySelector('.server-status-icon'),
+        serverStatusText: document.querySelector('.server-status-text'),
+        userSwitcher: document.getElementById('user-switcher'),
+        userSelect: document.getElementById('user-select'),
+        currentUserName: document.getElementById('current-user-name'),
+
+        // Contacts (Milestone 3)
+        contactsSection: document.getElementById('contacts-section'),
+        contactsList: document.getElementById('contacts-list'),
+        refreshContactsBtn: document.getElementById('refresh-contacts-btn')
     };
 
     // ===================
@@ -182,9 +200,7 @@
         url.searchParams.set('zoom', '18');
 
         const response = await fetch(url, {
-            headers: {
-                'User-Agent': CONFIG.userAgent
-            }
+            headers: { 'User-Agent': CONFIG.userAgent }
         });
 
         if (!response.ok) {
@@ -266,7 +282,6 @@
         elements.statusIcon.textContent = '✓';
         elements.error.classList.add('hidden');
 
-        // Display named location match if present
         if (match) {
             elements.namedMatch.classList.remove('hidden');
             elements.namedMatchLabel.textContent = match.label;
@@ -277,7 +292,6 @@
             elements.statusText.textContent = mostSpecific || 'Planet Earth';
         }
 
-        // Build hierarchy display
         elements.hierarchy.innerHTML = '';
         const levelsToShow = HIERARCHY_LEVELS.filter(level => hierarchy[level.key]);
 
@@ -318,6 +332,165 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // ===================
+    // Server Status UI
+    // ===================
+
+    function updateServerStatus(connected) {
+        serverConnected = connected;
+
+        if (connected) {
+            elements.serverStatus.classList.add('connected');
+            elements.serverStatus.classList.remove('hidden');
+            elements.serverStatusIcon.textContent = '✓';
+            elements.serverStatusText.textContent = 'Connected to server';
+
+            // Show user switcher and contacts when connected
+            elements.userSwitcher.classList.remove('hidden');
+            elements.contactsSection.classList.remove('hidden');
+        } else {
+            elements.serverStatus.classList.remove('connected');
+            elements.serverStatus.classList.remove('hidden');
+            elements.serverStatusIcon.textContent = '⚠️';
+            elements.serverStatusText.textContent = 'Backend server not connected. Run: python server/run.py';
+
+            // Hide server-dependent UI
+            elements.userSwitcher.classList.add('hidden');
+            elements.contactsSection.classList.add('hidden');
+        }
+    }
+
+    // ===================
+    // User Switcher
+    // ===================
+
+    async function loadTestUsers() {
+        try {
+            testUsers = await API.getTestUsers();
+            renderUserSelect();
+        } catch (error) {
+            console.warn('Could not load test users:', error);
+        }
+    }
+
+    function renderUserSelect() {
+        elements.userSelect.innerHTML = '<option value="">Select user...</option>';
+
+        for (const user of testUsers) {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = user.name;
+            option.dataset.token = user.token;
+            elements.userSelect.appendChild(option);
+        }
+
+        // Check if already logged in
+        const token = API.getAuthToken();
+        if (token) {
+            const user = testUsers.find(u => u.token === token);
+            if (user) {
+                elements.userSelect.value = user.id;
+                elements.currentUserName.textContent = `Logged in as ${user.name}`;
+            }
+        }
+    }
+
+    async function handleUserChange(event) {
+        const userId = event.target.value;
+
+        if (!userId) {
+            API.logout();
+            elements.currentUserName.textContent = '';
+            contacts = [];
+            renderContactsList();
+            return;
+        }
+
+        const user = testUsers.find(u => u.id === userId);
+        if (!user) return;
+
+        try {
+            await API.loginAsTestUser(user.id, user.token);
+            elements.currentUserName.textContent = `Logged in as ${user.name}`;
+
+            // Refresh contacts and publish location
+            await refreshContacts();
+            await publishLocationToServer();
+        } catch (error) {
+            console.error('Login failed:', error);
+            elements.currentUserName.textContent = 'Login failed';
+        }
+    }
+
+    // ===================
+    // Contacts
+    // ===================
+
+    async function refreshContacts() {
+        if (!API.isAuthenticated()) {
+            contacts = [];
+            renderContactsList();
+            return;
+        }
+
+        try {
+            contacts = await API.getContactsWithLocations();
+            renderContactsList();
+        } catch (error) {
+            console.error('Failed to refresh contacts:', error);
+        }
+    }
+
+    function renderContactsList() {
+        if (!API.isAuthenticated()) {
+            elements.contactsList.innerHTML = '<p class="empty-state">Select a user to see contacts</p>';
+            return;
+        }
+
+        if (contacts.length === 0) {
+            elements.contactsList.innerHTML = '<p class="empty-state">No contacts yet</p>';
+            return;
+        }
+
+        elements.contactsList.innerHTML = contacts.map(contact => {
+            const initial = contact.name.charAt(0).toUpperCase();
+            let locationText = 'Location unknown';
+            let locationClass = 'no-location';
+            let timeText = '';
+
+            if (contact.location && contact.location.data) {
+                const data = contact.location.data;
+                // Get the most specific level from their hierarchy
+                locationText = data.namedLocation || findMostSpecificLevel(data.hierarchy) || 'Unknown';
+                locationClass = contact.location.stale ? 'stale' : '';
+
+                if (contact.location.updated_at) {
+                    timeText = formatTimeAgo(new Date(contact.location.updated_at));
+                }
+            }
+
+            return `
+                <div class="contact-item" data-id="${contact.id}">
+                    <div class="contact-avatar">${initial}</div>
+                    <div class="contact-info">
+                        <div class="contact-name">${escapeHtml(contact.name)}</div>
+                        <div class="contact-location ${locationClass}">${escapeHtml(locationText)}</div>
+                    </div>
+                    ${timeText ? `<div class="contact-time">${timeText}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function formatTimeAgo(date) {
+        const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+        if (seconds < 60) return 'just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+        return `${Math.floor(seconds / 86400)}d ago`;
     }
 
     // ===================
@@ -367,7 +540,6 @@
             `;
         }).join('');
 
-        // Add delete handlers
         elements.namedLocationsList.querySelectorAll('.delete-location-btn').forEach(btn => {
             btn.addEventListener('click', handleDeleteLocation);
         });
@@ -383,7 +555,6 @@
                 await Storage.deleteNamedLocation(id);
                 namedLocations = namedLocations.filter(loc => loc.id !== id);
 
-                // Re-check for matches
                 if (currentCoordinates) {
                     currentMatch = Geofence.findBestMatch(
                         currentCoordinates.latitude,
@@ -410,7 +581,6 @@
         elements.locationLabelInput.value = '';
         elements.locationLabelInput.focus();
 
-        // Show current location in modal
         if (currentHierarchy) {
             const locationText = findMostSpecificLevel(currentHierarchy) || 'Current location';
             elements.modalCurrentLocation.textContent = locationText;
@@ -448,7 +618,6 @@
 
             namedLocations.push(newLocation);
 
-            // Check if we're now at this location
             currentMatch = Geofence.findBestMatch(
                 currentCoordinates.latitude,
                 currentCoordinates.longitude,
@@ -459,9 +628,39 @@
             renderNamedLocationsList();
             displayLocation(currentHierarchy, currentMatch);
 
+            // Publish updated location to server
+            await publishLocationToServer();
+
         } catch (error) {
             console.error('Failed to save location:', error);
             alert('Failed to save location. Please try again.');
+        }
+    }
+
+    // ===================
+    // Location Publishing
+    // ===================
+
+    async function publishLocationToServer() {
+        if (!serverConnected || !API.isAuthenticated()) {
+            return;
+        }
+
+        if (!currentHierarchy) {
+            return;
+        }
+
+        try {
+            const payload = {
+                hierarchy: currentHierarchy,
+                namedLocation: currentMatch ? currentMatch.label : null,
+                timestamp: Date.now()
+            };
+
+            await API.publishLocation(payload);
+            console.log('Location published to server');
+        } catch (error) {
+            console.error('Failed to publish location:', error);
         }
     }
 
@@ -473,7 +672,6 @@
         showLoading();
 
         try {
-            // Step 1: Get coordinates
             const position = await getCurrentPosition();
             currentCoordinates = {
                 latitude: position.coords.latitude,
@@ -482,28 +680,25 @@
 
             elements.statusText.textContent = 'Getting location name...';
 
-            // Step 2: Reverse geocode
             const addressComponents = await reverseGeocode(
                 currentCoordinates.latitude,
                 currentCoordinates.longitude
             );
 
-            // Step 3: Build hierarchy
             currentHierarchy = buildHierarchy(addressComponents);
 
-            // Step 4: Check for named location matches
             currentMatch = Geofence.findBestMatch(
                 currentCoordinates.latitude,
                 currentCoordinates.longitude,
                 namedLocations
             );
 
-            // Step 5: Display
             displayLocation(currentHierarchy, currentMatch);
             renderNamedLocationsList();
-
-            // Save to localStorage for persistence
             saveLastLocation();
+
+            // Publish to server
+            await publishLocationToServer();
 
         } catch (error) {
             console.error('Location error:', error);
@@ -549,6 +744,26 @@
     }
 
     // ===================
+    // Timers
+    // ===================
+
+    function startContactsRefreshTimer() {
+        if (contactsRefreshTimer) {
+            clearInterval(contactsRefreshTimer);
+        }
+        contactsRefreshTimer = setInterval(refreshContacts, CONFIG.contactsRefreshInterval);
+    }
+
+    function startLocationPublishTimer() {
+        if (locationPublishTimer) {
+            clearInterval(locationPublishTimer);
+        }
+        locationPublishTimer = setInterval(async () => {
+            await updateLocation();
+        }, CONFIG.locationPublishInterval);
+    }
+
+    // ===================
     // Event Handlers
     // ===================
 
@@ -562,16 +777,19 @@
         elements.modalCloseBtn.addEventListener('click', closeModal);
         elements.modalCancelBtn.addEventListener('click', closeModal);
         elements.modalForm.addEventListener('submit', handleSaveLocation);
-
-        // Close modal on backdrop click
         elements.modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
 
-        // Close modal on Escape key
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && !elements.modal.classList.contains('hidden')) {
                 closeModal();
             }
         });
+
+        // User switcher
+        elements.userSelect.addEventListener('change', handleUserChange);
+
+        // Contacts
+        elements.refreshContactsBtn.addEventListener('click', refreshContacts);
     }
 
     // ===================
@@ -590,6 +808,29 @@
     }
 
     // ===================
+    // Server Connection
+    // ===================
+
+    async function checkServerConnection() {
+        try {
+            const healthy = await API.checkHealth();
+            updateServerStatus(healthy);
+
+            if (healthy) {
+                await loadTestUsers();
+
+                // If already have a token, refresh contacts
+                if (API.isAuthenticated()) {
+                    await refreshContacts();
+                }
+            }
+        } catch (error) {
+            console.warn('Server connection check failed:', error);
+            updateServerStatus(false);
+        }
+    }
+
+    // ===================
     // Initialization
     // ===================
 
@@ -601,13 +842,15 @@
         await loadNamedLocations();
         renderNamedLocationsList();
 
+        // Check server connection
+        await checkServerConnection();
+
         // Check for last known location
         const lastLocation = loadLastLocation();
         if (lastLocation && lastLocation.hierarchy) {
             currentCoordinates = lastLocation.coordinates;
             currentHierarchy = lastLocation.hierarchy;
 
-            // Check for matches with current named locations
             if (currentCoordinates) {
                 currentMatch = Geofence.findBestMatch(
                     currentCoordinates.latitude,
@@ -621,7 +864,11 @@
         }
 
         // Get fresh location
-        updateLocation();
+        await updateLocation();
+
+        // Start refresh timers
+        startContactsRefreshTimer();
+        startLocationPublishTimer();
     }
 
     // Start the app

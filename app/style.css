@@ -575,3 +575,157 @@ body {
         background: rgba(229, 62, 62, 0.1);
     }
 }
+
+/* ===================
+   Milestone 3: Backend Integration
+   =================== */
+
+/* User switcher */
+.user-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.user-switcher select {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.user-switcher select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.current-user-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-primary);
+}
+
+/* Server status banner */
+.server-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.875rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.server-status.connected {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.server-status-icon {
+    font-size: 1rem;
+}
+
+/* Contacts section */
+.contacts-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+}
+
+.contacts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Contact item */
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--color-bg);
+    border-radius: 8px;
+}
+
+.contact-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.contact-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.contact-name {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.contact-location {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contact-location.stale {
+    font-style: italic;
+    opacity: 0.7;
+}
+
+.contact-location.no-location {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+}
+
+.contact-time {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+/* Icon button */
+.btn-icon {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.btn-icon:hover {
+    background: var(--color-bg);
+}
+
+/* Dark mode for Milestone 3 */
+@media (prefers-color-scheme: dark) {
+    .server-status {
+        background: #78350f;
+        color: #fef3c7;
+    }
+
+    .server-status.connected {
+        background: #064e3b;
+        color: #d1fae5;
+    }
+}
