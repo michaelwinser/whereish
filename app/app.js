@@ -1144,6 +1144,22 @@
     // ===================
 
     async function init() {
+        // Register views with ViewManager
+        ViewManager.register('main', {
+            onEnter: () => {
+                // Main view entered - refresh data if needed
+                if (API.isAuthenticated()) {
+                    loadContacts();
+                }
+            },
+            onExit: () => {
+                // Cleanup if needed
+            }
+        });
+
+        // Navigate to main view (sets up initial state)
+        ViewManager.navigate('main', {}, false);
+
         setupEventListeners();
         registerServiceWorker();
 
