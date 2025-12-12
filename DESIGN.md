@@ -241,17 +241,20 @@ CircleMembership {
 }
 ```
 
-### 5.5 Named Location (Client-Side)
+### 5.5 Named Location (Client-Side, Per-User)
 ```
 NamedLocation {
     id: UUID
+    user_id: UUID              // Owner of this named location
     label: String
     coordinates: { lat: Float, lng: Float }  // Never sent to server
     radius_meters: Float
-    visible_to: List<UUID>  // Contact or Circle IDs
+    visible_to: List<UUID>     // Contact or Circle IDs
     created_at: Timestamp
 }
 ```
+
+**Note:** Named locations are stored in IndexedDB on the client, scoped by user_id. Each user has their own set of named locations. Circle-owned shared locations are a deferred feature (see PRD §5.3).
 
 ### 5.6 Location Update (Encrypted Blob)
 ```
@@ -702,7 +705,7 @@ This server never sees location data - Matrix handles that.
 ## 13. Future Considerations (Not in Scope)
 
 - Commuting/inferred location states
-- Circle-owned shared locations
+- Circle-owned shared locations (currently named locations are per-user only)
 - Multi-device sync
 - Federation (multiple Matrix homeservers)
 - iOS native app

@@ -74,6 +74,8 @@ User-defined semantic places that can **exceed** geographic baseline permissions
 - You define "Soccer Field" and share it with your Soccer Team group
 - Team members normally see City-level, but when you're at Soccer Field, they see "Soccer Field"
 - Named locations are explicit grants—bonuses on top of geographic baseline
+- **Named locations are per-user:** Each user creates and manages their own named locations
+- Named location coordinates are stored locally on the user's device (never sent to server)
 
 ### 4.4 Asymmetric, Opt-In Sharing
 
@@ -117,6 +119,7 @@ User-defined semantic places that can **exceed** geographic baseline permissions
 - [ ] Define geofence radius for named location
 - [ ] Grant visibility to specific contacts/groups
 - [ ] Named locations upgrade visibility (can show more detail than baseline)
+- [ ] Named locations are **per-user** (each user has their own set, stored on their device)
 
 #### Location Sharing
 - [ ] On-device reverse geocoding (coordinates → semantic label)
@@ -178,10 +181,11 @@ User-defined semantic places that can **exceed** geographic baseline permissions
 
 ### 5.3 Deferred (Future Versions)
 
-#### Circle-Owned Shared Locations
+#### Circle-Owned Shared Locations (Not in Current Scope)
 - [ ] Groups can have common named locations ("Soccer Field" owned by Soccer Team)
 - [ ] All members can see when other members are at shared locations
 - [ ] Subscribe to notifications for group location activity
+- **Note:** Currently, named locations are per-user only. This feature would add group-shared locations that all members can reference.
 
 #### Commuting / Inferred States
 - [ ] Detect patterns: "On the way home", "On the way to work"

@@ -7,7 +7,7 @@ const Storage = (function() {
     'use strict';
 
     const DB_NAME = 'whereish';
-    const DB_VERSION = 1;
+    const DB_VERSION = 2;  // Bumped for userId index
 
     let db = null;
 
@@ -39,6 +39,7 @@ const Storage = (function() {
 
             request.onupgradeneeded = (event) => {
                 const database = event.target.result;
+                const oldVersion = event.oldVersion;
 
                 // Named locations store
                 if (!database.objectStoreNames.contains('namedLocations')) {
@@ -47,6 +48,14 @@ const Storage = (function() {
                     });
                     store.createIndex('label', 'label', { unique: false });
                     store.createIndex('createdAt', 'createdAt', { unique: false });
+                    store.createIndex('userId', 'userId', { unique: false });
+                } else if (oldVersion < 2) {
+                    // Upgrade: add userId index to existing store
+                    const transaction = event.target.transaction;
+                    const store = transaction.objectStore('namedLocations');
+                    if (!store.indexNames.contains('userId')) {
+                        store.createIndex('userId', 'userId', { unique: false });
+                    }
                 }
 
                 // Settings store (key-value)
@@ -77,14 +86,19 @@ const Storage = (function() {
 
     /**
      * Save a named location
-     * @param {Object} location - { label, latitude, longitude, radiusMeters }
+     * @param {Object} location - { label, latitude, longitude, radiusMeters, userId }
      * @returns {Promise<Object>} The saved location with id
      */
     async function saveNamedLocation(location) {
         await init();
 
+        if (!location.userId) {
+            throw new Error('userId is required to save a named location');
+        }
+
         const record = {
             id: location.id || generateId(),
+            userId: location.userId,
             label: location.label,
             latitude: location.latitude,
             longitude: location.longitude,
@@ -104,16 +118,22 @@ const Storage = (function() {
     }
 
     /**
-     * Get all named locations
+     * Get all named locations for a user
+     * @param {string} userId - User ID to filter by
      * @returns {Promise<Array>}
      */
-    async function getAllNamedLocations() {
+    async function getAllNamedLocations(userId) {
         await init();
+
+        if (!userId) {
+            return [];  // No user = no locations
+        }
 
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(['namedLocations'], 'readonly');
             const store = transaction.objectStore('namedLocations');
-            const request = store.getAll();
+            const index = store.index('userId');
+            const request = index.getAll(userId);
 
             request.onsuccess = () => resolve(request.result || []);
             request.onerror = () => reject(new Error('Failed to get locations: ' + request.error));

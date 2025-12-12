@@ -38,7 +38,7 @@
     const HIERARCHY_LEVELS = [
         { key: 'address', label: 'Address', nominatimKeys: ['house_number', 'road'] },
         { key: 'street', label: 'Street', nominatimKeys: ['road'] },
-        { key: 'neighborhood', label: 'Area', nominatimKeys: ['neighbourhood', 'suburb', 'hamlet'] },
+        { key: 'neighborhood', label: 'Neighborhood', nominatimKeys: ['neighbourhood', 'suburb', 'hamlet'] },
         { key: 'city', label: 'City', nominatimKeys: ['city', 'town', 'village', 'municipality'] },
         { key: 'county', label: 'County', nominatimKeys: ['county'] },
         { key: 'state', label: 'State', nominatimKeys: ['state'] },
@@ -100,6 +100,7 @@
     let namedLocations = [];
     let currentMatch = null;
     let serverConnected = false;
+    let currentUserId = null;
     let contacts = [];
     let permissionLevels = [];
     let contactsRefreshTimer = null;
@@ -464,11 +465,14 @@
 
             // Success - update UI
             const user = await API.getCurrentUser();
+            currentUserId = user.id;
             elements.currentUserName.textContent = user.name;
             updateAuthUI();
             closeAuthModal();
 
-            // Load data
+            // Load user's data
+            await loadNamedLocations();
+            renderNamedLocationsList();
             await refreshContacts();
             await loadContactRequests();
             await publishLocationToServer();
@@ -483,9 +487,17 @@
 
     function handleLogout() {
         API.logout();
+        currentUserId = null;
         elements.currentUserName.textContent = '';
+
+        // Clear user-specific data
         contacts = [];
+        namedLocations = [];
+        currentMatch = null;
+
         renderContactsList();
+        renderNamedLocationsList();
+        displayLocation(currentHierarchy, null);
         updateAuthUI();
     }
 
@@ -587,7 +599,7 @@
             'state': 'State',
             'county': 'County',
             'city': 'City',
-            'zip': 'Zip',
+            'neighborhood': 'Neighborhood',
             'street': 'Street',
             'address': 'Address'
         };
@@ -847,6 +859,11 @@
             return;
         }
 
+        if (!currentUserId) {
+            alert('Please log in to save locations.');
+            return;
+        }
+
         const label = elements.locationLabelInput.value.trim();
         const radius = parseInt(elements.locationRadiusSelect.value, 10);
 
@@ -857,6 +874,7 @@
 
         try {
             const newLocation = await Storage.saveNamedLocation({
+                userId: currentUserId,
                 label,
                 latitude: currentCoordinates.latitude,
                 longitude: currentCoordinates.longitude,
@@ -983,7 +1001,7 @@
 
     async function loadNamedLocations() {
         try {
-            namedLocations = await Storage.getAllNamedLocations();
+            namedLocations = await Storage.getAllNamedLocations(currentUserId);
         } catch (error) {
             console.error('Failed to load named locations:', error);
             namedLocations = [];
@@ -1088,12 +1106,16 @@
                 if (API.isAuthenticated()) {
                     try {
                         const user = await API.getCurrentUser();
+                        currentUserId = user.id;
                         elements.currentUserName.textContent = user.name;
+                        await loadNamedLocations();
+                        renderNamedLocationsList();
                         await refreshContacts();
                         await loadContactRequests();
                     } catch (error) {
                         // Token invalid, already logged out by API
                         console.warn('Session expired');
+                        currentUserId = null;
                     }
                 }
 
@@ -1112,7 +1134,7 @@
         } catch (error) {
             console.warn('Could not load permission levels:', error);
             // Fallback to default levels
-            permissionLevels = ['planet', 'continent', 'country', 'state', 'county', 'city', 'zip', 'street', 'address'];
+            permissionLevels = ['planet', 'continent', 'country', 'state', 'county', 'city', 'neighborhood', 'street', 'address'];
         }
     }
 
@@ -1124,12 +1146,11 @@
         setupEventListeners();
         registerServiceWorker();
 
-        // Load named locations from IndexedDB
-        await loadNamedLocations();
-        renderNamedLocationsList();
-
-        // Check server connection
+        // Check server connection (this will load user data if authenticated)
         await checkServerConnection();
+
+        // Show empty named locations list if not logged in
+        renderNamedLocationsList();
 
         // Check for last known location
         const lastLocation = loadLastLocation();

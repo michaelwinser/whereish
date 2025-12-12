@@ -41,15 +41,15 @@ TOKEN_EXPIRY_DAYS = 30
 # Ordered from least specific to most specific
 # Index 0 = least detail, higher index = more detail
 PERMISSION_LEVELS = [
-    'planet',      # 0 - "Planet Earth" (effectively nothing)
-    'continent',   # 1
-    'country',     # 2
-    'state',       # 3
-    'county',      # 4
-    'city',        # 5
-    'zip',         # 6
-    'street',      # 7
-    'address'      # 8 - Most specific
+    'planet',        # 0 - "Planet Earth" (effectively nothing)
+    'continent',     # 1
+    'country',       # 2
+    'state',         # 3
+    'county',        # 4
+    'city',          # 5
+    'neighborhood',  # 6 - Area/suburb/district
+    'street',        # 7
+    'address'        # 8 - Most specific
 ]
 
 # Default permission level for new contacts
@@ -80,9 +80,8 @@ def filter_hierarchy_by_permission(hierarchy, permission_level):
         'state': 'state',
         'county': 'county',
         'city': 'city',
-        'zip': 'zip',
+        'neighborhood': 'neighborhood',
         'street': 'street',
-        'neighborhood': 'city',  # Treat neighborhood as city-level
         'address': 'address'
     }
 
@@ -92,10 +91,6 @@ def filter_hierarchy_by_permission(hierarchy, permission_level):
             level_index = get_permission_index(level)
             if level_index <= allowed_index:
                 filtered[key] = value
-
-    # Always include continent as fallback
-    if 'continent' not in filtered and 'continent' in hierarchy:
-        filtered['continent'] = hierarchy['continent']
 
     return filtered
 
