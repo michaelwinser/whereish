@@ -586,6 +586,7 @@
             let locationText = 'Planet Earth';
             let locationClass = 'no-location';
             let timeText = '';
+            let distanceText = '';
 
             if (contact.location && contact.location.data) {
                 const data = contact.location.data;
@@ -596,48 +597,34 @@
                 if (contact.location.updated_at) {
                     timeText = formatTimeAgo(new Date(contact.location.updated_at));
                 }
+
+                // Calculate distance if we have coordinates
+                if (currentCoordinates && contact.latitude && contact.longitude) {
+                    const distance = Geofence.calculateDistance(
+                        currentCoordinates.latitude,
+                        currentCoordinates.longitude,
+                        contact.latitude,
+                        contact.longitude
+                    );
+                    distanceText = Geofence.formatDistance(distance);
+                }
             }
 
-            // Permission they've granted to me (what I can see)
-            const receivedLabel = formatPermissionLabel(contact.permissionReceived || 'planet');
-            // Permission I've granted to them (what they can see of me)
-            const grantedLevel = contact.permissionGranted || 'planet';
-
-            // Build permission selector options
-            const permissionOptions = permissionLevels.map(level => {
-                const selected = level === grantedLevel ? 'selected' : '';
-                return `<option value="${level}" ${selected}>${formatPermissionLabel(level)}</option>`;
-            }).join('');
-
             return `
-                <div class="contact-item" data-id="${contact.id}">
+                <div class="contact-item contact-item-simple" data-id="${contact.id}">
                     <div class="contact-avatar">${initial}</div>
                     <div class="contact-info">
                         <div class="contact-name">${escapeHtml(contact.name)}</div>
                         <div class="contact-location ${locationClass}">${escapeHtml(locationText)}</div>
-                        <div class="contact-permission-info">
-                            <span class="permission-received">Can see: ${receivedLabel}</span>
-                        </div>
                     </div>
-                    <div class="contact-controls">
+                    <div class="contact-meta">
+                        ${distanceText ? `<div class="contact-distance-simple">${distanceText}</div>` : ''}
                         ${timeText ? `<div class="contact-time">${timeText}</div>` : ''}
-                        <div class="permission-control">
-                            <label class="permission-label">Share:</label>
-                            <select class="permission-select" data-contact-id="${contact.id}">
-                                ${permissionOptions}
-                            </select>
-                        </div>
                     </div>
+                    <div class="contact-chevron">&rsaquo;</div>
                 </div>
             `;
         }).join('');
-
-        // Add event listeners to permission selects
-        elements.contactsList.querySelectorAll('.permission-select').forEach(select => {
-            select.addEventListener('change', handlePermissionChange);
-            // Prevent click from bubbling to contact item
-            select.addEventListener('click', (e) => e.stopPropagation());
-        });
 
         // Add click handlers to contact items
         elements.contactsList.querySelectorAll('.contact-item').forEach(item => {
