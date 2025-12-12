@@ -418,16 +418,13 @@
             elements.serverStatusText.textContent = 'Connected to server';
             // Hide the banner when connected (less visual noise)
             elements.serverStatus.classList.add('hidden');
-            // Show auth controls
-            elements.authControls.classList.remove('hidden');
         } else {
             elements.serverStatus.classList.remove('connected');
             elements.serverStatus.classList.remove('hidden');
             elements.serverStatusIcon.textContent = '⚠️';
             elements.serverStatusText.textContent = 'Backend server not connected. Run: python server/run.py';
 
-            // Hide auth controls when server not connected
-            elements.authControls.classList.add('hidden');
+            // Hide contacts section when server not connected
             elements.contactsSection.classList.add('hidden');
         }
     }
