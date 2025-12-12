@@ -10,15 +10,16 @@ Key principles:
 - Server filters location based on permission level
 """
 
-import os
-import json
-import sqlite3
 import hashlib
+import json
+import os
 import secrets
+import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, request, jsonify, g
-from werkzeug.security import generate_password_hash, check_password_hash
+
+from flask import Flask, g, jsonify, request
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # ===================
 # Configuration
@@ -41,19 +42,20 @@ TOKEN_EXPIRY_DAYS = 30
 # Ordered from least specific to most specific
 # Index 0 = least detail, higher index = more detail
 PERMISSION_LEVELS = [
-    'planet',        # 0 - "Planet Earth" (effectively nothing)
-    'continent',     # 1
-    'country',       # 2
-    'state',         # 3
-    'county',        # 4
-    'city',          # 5
+    'planet',  # 0 - "Planet Earth" (effectively nothing)
+    'continent',  # 1
+    'country',  # 2
+    'state',  # 3
+    'county',  # 4
+    'city',  # 5
     'neighborhood',  # 6 - Area/suburb/district
-    'street',        # 7
-    'address'        # 8 - Most specific
+    'street',  # 7
+    'address',  # 8 - Most specific
 ]
 
 # Default permission level for new contacts
 DEFAULT_PERMISSION_LEVEL = 'planet'
+
 
 def get_permission_index(level):
     """Get numeric index for permission level."""
@@ -61,6 +63,7 @@ def get_permission_index(level):
         return PERMISSION_LEVELS.index(level)
     except ValueError:
         return 0  # Default to planet
+
 
 def filter_hierarchy_by_permission(hierarchy, permission_level):
     """
@@ -82,7 +85,7 @@ def filter_hierarchy_by_permission(hierarchy, permission_level):
         'city': 'city',
         'neighborhood': 'neighborhood',
         'street': 'street',
-        'address': 'address'
+        'address': 'address',
     }
 
     for key, value in hierarchy.items():
@@ -94,21 +97,21 @@ def filter_hierarchy_by_permission(hierarchy, permission_level):
 
     return filtered
 
+
 # ===================
 # Token Management
 # ===================
+
 
 def generate_token(user_id):
     """Generate a simple token for authentication."""
     # Format: user_id:random_hex:timestamp_hex
     random_part = secrets.token_hex(16)
     timestamp = int(datetime.utcnow().timestamp())
-    token_data = f"{user_id}:{random_part}:{timestamp:x}"
+    token_data = f'{user_id}:{random_part}:{timestamp:x}'
     # Sign with secret key
-    signature = hashlib.sha256(
-        (token_data + app.config['SECRET_KEY']).encode()
-    ).hexdigest()[:16]
-    return f"{token_data}:{signature}"
+    signature = hashlib.sha256((token_data + app.config['SECRET_KEY']).encode()).hexdigest()[:16]
+    return f'{token_data}:{signature}'
 
 
 def verify_token(token):
@@ -119,12 +122,12 @@ def verify_token(token):
             return None
 
         user_id, random_part, timestamp_hex, signature = parts
-        token_data = f"{user_id}:{random_part}:{timestamp_hex}"
+        token_data = f'{user_id}:{random_part}:{timestamp_hex}'
 
         # Verify signature
-        expected_sig = hashlib.sha256(
-            (token_data + app.config['SECRET_KEY']).encode()
-        ).hexdigest()[:16]
+        expected_sig = hashlib.sha256((token_data + app.config['SECRET_KEY']).encode()).hexdigest()[
+            :16
+        ]
 
         if signature != expected_sig:
             return None
@@ -139,17 +142,16 @@ def verify_token(token):
     except (ValueError, TypeError):
         return None
 
+
 # ===================
 # Database Setup
 # ===================
 
+
 def get_db():
     """Get database connection for current request."""
     if 'db' not in g:
-        g.db = sqlite3.connect(
-            app.config['DATABASE'],
-            detect_types=sqlite3.PARSE_DECLTYPES
-        )
+        g.db = sqlite3.connect(app.config['DATABASE'], detect_types=sqlite3.PARSE_DECLTYPES)
         g.db.row_factory = sqlite3.Row
     return g.db
 
@@ -164,7 +166,7 @@ def close_db(e=None):
 def init_db():
     """Initialize database schema."""
     db = get_db()
-    db.executescript('''
+    db.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
@@ -213,7 +215,7 @@ def init_db():
             FOREIGN KEY (granter_id) REFERENCES users(id),
             FOREIGN KEY (grantee_id) REFERENCES users(id)
         );
-    ''')
+    """)
     db.commit()
 
 
@@ -229,12 +231,13 @@ app.teardown_appcontext(close_db)
 # Permission Helpers
 # ===================
 
+
 def get_permission_level(granter_id, grantee_id):
     """Get the permission level granter has given to grantee."""
     db = get_db()
     row = db.execute(
         'SELECT permission_level FROM permissions WHERE granter_id = ? AND grantee_id = ?',
-        (granter_id, grantee_id)
+        (granter_id, grantee_id),
     ).fetchone()
 
     if row:
@@ -248,32 +251,36 @@ def set_permission_level(granter_id, grantee_id, level):
         raise ValueError(f'Invalid permission level: {level}')
 
     db = get_db()
-    db.execute('''
+    db.execute(
+        """
         INSERT INTO permissions (granter_id, grantee_id, permission_level, updated_at)
         VALUES (?, ?, ?, ?)
         ON CONFLICT(granter_id, grantee_id) DO UPDATE SET
             permission_level = excluded.permission_level,
             updated_at = excluded.updated_at
-    ''', (granter_id, grantee_id, level, datetime.utcnow()))
+    """,
+        (granter_id, grantee_id, level, datetime.utcnow()),
+    )
     db.commit()
+
 
 # ===================
 # User Helpers
 # ===================
 
+
 def get_user_by_id(user_id):
     """Get user by ID from database."""
     db = get_db()
     row = db.execute(
-        'SELECT id, email, name, created_at FROM users WHERE id = ?',
-        (user_id,)
+        'SELECT id, email, name, created_at FROM users WHERE id = ?', (user_id,)
     ).fetchone()
     if row:
         return {
             'id': row['id'],
             'email': row['email'],
             'name': row['name'],
-            'created_at': row['created_at']
+            'created_at': row['created_at'],
         }
     return None
 
@@ -283,7 +290,7 @@ def get_user_by_email(email):
     db = get_db()
     row = db.execute(
         'SELECT id, email, name, password_hash, created_at FROM users WHERE email = ?',
-        (email.lower(),)
+        (email.lower(),),
     ).fetchone()
     if row:
         return {
@@ -291,7 +298,7 @@ def get_user_by_email(email):
             'email': row['email'],
             'name': row['name'],
             'password_hash': row['password_hash'],
-            'created_at': row['created_at']
+            'created_at': row['created_at'],
         }
     return None
 
@@ -300,18 +307,22 @@ def get_user_contacts(user_id):
     """Get list of contact user IDs for a user (accepted contacts only)."""
     db = get_db()
     # Get contacts where user is requester or recipient, status is accepted
-    rows = db.execute('''
+    rows = db.execute(
+        """
         SELECT
             CASE WHEN requester_id = ? THEN recipient_id ELSE requester_id END as contact_id
         FROM contacts
         WHERE (requester_id = ? OR recipient_id = ?) AND status = 'accepted'
-    ''', (user_id, user_id, user_id)).fetchall()
+    """,
+        (user_id, user_id, user_id),
+    ).fetchall()
     return [row['contact_id'] for row in rows]
 
 
 # ===================
 # Authentication
 # ===================
+
 
 def get_current_user():
     """Get current user from Authorization header."""
@@ -331,6 +342,7 @@ def get_current_user():
 
 def require_auth(f):
     """Decorator to require authentication."""
+
     @wraps(f)
     def decorated(*args, **kwargs):
         user = get_current_user()
@@ -338,19 +350,19 @@ def require_auth(f):
             return jsonify({'error': 'Unauthorized'}), 401
         g.current_user = user
         return f(*args, **kwargs)
+
     return decorated
+
 
 # ===================
 # API Routes - General
 # ===================
 
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return jsonify({
-        'status': 'ok',
-        'timestamp': datetime.utcnow().isoformat()
-    })
+    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
 
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -384,21 +396,14 @@ def register():
     db = get_db()
     db.execute(
         'INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)',
-        (user_id, email, password_hash, name)
+        (user_id, email, password_hash, name),
     )
     db.commit()
 
     # Generate token
     token = generate_token(user_id)
 
-    return jsonify({
-        'user': {
-            'id': user_id,
-            'email': email,
-            'name': name
-        },
-        'token': token
-    }), 201
+    return jsonify({'user': {'id': user_id, 'email': email, 'name': name}, 'token': token}), 201
 
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -427,14 +432,9 @@ def login():
     # Generate token
     token = generate_token(user['id'])
 
-    return jsonify({
-        'user': {
-            'id': user['id'],
-            'email': user['email'],
-            'name': user['name']
-        },
-        'token': token
-    })
+    return jsonify(
+        {'user': {'id': user['id'], 'email': user['email'], 'name': user['name']}, 'token': token}
+    )
 
 
 @app.route('/api/me', methods=['GET'])
@@ -442,23 +442,19 @@ def login():
 def get_current_user_info():
     """Get current user info."""
     user = g.current_user
-    return jsonify({
-        'id': user['id'],
-        'name': user['name']
-    })
+    return jsonify({'id': user['id'], 'name': user['name']})
 
 
 @app.route('/api/permission-levels', methods=['GET'])
 def get_permission_levels():
     """Get available permission levels."""
-    return jsonify({
-        'levels': PERMISSION_LEVELS,
-        'default': DEFAULT_PERMISSION_LEVEL
-    })
+    return jsonify({'levels': PERMISSION_LEVELS, 'default': DEFAULT_PERMISSION_LEVEL})
+
 
 # ===================
 # API Routes - Location
 # ===================
+
 
 @app.route('/api/location', methods=['POST'])
 @require_auth
@@ -473,19 +469,19 @@ def publish_location():
     payload = data['payload']
 
     db = get_db()
-    db.execute('''
+    db.execute(
+        """
         INSERT INTO locations (user_id, payload, updated_at)
         VALUES (?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET
             payload = excluded.payload,
             updated_at = excluded.updated_at
-    ''', (user['id'], payload, datetime.utcnow()))
+    """,
+        (user['id'], payload, datetime.utcnow()),
+    )
     db.commit()
 
-    return jsonify({
-        'success': True,
-        'timestamp': datetime.utcnow().isoformat()
-    })
+    return jsonify({'success': True, 'timestamp': datetime.utcnow().isoformat()})
 
 
 @app.route('/api/location', methods=['GET'])
@@ -496,23 +492,26 @@ def get_my_location():
 
     db = get_db()
     row = db.execute(
-        'SELECT payload, updated_at FROM locations WHERE user_id = ?',
-        (user['id'],)
+        'SELECT payload, updated_at FROM locations WHERE user_id = ?', (user['id'],)
     ).fetchone()
 
     if not row:
         return jsonify({'location': None})
 
-    return jsonify({
-        'location': {
-            'payload': row['payload'],
-            'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
+    return jsonify(
+        {
+            'location': {
+                'payload': row['payload'],
+                'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None,
+            }
         }
-    })
+    )
+
 
 # ===================
 # API Routes - Contacts
 # ===================
+
 
 @app.route('/api/contacts/request', methods=['POST'])
 @require_auth
@@ -536,11 +535,14 @@ def send_contact_request():
 
     # Check if already contacts or request pending
     db = get_db()
-    existing = db.execute('''
+    existing = db.execute(
+        """
         SELECT status FROM contacts
         WHERE (requester_id = ? AND recipient_id = ?)
            OR (requester_id = ? AND recipient_id = ?)
-    ''', (user['id'], target['id'], target['id'], user['id'])).fetchone()
+    """,
+        (user['id'], target['id'], target['id'], user['id']),
+    ).fetchone()
 
     if existing:
         if existing['status'] == 'accepted':
@@ -551,14 +553,11 @@ def send_contact_request():
     # Create request
     db.execute(
         'INSERT INTO contacts (requester_id, recipient_id, status) VALUES (?, ?, ?)',
-        (user['id'], target['id'], 'pending')
+        (user['id'], target['id'], 'pending'),
     )
     db.commit()
 
-    return jsonify({
-        'success': True,
-        'message': f'Contact request sent to {target["name"]}'
-    }), 201
+    return jsonify({'success': True, 'message': f'Contact request sent to {target["name"]}'}), 201
 
 
 @app.route('/api/contacts/requests', methods=['GET'])
@@ -569,37 +568,51 @@ def get_pending_requests():
     db = get_db()
 
     # Incoming requests
-    incoming = db.execute('''
+    incoming = db.execute(
+        """
         SELECT c.id, c.requester_id, u.name, u.email, c.created_at
         FROM contacts c
         JOIN users u ON c.requester_id = u.id
         WHERE c.recipient_id = ? AND c.status = 'pending'
-    ''', (user['id'],)).fetchall()
+    """,
+        (user['id'],),
+    ).fetchall()
 
     # Outgoing requests
-    outgoing = db.execute('''
+    outgoing = db.execute(
+        """
         SELECT c.id, c.recipient_id, u.name, u.email, c.created_at
         FROM contacts c
         JOIN users u ON c.recipient_id = u.id
         WHERE c.requester_id = ? AND c.status = 'pending'
-    ''', (user['id'],)).fetchall()
+    """,
+        (user['id'],),
+    ).fetchall()
 
-    return jsonify({
-        'incoming': [{
-            'requestId': row['id'],
-            'userId': row['requester_id'],
-            'name': row['name'],
-            'email': row['email'],
-            'createdAt': row['created_at'].isoformat() if row['created_at'] else None
-        } for row in incoming],
-        'outgoing': [{
-            'requestId': row['id'],
-            'userId': row['recipient_id'],
-            'name': row['name'],
-            'email': row['email'],
-            'createdAt': row['created_at'].isoformat() if row['created_at'] else None
-        } for row in outgoing]
-    })
+    return jsonify(
+        {
+            'incoming': [
+                {
+                    'requestId': row['id'],
+                    'userId': row['requester_id'],
+                    'name': row['name'],
+                    'email': row['email'],
+                    'createdAt': row['created_at'].isoformat() if row['created_at'] else None,
+                }
+                for row in incoming
+            ],
+            'outgoing': [
+                {
+                    'requestId': row['id'],
+                    'userId': row['recipient_id'],
+                    'name': row['name'],
+                    'email': row['email'],
+                    'createdAt': row['created_at'].isoformat() if row['created_at'] else None,
+                }
+                for row in outgoing
+            ],
+        }
+    )
 
 
 @app.route('/api/contacts/requests/<int:request_id>/accept', methods=['POST'])
@@ -612,7 +625,7 @@ def accept_contact_request(request_id):
     # Verify request exists and user is recipient
     row = db.execute(
         'SELECT * FROM contacts WHERE id = ? AND recipient_id = ? AND status = ?',
-        (request_id, user['id'], 'pending')
+        (request_id, user['id'], 'pending'),
     ).fetchone()
 
     if not row:
@@ -621,18 +634,12 @@ def accept_contact_request(request_id):
     # Accept request
     db.execute(
         'UPDATE contacts SET status = ?, accepted_at = ? WHERE id = ?',
-        ('accepted', datetime.utcnow(), request_id)
+        ('accepted', datetime.utcnow(), request_id),
     )
     db.commit()
 
     requester = get_user_by_id(row['requester_id'])
-    return jsonify({
-        'success': True,
-        'contact': {
-            'id': requester['id'],
-            'name': requester['name']
-        }
-    })
+    return jsonify({'success': True, 'contact': {'id': requester['id'], 'name': requester['name']}})
 
 
 @app.route('/api/contacts/requests/<int:request_id>/decline', methods=['POST'])
@@ -645,7 +652,7 @@ def decline_contact_request(request_id):
     # Verify request exists and user is recipient
     row = db.execute(
         'SELECT * FROM contacts WHERE id = ? AND recipient_id = ? AND status = ?',
-        (request_id, user['id'], 'pending')
+        (request_id, user['id'], 'pending'),
     ).fetchone()
 
     if not row:
@@ -666,22 +673,27 @@ def remove_contact(contact_id):
     db = get_db()
 
     # Delete the contact relationship
-    result = db.execute('''
+    result = db.execute(
+        """
         DELETE FROM contacts
         WHERE ((requester_id = ? AND recipient_id = ?)
            OR (requester_id = ? AND recipient_id = ?))
           AND status = 'accepted'
-    ''', (user['id'], contact_id, contact_id, user['id']))
+    """,
+        (user['id'], contact_id, contact_id, user['id']),
+    )
     db.commit()
 
     if result.rowcount == 0:
         return jsonify({'error': 'Contact not found'}), 404
 
     # Also remove permission grants
-    db.execute('DELETE FROM permissions WHERE granter_id = ? AND grantee_id = ?',
-               (user['id'], contact_id))
-    db.execute('DELETE FROM permissions WHERE granter_id = ? AND grantee_id = ?',
-               (contact_id, user['id']))
+    db.execute(
+        'DELETE FROM permissions WHERE granter_id = ? AND grantee_id = ?', (user['id'], contact_id)
+    )
+    db.execute(
+        'DELETE FROM permissions WHERE granter_id = ? AND grantee_id = ?', (contact_id, user['id'])
+    )
     db.commit()
 
     return jsonify({'success': True})
@@ -703,12 +715,14 @@ def get_contacts():
             # Get permission this contact has granted to me
             received_level = get_permission_level(contact_id, user['id'])
 
-            contacts.append({
-                'id': contact['id'],
-                'name': contact['name'],
-                'permissionGranted': granted_level,  # What they can see of my location
-                'permissionReceived': received_level  # What I can see of their location
-            })
+            contacts.append(
+                {
+                    'id': contact['id'],
+                    'name': contact['name'],
+                    'permissionGranted': granted_level,  # What they can see of my location
+                    'permissionReceived': received_level,  # What I can see of their location
+                }
+            )
 
     return jsonify({'contacts': contacts})
 
@@ -727,11 +741,13 @@ def get_contact_permission(contact_id):
     granted_level = get_permission_level(user['id'], contact_id)
     received_level = get_permission_level(contact_id, user['id'])
 
-    return jsonify({
-        'contactId': contact_id,
-        'permissionGranted': granted_level,
-        'permissionReceived': received_level
-    })
+    return jsonify(
+        {
+            'contactId': contact_id,
+            'permissionGranted': granted_level,
+            'permissionReceived': received_level,
+        }
+    )
 
 
 @app.route('/api/contacts/<contact_id>/permission', methods=['PUT'])
@@ -755,11 +771,7 @@ def update_contact_permission(contact_id):
 
     set_permission_level(user['id'], contact_id, level)
 
-    return jsonify({
-        'success': True,
-        'contactId': contact_id,
-        'permissionGranted': level
-    })
+    return jsonify({'success': True, 'contactId': contact_id, 'permissionGranted': level})
 
 
 @app.route('/api/contacts/<contact_id>/location', methods=['GET'])
@@ -779,8 +791,7 @@ def get_contact_location(contact_id):
     # Get contact's location
     db = get_db()
     row = db.execute(
-        'SELECT payload, updated_at FROM locations WHERE user_id = ?',
-        (contact_id,)
+        'SELECT payload, updated_at FROM locations WHERE user_id = ?', (contact_id,)
     ).fetchone()
 
     if not row:
@@ -794,8 +805,7 @@ def get_contact_location(contact_id):
 
     # Filter hierarchy based on permission
     filtered_hierarchy = filter_hierarchy_by_permission(
-        location_data.get('hierarchy', {}),
-        permission_level
+        location_data.get('hierarchy', {}), permission_level
     )
 
     # Filter named location (only show if permission is high enough)
@@ -808,7 +818,7 @@ def get_contact_location(contact_id):
     filtered_data = {
         'hierarchy': filtered_hierarchy,
         'namedLocation': filtered_named,
-        'timestamp': location_data.get('timestamp')
+        'timestamp': location_data.get('timestamp'),
     }
 
     # Check staleness
@@ -818,14 +828,16 @@ def get_contact_location(contact_id):
         expiry_time = datetime.utcnow() - timedelta(minutes=LOCATION_EXPIRY_MINUTES)
         is_stale = updated_at < expiry_time
 
-    return jsonify({
-        'location': {
-            'data': filtered_data,
-            'updated_at': updated_at.isoformat() if updated_at else None,
-            'stale': is_stale
-        },
-        'permissionLevel': permission_level
-    })
+    return jsonify(
+        {
+            'location': {
+                'data': filtered_data,
+                'updated_at': updated_at.isoformat() if updated_at else None,
+                'stale': is_stale,
+            },
+            'permissionLevel': permission_level,
+        }
+    )
 
 
 @app.route('/api/contacts/locations', methods=['GET'])
@@ -842,7 +854,7 @@ def get_all_contact_locations():
     placeholders = ','.join('?' * len(contact_ids))
     rows = db.execute(
         f'SELECT user_id, payload, updated_at FROM locations WHERE user_id IN ({placeholders})',
-        contact_ids
+        contact_ids,
     ).fetchall()
 
     location_map = {row['user_id']: row for row in rows}
@@ -864,7 +876,7 @@ def get_all_contact_locations():
             'name': contact['name'],
             'permissionGranted': granted_level,
             'permissionReceived': permission_level,
-            'location': None
+            'location': None,
         }
 
         if contact_id in location_map:
@@ -880,8 +892,7 @@ def get_all_contact_locations():
 
             # Filter hierarchy based on permission
             filtered_hierarchy = filter_hierarchy_by_permission(
-                location_data.get('hierarchy', {}),
-                permission_level
+                location_data.get('hierarchy', {}), permission_level
             )
 
             # Filter named location
@@ -893,19 +904,21 @@ def get_all_contact_locations():
                 'data': {
                     'hierarchy': filtered_hierarchy,
                     'namedLocation': filtered_named,
-                    'timestamp': location_data.get('timestamp')
+                    'timestamp': location_data.get('timestamp'),
                 },
                 'updated_at': updated_at.isoformat() if updated_at else None,
-                'stale': is_stale
+                'stale': is_stale,
             }
 
         contacts.append(contact_data)
 
     return jsonify({'contacts': contacts})
 
+
 # ===================
 # Error Handlers
 # ===================
+
 
 @app.errorhandler(404)
 def not_found(e):
@@ -916,9 +929,11 @@ def not_found(e):
 def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
+
 # ===================
 # CORS Support (for development)
 # ===================
+
 
 @app.after_request
 def after_request(response):
@@ -935,6 +950,7 @@ def after_request(response):
 def handle_options(path):
     """Handle CORS preflight requests."""
     return '', 204
+
 
 # ===================
 # Main Entry Point

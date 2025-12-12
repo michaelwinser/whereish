@@ -1,0 +1,12 @@
+# Whereish Development Dependencies
+# Install with: pip install -r server/requirements-dev.txt
+
+# Include production dependencies
+-r requirements.txt
+
+# Linting
+ruff>=0.1.0
+
+# Testing (Phase 2)
+# pytest>=7.0.0
+# pytest-cov>=4.0.0

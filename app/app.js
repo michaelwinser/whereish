@@ -106,7 +106,6 @@
     let permissionLevels = [];
     let contactsRefreshTimer = null;
     let locationPublishTimer = null;
-    let currentView = 'main';  // Track current view for navigation
 
     // ===================
     // DOM Elements
@@ -397,7 +396,7 @@
             primary: false
         });
 
-        container.innerHTML = levels.map((level, index) => `
+        container.innerHTML = levels.map((level, _index) => `
             <div class="welcome-hierarchy-level${level.primary ? ' primary' : ''}">
                 <span class="welcome-hierarchy-icon">${level.icon}</span>
                 <span class="welcome-hierarchy-text">${escapeHtml(level.text)}</span>
@@ -627,60 +626,6 @@
             });
             item.style.cursor = 'pointer';
         });
-    }
-
-    /**
-     * Format permission level for display
-     */
-    function formatPermissionLabel(level) {
-        const labels = {
-            'planet': 'Planet',
-            'continent': 'Continent',
-            'country': 'Country',
-            'state': 'State',
-            'county': 'County',
-            'city': 'City',
-            'neighborhood': 'Neighborhood',
-            'street': 'Street',
-            'address': 'Address'
-        };
-        return labels[level] || level;
-    }
-
-    /**
-     * Handle permission level change
-     */
-    async function handlePermissionChange(event) {
-        const select = event.target;
-        const contactId = select.dataset.contactId;
-        const newLevel = select.value;
-
-        // Disable select during update
-        select.disabled = true;
-
-        try {
-            await API.updateContactPermission(contactId, newLevel);
-
-            // Update local state
-            const contact = contacts.find(c => c.id === contactId);
-            if (contact) {
-                contact.permissionGranted = newLevel;
-            }
-
-            // Show brief feedback
-            select.classList.add('updated');
-            setTimeout(() => select.classList.remove('updated'), 1000);
-        } catch (error) {
-            console.error('Failed to update permission:', error);
-            // Revert to previous value
-            const contact = contacts.find(c => c.id === contactId);
-            if (contact) {
-                select.value = contact.permissionGranted || 'planet';
-            }
-            alert('Failed to update permission. Please try again.');
-        } finally {
-            select.disabled = false;
-        }
     }
 
     // ===================
@@ -1347,7 +1292,7 @@
                         renderNamedLocationsList();
                         await refreshContacts();
                         await loadContactRequests();
-                    } catch (error) {
+                    } catch {
                         // Token invalid, already logged out by API
                         console.warn('Session expired');
                         currentUserId = null;

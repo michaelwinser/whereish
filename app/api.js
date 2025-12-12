@@ -347,7 +347,7 @@ const API = (function() {
         try {
             await request('/api/health');
             return true;
-        } catch (error) {
+        } catch {
             return false;
         }
     }
