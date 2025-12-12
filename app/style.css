@@ -1049,3 +1049,84 @@ body {
 .welcome-actions .btn {
     width: 100%;
 }
+
+/* ===================
+   Tab Bar (Phase 3)
+   =================== */
+
+.tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: var(--color-card);
+    border-top: 1px solid var(--color-border);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    z-index: 100;
+}
+
+.tab-bar.hidden {
+    display: none;
+}
+
+.tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border: none;
+    background: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.tab-item:hover:not(:disabled) {
+    color: var(--color-text);
+}
+
+.tab-item.active {
+    color: var(--color-primary);
+}
+
+.tab-item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.tab-icon {
+    font-size: 1.25rem;
+}
+
+.tab-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* Add padding to views when tab bar is visible */
+.view[data-view="main"],
+.view[data-view="places"],
+.view[data-view="circles"] {
+    padding-bottom: 80px;
+}
+
+/* Places View */
+.places-content {
+    padding: 0;
+}
+
+/* Screen header adjustments for places */
+.view[data-view="places"] .screen-header {
+    justify-content: center;
+    margin: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}

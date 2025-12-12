@@ -129,9 +129,8 @@
         retryBtn: document.getElementById('retry-btn'),
         saveLocationBtn: document.getElementById('save-location-btn'),
 
-        // Named locations list
-        namedLocationsList: document.getElementById('named-locations-list'),
-        placesCount: document.getElementById('places-count'),
+        // Named locations list (now in places view)
+        placesList: document.getElementById('places-list'),
 
         // Modal
         modal: document.getElementById('save-modal'),
@@ -809,17 +808,17 @@
     // Named Locations UI
     // ===================
 
-    function renderNamedLocationsList() {
-        elements.placesCount.textContent = namedLocations.length;
+    function renderPlacesList() {
+        if (!elements.placesList) return;
 
         if (namedLocations.length === 0) {
-            elements.namedLocationsList.innerHTML = `
+            elements.placesList.innerHTML = `
                 <p class="empty-state">No saved places yet. Save your current location to get started.</p>
             `;
             return;
         }
 
-        elements.namedLocationsList.innerHTML = namedLocations.map(location => {
+        elements.placesList.innerHTML = namedLocations.map(location => {
             const isActive = currentMatch && currentMatch.id === location.id;
             const distance = currentCoordinates
                 ? Geofence.calculateDistance(
@@ -852,9 +851,14 @@
             `;
         }).join('');
 
-        elements.namedLocationsList.querySelectorAll('.delete-location-btn').forEach(btn => {
+        elements.placesList.querySelectorAll('.delete-location-btn').forEach(btn => {
             btn.addEventListener('click', handleDeleteLocation);
         });
+    }
+
+    // Keep alias for backward compatibility in init
+    function renderNamedLocationsList() {
+        renderPlacesList();
     }
 
     async function handleDeleteLocation(event) {
@@ -1106,6 +1110,16 @@
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
         document.getElementById('welcome-signup-btn')?.addEventListener('click', () => openAuthModal(false));
 
+        // Tab bar
+        document.querySelectorAll('.tab-item').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                if (tabName && !tab.disabled) {
+                    ViewManager.navigate(tabName);
+                }
+            });
+        });
+
         // Auth modal
         elements.authModalCloseBtn.addEventListener('click', closeAuthModal);
         elements.authForm.addEventListener('submit', handleAuthSubmit);
@@ -1219,6 +1233,14 @@
             onExit: () => {
                 // Cleanup if needed
             }
+        });
+
+        ViewManager.register('places', {
+            onEnter: () => {
+                // Render places list when entering
+                renderPlacesList();
+            },
+            onExit: () => {}
         });
 
         setupEventListeners();

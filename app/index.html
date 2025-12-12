@@ -118,17 +118,6 @@
                 </div>
             </section>
 
-            <!-- Named Locations List -->
-            <section id="named-locations-section" class="named-locations-section">
-                <div class="section-header">
-                    <h2>My Places</h2>
-                    <span id="places-count" class="badge">0</span>
-                </div>
-                <div id="named-locations-list" class="named-locations-list">
-                    <p class="empty-state">No saved places yet. Save your current location to get started.</p>
-                </div>
-            </section>
-
             <!-- Info Section -->
             <section class="info">
                 <details>
@@ -161,6 +150,37 @@
             </footer>
         </section>
         <!-- End Main View -->
+
+        <!-- Places View -->
+        <section class="view hidden" data-view="places" id="view-places">
+            <header class="screen-header">
+                <h1>My Places</h1>
+            </header>
+            <main class="main">
+                <section class="places-content">
+                    <div id="places-list" class="named-locations-list">
+                        <p class="empty-state">No saved places yet. Save your current location to get started.</p>
+                    </div>
+                </section>
+            </main>
+        </section>
+        <!-- End Places View -->
+
+        <!-- Tab Bar (only visible when logged in) -->
+        <nav class="tab-bar hidden" id="tab-bar">
+            <button class="tab-item active" data-tab="main">
+                <span class="tab-icon">👥</span>
+                <span class="tab-label">Contacts</span>
+            </button>
+            <button class="tab-item" data-tab="places">
+                <span class="tab-icon">📍</span>
+                <span class="tab-label">Places</span>
+            </button>
+            <button class="tab-item" data-tab="circles" disabled>
+                <span class="tab-icon">⭕</span>
+                <span class="tab-label">Circles</span>
+            </button>
+        </nav>
     </div>
 
     <!-- Modal for saving location -->
