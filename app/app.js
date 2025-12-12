@@ -500,7 +500,6 @@
             // Success - update UI
             const user = await API.getCurrentUser();
             currentUserId = user.id;
-            elements.currentUserName.textContent = user.name;
             updateAuthUI();
             closeAuthModal();
 
@@ -525,7 +524,6 @@
     function handleLogout() {
         API.logout();
         currentUserId = null;
-        elements.currentUserName.textContent = '';
 
         // Clear user-specific data
         contacts = [];
@@ -1343,7 +1341,6 @@
                     try {
                         const user = await API.getCurrentUser();
                         currentUserId = user.id;
-                        elements.currentUserName.textContent = user.name;
                         await loadNamedLocations();
                         renderNamedLocationsList();
                         await refreshContacts();
