@@ -1458,7 +1458,6 @@
 
             displayLocation(currentHierarchy, currentMatch);
             renderWelcomeHierarchy();  // Also update welcome screen
-            elements.statusText.textContent += ' (updating...)';
         }
 
         // Get fresh location
