@@ -1144,7 +1144,9 @@
                 longitude: position.coords.longitude
             };
 
-            elements.statusText.textContent = 'Getting location name...';
+            // Update location bar to show geocoding progress
+            const primaryEl = document.getElementById('location-bar-primary');
+            if (primaryEl) primaryEl.textContent = 'Getting location name...';
 
             const addressComponents = await reverseGeocode(
                 currentCoordinates.latitude,
