@@ -70,12 +70,40 @@ const API = (function() {
     // ===================
 
     /**
-     * Get available test users (development only)
-     * @returns {Promise<Array>} List of test users with tokens
+     * Register a new user
+     * @param {string} email
+     * @param {string} password
+     * @param {string} name
+     * @returns {Promise<Object>} { user, token }
      */
-    async function getTestUsers() {
-        const data = await request('/api/auth/test-tokens');
-        return data.users || [];
+    async function register(email, password, name) {
+        const data = await request('/api/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ email, password, name })
+        });
+        if (data.token) {
+            setAuthToken(data.token);
+            currentUser = data.user;
+        }
+        return data;
+    }
+
+    /**
+     * Login with email and password
+     * @param {string} email
+     * @param {string} password
+     * @returns {Promise<Object>} { user, token }
+     */
+    async function login(email, password) {
+        const data = await request('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+        if (data.token) {
+            setAuthToken(data.token);
+            currentUser = data.user;
+        }
+        return data;
     }
 
     /**
@@ -108,19 +136,6 @@ const API = (function() {
     }
 
     /**
-     * Login as a test user
-     * @param {string} userId - Test user ID
-     * @param {string} token - Test user token
-     * @returns {Promise<Object>} User info
-     */
-    async function loginAsTestUser(userId, token) {
-        setAuthToken(token);
-        const data = await request('/api/me');
-        currentUser = data;
-        return data;
-    }
-
-    /**
      * Logout current user
      */
     function logout() {
@@ -147,6 +162,63 @@ const API = (function() {
             logout();
             throw error;
         }
+    }
+
+    // ===================
+    // Contact Requests
+    // ===================
+
+    /**
+     * Send a contact request by email
+     * @param {string} email
+     * @returns {Promise<Object>}
+     */
+    async function sendContactRequest(email) {
+        return request('/api/contacts/request', {
+            method: 'POST',
+            body: JSON.stringify({ email })
+        });
+    }
+
+    /**
+     * Get pending contact requests
+     * @returns {Promise<Object>} { incoming: [], outgoing: [] }
+     */
+    async function getContactRequests() {
+        return request('/api/contacts/requests');
+    }
+
+    /**
+     * Accept a contact request
+     * @param {number} requestId
+     * @returns {Promise<Object>}
+     */
+    async function acceptContactRequest(requestId) {
+        return request(`/api/contacts/requests/${requestId}/accept`, {
+            method: 'POST'
+        });
+    }
+
+    /**
+     * Decline a contact request
+     * @param {number} requestId
+     * @returns {Promise<Object>}
+     */
+    async function declineContactRequest(requestId) {
+        return request(`/api/contacts/requests/${requestId}/decline`, {
+            method: 'POST'
+        });
+    }
+
+    /**
+     * Remove a contact
+     * @param {string} contactId
+     * @returns {Promise<Object>}
+     */
+    async function removeContact(contactId) {
+        return request(`/api/contacts/${contactId}`, {
+            method: 'DELETE'
+        });
     }
 
     // ===================
@@ -303,11 +375,11 @@ const API = (function() {
 
     return {
         // Auth
-        getTestUsers,
+        register,
+        login,
         setAuthToken,
         getAuthToken,
         isAuthenticated,
-        loginAsTestUser,
         logout,
         getCurrentUser,
 
@@ -319,6 +391,11 @@ const API = (function() {
         getContacts,
         getContactLocation,
         getContactsWithLocations,
+        sendContactRequest,
+        getContactRequests,
+        acceptContactRequest,
+        declineContactRequest,
+        removeContact,
 
         // Permissions
         getPermissionLevels,

@@ -811,3 +811,103 @@ body {
         background: var(--color-bg);
     }
 }
+
+/* ===================
+   Milestone 4: Authentication
+   =================== */
+
+/* Auth controls in header */
+.auth-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.auth-state {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-small {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+.current-user-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-primary);
+}
+
+/* Auth switch link */
+.auth-switch {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin-top: 1rem;
+}
+
+.auth-switch a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.auth-switch a:hover {
+    text-decoration: underline;
+}
+
+/* Form error */
+.form-error {
+    background: #fff5f5;
+    color: var(--color-error);
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+/* Section header with multiple buttons */
+.section-header-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* Pending requests */
+.pending-requests {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.request-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: #fef3c7;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.request-info {
+    font-size: 0.9rem;
+}
+
+.request-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Dark mode for Milestone 4 */
+@media (prefers-color-scheme: dark) {
+    .form-error {
+        background: rgba(229, 62, 62, 0.1);
+    }
+
+    .request-item {
+        background: rgba(254, 243, 199, 0.1);
+    }
+}

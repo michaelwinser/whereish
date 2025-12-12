@@ -100,7 +100,6 @@
     let namedLocations = [];
     let currentMatch = null;
     let serverConnected = false;
-    let testUsers = [];
     let contacts = [];
     let permissionLevels = [];
     let contactsRefreshTimer = null;
@@ -141,19 +140,53 @@
         locationLabelInput: document.getElementById('location-label'),
         locationRadiusSelect: document.getElementById('location-radius'),
 
-        // Server/user (Milestone 3)
+        // Server status
         serverStatus: document.getElementById('server-status'),
         serverStatusIcon: document.querySelector('.server-status-icon'),
         serverStatusText: document.querySelector('.server-status-text'),
-        userSwitcher: document.getElementById('user-switcher'),
-        userSelect: document.getElementById('user-select'),
+
+        // Auth controls
+        authControls: document.getElementById('auth-controls'),
+        loggedOutControls: document.getElementById('logged-out-controls'),
+        loggedInControls: document.getElementById('logged-in-controls'),
+        showLoginBtn: document.getElementById('show-login-btn'),
+        showRegisterBtn: document.getElementById('show-register-btn'),
+        logoutBtn: document.getElementById('logout-btn'),
         currentUserName: document.getElementById('current-user-name'),
 
-        // Contacts (Milestone 3)
+        // Auth modal
+        authModal: document.getElementById('auth-modal'),
+        authModalTitle: document.getElementById('auth-modal-title'),
+        authModalCloseBtn: document.getElementById('auth-modal-close-btn'),
+        authForm: document.getElementById('auth-form'),
+        authNameGroup: document.getElementById('auth-name-group'),
+        authNameInput: document.getElementById('auth-name'),
+        authEmailInput: document.getElementById('auth-email'),
+        authPasswordInput: document.getElementById('auth-password'),
+        authError: document.getElementById('auth-error'),
+        authSubmitBtn: document.getElementById('auth-submit-btn'),
+        authSwitch: document.getElementById('auth-switch'),
+        authSwitchLink: document.getElementById('auth-switch-link'),
+
+        // Contacts
         contactsSection: document.getElementById('contacts-section'),
         contactsList: document.getElementById('contacts-list'),
-        refreshContactsBtn: document.getElementById('refresh-contacts-btn')
+        pendingRequests: document.getElementById('pending-requests'),
+        incomingRequests: document.getElementById('incoming-requests'),
+        addContactBtn: document.getElementById('add-contact-btn'),
+        refreshContactsBtn: document.getElementById('refresh-contacts-btn'),
+
+        // Add contact modal
+        addContactModal: document.getElementById('add-contact-modal'),
+        addContactForm: document.getElementById('add-contact-form'),
+        addContactCloseBtn: document.getElementById('add-contact-close-btn'),
+        addContactCancelBtn: document.getElementById('add-contact-cancel-btn'),
+        contactEmailInput: document.getElementById('contact-email'),
+        addContactError: document.getElementById('add-contact-error')
     };
+
+    // Auth state
+    let isLoginMode = true;
 
     // ===================
     // Geolocation Service
@@ -344,85 +377,116 @@
 
         if (connected) {
             elements.serverStatus.classList.add('connected');
-            elements.serverStatus.classList.remove('hidden');
             elements.serverStatusIcon.textContent = '✓';
             elements.serverStatusText.textContent = 'Connected to server';
-
-            // Show user switcher and contacts when connected
-            elements.userSwitcher.classList.remove('hidden');
-            elements.contactsSection.classList.remove('hidden');
+            // Hide the banner when connected (less visual noise)
+            elements.serverStatus.classList.add('hidden');
+            // Show auth controls
+            elements.authControls.classList.remove('hidden');
         } else {
             elements.serverStatus.classList.remove('connected');
             elements.serverStatus.classList.remove('hidden');
             elements.serverStatusIcon.textContent = '⚠️';
             elements.serverStatusText.textContent = 'Backend server not connected. Run: python server/run.py';
 
-            // Hide server-dependent UI
-            elements.userSwitcher.classList.add('hidden');
+            // Hide auth controls when server not connected
+            elements.authControls.classList.add('hidden');
             elements.contactsSection.classList.add('hidden');
         }
     }
 
     // ===================
-    // User Switcher
+    // Authentication UI
     // ===================
 
-    async function loadTestUsers() {
-        try {
-            testUsers = await API.getTestUsers();
-            renderUserSelect();
-        } catch (error) {
-            console.warn('Could not load test users:', error);
+    function updateAuthUI() {
+        if (API.isAuthenticated()) {
+            elements.loggedOutControls.classList.add('hidden');
+            elements.loggedInControls.classList.remove('hidden');
+            elements.contactsSection.classList.remove('hidden');
+        } else {
+            elements.loggedOutControls.classList.remove('hidden');
+            elements.loggedInControls.classList.add('hidden');
+            elements.contactsSection.classList.add('hidden');
         }
     }
 
-    function renderUserSelect() {
-        elements.userSelect.innerHTML = '<option value="">Select user...</option>';
+    function openAuthModal(loginMode) {
+        isLoginMode = loginMode;
+        elements.authModal.classList.remove('hidden');
+        elements.authError.classList.add('hidden');
+        elements.authForm.reset();
 
-        for (const user of testUsers) {
-            const option = document.createElement('option');
-            option.value = user.id;
-            option.textContent = user.name;
-            option.dataset.token = user.token;
-            elements.userSelect.appendChild(option);
+        if (loginMode) {
+            elements.authModalTitle.textContent = 'Log In';
+            elements.authNameGroup.classList.add('hidden');
+            elements.authNameInput.required = false;
+            elements.authSubmitBtn.textContent = 'Log In';
+            elements.authSwitch.innerHTML = 'Don\'t have an account? <a href="#" id="auth-switch-link">Sign up</a>';
+        } else {
+            elements.authModalTitle.textContent = 'Sign Up';
+            elements.authNameGroup.classList.remove('hidden');
+            elements.authNameInput.required = true;
+            elements.authSubmitBtn.textContent = 'Create Account';
+            elements.authSwitch.innerHTML = 'Already have an account? <a href="#" id="auth-switch-link">Log in</a>';
         }
 
-        // Check if already logged in
-        const token = API.getAuthToken();
-        if (token) {
-            const user = testUsers.find(u => u.token === token);
-            if (user) {
-                elements.userSelect.value = user.id;
-                elements.currentUserName.textContent = `Logged in as ${user.name}`;
+        // Re-attach switch link handler
+        document.getElementById('auth-switch-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            openAuthModal(!isLoginMode);
+        });
+
+        elements.authEmailInput.focus();
+    }
+
+    function closeAuthModal() {
+        elements.authModal.classList.add('hidden');
+        elements.authForm.reset();
+        elements.authError.classList.add('hidden');
+    }
+
+    async function handleAuthSubmit(event) {
+        event.preventDefault();
+        elements.authError.classList.add('hidden');
+        elements.authSubmitBtn.disabled = true;
+
+        const email = elements.authEmailInput.value.trim();
+        const password = elements.authPasswordInput.value;
+        const name = elements.authNameInput.value.trim();
+
+        try {
+            if (isLoginMode) {
+                await API.login(email, password);
+            } else {
+                await API.register(email, password, name);
             }
+
+            // Success - update UI
+            const user = await API.getCurrentUser();
+            elements.currentUserName.textContent = user.name;
+            updateAuthUI();
+            closeAuthModal();
+
+            // Load data
+            await refreshContacts();
+            await loadContactRequests();
+            await publishLocationToServer();
+
+        } catch (error) {
+            elements.authError.textContent = error.message;
+            elements.authError.classList.remove('hidden');
+        } finally {
+            elements.authSubmitBtn.disabled = false;
         }
     }
 
-    async function handleUserChange(event) {
-        const userId = event.target.value;
-
-        if (!userId) {
-            API.logout();
-            elements.currentUserName.textContent = '';
-            contacts = [];
-            renderContactsList();
-            return;
-        }
-
-        const user = testUsers.find(u => u.id === userId);
-        if (!user) return;
-
-        try {
-            await API.loginAsTestUser(user.id, user.token);
-            elements.currentUserName.textContent = `Logged in as ${user.name}`;
-
-            // Refresh contacts and publish location
-            await refreshContacts();
-            await publishLocationToServer();
-        } catch (error) {
-            console.error('Login failed:', error);
-            elements.currentUserName.textContent = 'Login failed';
-        }
+    function handleLogout() {
+        API.logout();
+        elements.currentUserName.textContent = '';
+        contacts = [];
+        renderContactsList();
+        updateAuthUI();
     }
 
     // ===================
@@ -563,6 +627,107 @@
             alert('Failed to update permission. Please try again.');
         } finally {
             select.disabled = false;
+        }
+    }
+
+    // ===================
+    // Contact Requests
+    // ===================
+
+    async function loadContactRequests() {
+        if (!API.isAuthenticated()) return;
+
+        try {
+            const requests = await API.getContactRequests();
+            renderIncomingRequests(requests.incoming || []);
+        } catch (error) {
+            console.error('Failed to load contact requests:', error);
+        }
+    }
+
+    function renderIncomingRequests(incoming) {
+        if (incoming.length === 0) {
+            elements.pendingRequests.classList.add('hidden');
+            return;
+        }
+
+        elements.pendingRequests.classList.remove('hidden');
+        elements.incomingRequests.innerHTML = incoming.map(req => `
+            <div class="request-item" data-request-id="${req.requestId}">
+                <div class="request-info">
+                    <strong>${escapeHtml(req.name)}</strong> wants to connect
+                </div>
+                <div class="request-actions">
+                    <button class="btn btn-small btn-primary accept-request-btn" data-id="${req.requestId}">Accept</button>
+                    <button class="btn btn-small decline-request-btn" data-id="${req.requestId}">Decline</button>
+                </div>
+            </div>
+        `).join('');
+
+        // Attach handlers
+        elements.incomingRequests.querySelectorAll('.accept-request-btn').forEach(btn => {
+            btn.addEventListener('click', handleAcceptRequest);
+        });
+        elements.incomingRequests.querySelectorAll('.decline-request-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeclineRequest);
+        });
+    }
+
+    async function handleAcceptRequest(event) {
+        const requestId = event.target.dataset.id;
+        event.target.disabled = true;
+
+        try {
+            await API.acceptContactRequest(requestId);
+            await refreshContacts();
+            await loadContactRequests();
+        } catch (error) {
+            console.error('Failed to accept request:', error);
+            alert('Failed to accept request. Please try again.');
+            event.target.disabled = false;
+        }
+    }
+
+    async function handleDeclineRequest(event) {
+        const requestId = event.target.dataset.id;
+        event.target.disabled = true;
+
+        try {
+            await API.declineContactRequest(requestId);
+            await loadContactRequests();
+        } catch (error) {
+            console.error('Failed to decline request:', error);
+            alert('Failed to decline request. Please try again.');
+            event.target.disabled = false;
+        }
+    }
+
+    function openAddContactModal() {
+        elements.addContactModal.classList.remove('hidden');
+        elements.addContactError.classList.add('hidden');
+        elements.addContactForm.reset();
+        elements.contactEmailInput.focus();
+    }
+
+    function closeAddContactModal() {
+        elements.addContactModal.classList.add('hidden');
+        elements.addContactForm.reset();
+        elements.addContactError.classList.add('hidden');
+    }
+
+    async function handleAddContact(event) {
+        event.preventDefault();
+        elements.addContactError.classList.add('hidden');
+
+        const email = elements.contactEmailInput.value.trim();
+
+        try {
+            await API.sendContactRequest(email);
+            closeAddContactModal();
+            alert('Contact request sent!');
+        } catch (error) {
+            elements.addContactError.textContent = error.message;
+            elements.addContactError.classList.remove('hidden');
         }
     }
 
@@ -855,23 +1020,40 @@
         elements.retryBtn.addEventListener('click', updateLocation);
         elements.saveLocationBtn.addEventListener('click', openModal);
 
-        // Modal
+        // Save location modal
         elements.modalCloseBtn.addEventListener('click', closeModal);
         elements.modalCancelBtn.addEventListener('click', closeModal);
         elements.modalForm.addEventListener('submit', handleSaveLocation);
         elements.modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
 
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && !elements.modal.classList.contains('hidden')) {
-                closeModal();
-            }
-        });
+        // Auth buttons
+        elements.showLoginBtn.addEventListener('click', () => openAuthModal(true));
+        elements.showRegisterBtn.addEventListener('click', () => openAuthModal(false));
+        elements.logoutBtn.addEventListener('click', handleLogout);
 
-        // User switcher
-        elements.userSelect.addEventListener('change', handleUserChange);
+        // Auth modal
+        elements.authModalCloseBtn.addEventListener('click', closeAuthModal);
+        elements.authForm.addEventListener('submit', handleAuthSubmit);
+        elements.authModal.querySelector('.modal-backdrop').addEventListener('click', closeAuthModal);
+
+        // Add contact
+        elements.addContactBtn.addEventListener('click', openAddContactModal);
+        elements.addContactCloseBtn.addEventListener('click', closeAddContactModal);
+        elements.addContactCancelBtn.addEventListener('click', closeAddContactModal);
+        elements.addContactForm.addEventListener('submit', handleAddContact);
+        elements.addContactModal.querySelector('.modal-backdrop').addEventListener('click', closeAddContactModal);
 
         // Contacts
         elements.refreshContactsBtn.addEventListener('click', refreshContacts);
+
+        // Escape key for modals
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                if (!elements.modal.classList.contains('hidden')) closeModal();
+                if (!elements.authModal.classList.contains('hidden')) closeAuthModal();
+                if (!elements.addContactModal.classList.contains('hidden')) closeAddContactModal();
+            }
+        });
     }
 
     // ===================
@@ -899,14 +1081,23 @@
             updateServerStatus(healthy);
 
             if (healthy) {
-                // Load permission levels and test users
+                // Load permission levels
                 await loadPermissionLevels();
-                await loadTestUsers();
 
-                // If already have a token, refresh contacts
+                // If already have a token, validate and load data
                 if (API.isAuthenticated()) {
-                    await refreshContacts();
+                    try {
+                        const user = await API.getCurrentUser();
+                        elements.currentUserName.textContent = user.name;
+                        await refreshContacts();
+                        await loadContactRequests();
+                    } catch (error) {
+                        // Token invalid, already logged out by API
+                        console.warn('Session expired');
+                    }
                 }
+
+                updateAuthUI();
             }
         } catch (error) {
             console.warn('Server connection check failed:', error);

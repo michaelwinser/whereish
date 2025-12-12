@@ -15,12 +15,16 @@
     <div class="app">
         <header class="header">
             <h1 class="logo">Whereish</h1>
-            <!-- User switcher (development only) -->
-            <div id="user-switcher" class="user-switcher hidden">
-                <select id="user-select">
-                    <option value="">Select user...</option>
-                </select>
-                <span id="current-user-name" class="current-user-name"></span>
+            <!-- Auth controls -->
+            <div id="auth-controls" class="auth-controls">
+                <div id="logged-out-controls" class="auth-state">
+                    <button id="show-login-btn" class="btn btn-small">Log In</button>
+                    <button id="show-register-btn" class="btn btn-small btn-secondary">Sign Up</button>
+                </div>
+                <div id="logged-in-controls" class="auth-state hidden">
+                    <span id="current-user-name" class="current-user-name"></span>
+                    <button id="logout-btn" class="btn btn-small btn-secondary">Log Out</button>
+                </div>
             </div>
             <p class="tagline">You are at</p>
         </header>
@@ -65,11 +69,18 @@
                 </button>
             </section>
 
-            <!-- Contacts Section (Milestone 3) -->
+            <!-- Contacts Section -->
             <section id="contacts-section" class="contacts-section hidden">
                 <div class="section-header">
                     <h2>Contacts</h2>
-                    <button id="refresh-contacts-btn" class="btn-icon" title="Refresh">🔄</button>
+                    <div class="section-header-actions">
+                        <button id="add-contact-btn" class="btn-icon" title="Add Contact">+</button>
+                        <button id="refresh-contacts-btn" class="btn-icon" title="Refresh">🔄</button>
+                    </div>
+                </div>
+                <!-- Pending requests -->
+                <div id="pending-requests" class="pending-requests hidden">
+                    <div id="incoming-requests"></div>
                 </div>
                 <div id="contacts-list" class="contacts-list">
                     <p class="empty-state">Loading contacts...</p>
@@ -159,6 +170,61 @@
                 <div class="modal-actions">
                     <button type="button" id="modal-cancel-btn" class="btn">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Place</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="auth-modal-title">Log In</h2>
+                <button id="auth-modal-close-btn" class="modal-close">&times;</button>
+            </div>
+            <form id="auth-form" class="modal-body">
+                <div id="auth-name-group" class="form-group hidden">
+                    <label for="auth-name">Name</label>
+                    <input type="text" id="auth-name" name="name" placeholder="Your name" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="auth-email">Email</label>
+                    <input type="email" id="auth-email" name="email" placeholder="you@example.com" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="auth-password">Password</label>
+                    <input type="password" id="auth-password" name="password" placeholder="Password" required autocomplete="current-password" minlength="6">
+                </div>
+                <div id="auth-error" class="form-error hidden"></div>
+                <div class="modal-actions">
+                    <button type="submit" id="auth-submit-btn" class="btn btn-primary">Log In</button>
+                </div>
+                <p id="auth-switch" class="auth-switch">
+                    Don't have an account? <a href="#" id="auth-switch-link">Sign up</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Contact Modal -->
+    <div id="add-contact-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Contact</h2>
+                <button id="add-contact-close-btn" class="modal-close">&times;</button>
+            </div>
+            <form id="add-contact-form" class="modal-body">
+                <div class="form-group">
+                    <label for="contact-email">Email Address</label>
+                    <input type="email" id="contact-email" name="email" placeholder="friend@example.com" required>
+                    <p class="form-help">Enter the email address of the person you want to add</p>
+                </div>
+                <div id="add-contact-error" class="form-error hidden"></div>
+                <div class="modal-actions">
+                    <button type="button" id="add-contact-cancel-btn" class="btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Request</button>
                 </div>
             </form>
         </div>
