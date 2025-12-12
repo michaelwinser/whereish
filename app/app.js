@@ -827,8 +827,10 @@
         const distanceEl = document.getElementById('contact-distance');
         const lastUpdatedEl = document.getElementById('contact-last-updated');
 
-        if (contact.location) {
-            locationDisplay.innerHTML = `<span class="location-text">${escapeHtml(contact.location)}</span>`;
+        if (contact.location && contact.location.data) {
+            const data = contact.location.data;
+            const locationText = data.namedLocation || findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
+            locationDisplay.innerHTML = `<span class="location-text">${escapeHtml(locationText)}</span>`;
 
             // Calculate distance if we have coordinates
             if (currentCoordinates && contact.latitude && contact.longitude) {
@@ -844,8 +846,8 @@
             }
 
             // Show last updated
-            if (contact.locationUpdatedAt) {
-                const lastUpdate = new Date(contact.locationUpdatedAt);
+            if (contact.location.updated_at) {
+                const lastUpdate = new Date(contact.location.updated_at);
                 lastUpdatedEl.textContent = 'Last updated ' + formatTimeAgo(lastUpdate);
             } else {
                 lastUpdatedEl.textContent = '';
