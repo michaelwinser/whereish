@@ -1287,12 +1287,26 @@
         document.getElementById('detail-permission-select')?.addEventListener('change', handleDetailPermissionChange);
         document.getElementById('remove-contact-btn')?.addEventListener('click', handleRemoveContact);
 
-        // Escape key for modals
+        // Escape key: close modals first, then navigate back
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
-                if (!elements.modal.classList.contains('hidden')) closeModal();
-                if (!elements.authModal.classList.contains('hidden')) closeAuthModal();
-                if (!elements.addContactModal.classList.contains('hidden')) closeAddContactModal();
+                // First, try to close any open modal
+                if (!elements.modal.classList.contains('hidden')) {
+                    closeModal();
+                    return;
+                }
+                if (!elements.authModal.classList.contains('hidden')) {
+                    closeAuthModal();
+                    return;
+                }
+                if (!elements.addContactModal.classList.contains('hidden')) {
+                    closeAddContactModal();
+                    return;
+                }
+                // No modal open - navigate back if possible
+                if (ViewManager.canGoBack()) {
+                    ViewManager.goBack();
+                }
             }
         });
     }

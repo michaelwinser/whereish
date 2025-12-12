@@ -114,10 +114,11 @@ const ViewManager = (function() {
             tabBar.classList.add('hidden');
         }
 
-        // Update active tab
+        // Update active tab and aria-selected
         tabBar.querySelectorAll('.tab-item').forEach(tab => {
             const isActive = tab.dataset.tab === currentView;
             tab.classList.toggle('active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
     }
 

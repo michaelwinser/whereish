@@ -1470,3 +1470,66 @@ body {
         background: rgba(229, 62, 62, 0.1);
     }
 }
+
+/* ===================
+   Polish (Phase 8)
+   =================== */
+
+/* View transitions */
+.view {
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Focus styles for accessibility */
+.btn:focus-visible,
+.btn-icon:focus-visible,
+.tab-item:focus-visible,
+.permission-select:focus-visible,
+.back-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Loading states */
+.contacts-list .empty-state,
+.named-locations-list .empty-state {
+    color: var(--color-text-muted);
+    font-style: italic;
+    padding: 1rem;
+    text-align: center;
+}
+
+/* Improve tap targets for mobile */
+.btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tab-item {
+    min-height: 44px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    .view {
+        animation: none;
+    }
+
+    * {
+        transition-duration: 0.01ms !important;
+    }
+}

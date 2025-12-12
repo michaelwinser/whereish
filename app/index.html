@@ -254,17 +254,17 @@
         <!-- End Settings View -->
 
         <!-- Tab Bar (only visible when logged in) -->
-        <nav class="tab-bar hidden" id="tab-bar">
-            <button class="tab-item active" data-tab="main">
-                <span class="tab-icon">👥</span>
+        <nav class="tab-bar hidden" id="tab-bar" role="tablist" aria-label="Main navigation">
+            <button class="tab-item active" data-tab="main" role="tab" aria-selected="true" aria-controls="view-main">
+                <span class="tab-icon" aria-hidden="true">👥</span>
                 <span class="tab-label">Contacts</span>
             </button>
-            <button class="tab-item" data-tab="places">
-                <span class="tab-icon">📍</span>
+            <button class="tab-item" data-tab="places" role="tab" aria-selected="false" aria-controls="view-places">
+                <span class="tab-icon" aria-hidden="true">📍</span>
                 <span class="tab-label">Places</span>
             </button>
-            <button class="tab-item" data-tab="circles" disabled>
-                <span class="tab-icon">⭕</span>
+            <button class="tab-item" data-tab="circles" role="tab" aria-selected="false" disabled aria-disabled="true">
+                <span class="tab-icon" aria-hidden="true">⭕</span>
                 <span class="tab-label">Circles</span>
             </button>
         </nav>
