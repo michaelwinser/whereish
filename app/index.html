@@ -293,6 +293,13 @@
                         <strong>Important:</strong> Save this file securely. You'll need it to log in on other devices
                         or recover your account. Without it, your encrypted data cannot be recovered.
                     </p>
+                    <div class="settings-danger-zone">
+                        <button id="delete-identity-btn" class="btn btn-danger">Delete Identity</button>
+                        <p class="settings-hint">
+                            Permanently removes your cryptographic identity from this device.
+                            Use this when switching accounts or before giving away your device.
+                        </p>
+                    </div>
                 </section>
 
                 <!-- Privacy Section (placeholders) -->
@@ -420,6 +427,11 @@
                     </label>
                 </div>
                 <div id="auth-error" class="form-error hidden"></div>
+                <div id="auth-import-section" class="auth-import-section hidden">
+                    <p>Have your identity backup file?</p>
+                    <button type="button" id="auth-import-btn" class="btn btn-secondary">Import Identity</button>
+                    <input type="file" id="auth-identity-file" accept=".json" class="hidden">
+                </div>
                 <div class="modal-actions">
                     <button type="submit" id="auth-submit-btn" class="btn btn-primary">Log In</button>
                 </div>

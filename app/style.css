@@ -937,6 +937,24 @@ body {
     margin-bottom: 1rem;
 }
 
+.auth-import-section {
+    background: rgba(74, 124, 89, 0.1);
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.auth-import-section p {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.auth-import-section .btn {
+    width: 100%;
+}
+
 /* Section header with multiple buttons */
 .section-header-actions {
     display: flex;
@@ -1945,6 +1963,18 @@ body {
     font-size: 0.8rem;
     margin-top: 0.5rem;
     padding: 0 0.5rem;
+}
+
+.settings-danger-zone {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.settings-danger-zone .btn-danger {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--color-error);
 }
 
 .welcome-import {

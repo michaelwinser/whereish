@@ -78,6 +78,7 @@
         settingsLogoutBtn: document.getElementById('settings-logout-btn'),
         forceRefreshBtn: document.getElementById('force-refresh-btn'),
         exportIdentityBtn: document.getElementById('export-identity-btn'),
+        deleteIdentityBtn: document.getElementById('delete-identity-btn'),
 
         // Identity import (welcome screen)
         importIdentityBtn: document.getElementById('import-identity-btn'),
@@ -96,6 +97,9 @@
         authConfirmInput: document.getElementById('auth-confirm-password'),
         authShowPassword: document.getElementById('auth-show-password'),
         authError: document.getElementById('auth-error'),
+        authImportSection: document.getElementById('auth-import-section'),
+        authImportBtn: document.getElementById('auth-import-btn'),
+        authIdentityFile: document.getElementById('auth-identity-file'),
         authSubmitBtn: document.getElementById('auth-submit-btn'),
         authSwitch: document.getElementById('auth-switch'),
         authSwitchLink: document.getElementById('auth-switch-link'),
@@ -362,6 +366,7 @@
         isLoginMode = loginMode;
         elements.authModal.classList.remove('hidden');
         elements.authError.classList.add('hidden');
+        elements.authImportSection?.classList.add('hidden');
         elements.authForm.reset();
 
         if (loginMode) {
@@ -442,6 +447,13 @@
         } catch (error) {
             elements.authError.textContent = error.message;
             elements.authError.classList.remove('hidden');
+
+            // Show import section if this is an identity mismatch error
+            const isIdentityError = error.message.includes('identity') ||
+                error.message.includes('another device');
+            if (isIdentityError) {
+                elements.authImportSection?.classList.remove('hidden');
+            }
         } finally {
             elements.authSubmitBtn.disabled = false;
         }
@@ -501,31 +513,13 @@
     }
 
     async function handleLogout() {
-        // Warn if identity hasn't been exported
-        const identityExported = localStorage.getItem('whereish_identity_exported');
-        if (Identity.hasIdentity() && !identityExported) {
-            const confirmed = confirm(
-                'Warning: You have not exported your identity backup.\n\n' +
-                'If you log out without exporting, you will lose access to your encrypted data ' +
-                'and won\'t be able to log in on other devices.\n\n' +
-                'Are you sure you want to log out?'
-            );
-            if (!confirmed) {
-                return;
-            }
-        }
-
         API.logout();
         currentUserId = null;
 
-        // Clear user-specific data
+        // Clear user-specific data (but preserve identity for re-login)
         contacts = [];
         namedLocations = [];
         currentMatch = null;
-
-        // Clear identity
-        await Identity.clear();
-        localStorage.removeItem('whereish_identity_exported');
 
         // Sync with Model
         Model.setCurrentUserId(null);
@@ -534,6 +528,46 @@
         Model.setCurrentMatch(null);
 
         // Force refresh to ensure fresh assets and clean state
+        forceRefresh();
+    }
+
+    /**
+     * Handle delete identity - completely wipes cryptographic identity from device
+     */
+    async function handleDeleteIdentity() {
+        const identityExported = localStorage.getItem('whereish_identity_exported');
+
+        let message = 'WARNING: This will permanently delete your cryptographic identity from this device.\n\n';
+        if (!identityExported) {
+            message += '⚠️ You have NOT exported your identity backup!\n\n';
+        }
+        message += 'Without your identity:\n' +
+            '• You cannot decrypt location data from contacts\n' +
+            '• You cannot log in to this account on any device\n' +
+            '• Your contacts will not be able to see your location\n\n' +
+            'This cannot be undone. Are you sure?';
+
+        if (!confirm(message)) {
+            return;
+        }
+
+        // Double-confirm for safety
+        if (!confirm('Are you absolutely sure? Type "delete" in the next prompt to confirm.')) {
+            return;
+        }
+
+        const typed = window.prompt('Type "delete" to confirm identity deletion:');
+        if (typed?.toLowerCase() !== 'delete') {
+            alert('Identity deletion cancelled.');
+            return;
+        }
+
+        // Clear everything
+        await Identity.clear();
+        localStorage.removeItem('whereish_identity_exported');
+        API.logout();
+
+        alert('Identity deleted. You will now be logged out.');
         forceRefresh();
     }
 
@@ -592,6 +626,37 @@
 
             // Open login modal
             openAuthModal(true);
+
+        } catch (error) {
+            console.error('Failed to import identity:', error);
+            alert('Failed to import identity: ' + error.message);
+        } finally {
+            // Clear file input so same file can be selected again
+            event.target.value = '';
+        }
+    }
+
+    /**
+     * Handle import identity from auth modal (during login mismatch)
+     */
+    async function handleAuthImportIdentity(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            const json = await file.text();
+            const account = await Identity.importPrivate(json);
+
+            // Hide error and import section
+            elements.authError.classList.add('hidden');
+            elements.authImportSection?.classList.add('hidden');
+
+            // Pre-fill email if available and different from current
+            if (account.email && !elements.authEmailInput.value) {
+                elements.authEmailInput.value = account.email;
+            }
+
+            alert('Identity imported successfully! Please enter your password and try again.');
 
         } catch (error) {
             console.error('Failed to import identity:', error);
@@ -1600,6 +1665,7 @@
         elements.settingsLogoutBtn?.addEventListener('click', handleLogout);
         elements.forceRefreshBtn?.addEventListener('click', forceRefresh);
         elements.exportIdentityBtn?.addEventListener('click', handleExportIdentity);
+        elements.deleteIdentityBtn?.addEventListener('click', handleDeleteIdentity);
 
         // Welcome screen buttons
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
@@ -1608,6 +1674,10 @@
         // Identity import (welcome screen)
         elements.importIdentityBtn?.addEventListener('click', () => elements.identityFileInput?.click());
         elements.identityFileInput?.addEventListener('change', handleImportIdentity);
+
+        // Identity import (auth modal - for login mismatch)
+        elements.authImportBtn?.addEventListener('click', () => elements.authIdentityFile?.click());
+        elements.authIdentityFile?.addEventListener('change', handleAuthImportIdentity);
 
         // Tab bar
         document.querySelectorAll('.tab-item').forEach(tab => {
