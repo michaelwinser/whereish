@@ -58,19 +58,10 @@ install-hooks: ## Install git hooks
 # Development
 # =============================================================================
 
-run: ## Run both server and client (in foreground, Ctrl+C to stop)
-	@echo "Starting server on :8500 and client on :8080..."
+run: ## Run dev server (API + static files on :8080)
+	@echo "Starting Whereish on http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
-	@trap 'kill 0' INT; \
-		$(MAKE) run-server & \
-		$(MAKE) run-client & \
-		wait
-
-run-server: ## Run Flask dev server (port 8500)
-	cd server && $(PYTHON) run.py
-
-run-client: ## Serve PWA on port 8080
-	$(PYTHON) -m http.server 8080 --directory app
+	cd server && SERVE_STATIC=true PORT=8080 $(PYTHON) run.py
 
 # =============================================================================
 # Testing

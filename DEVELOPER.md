@@ -17,7 +17,7 @@ This creates a Python virtual environment (`.venv/`) and installs all dependenci
 make pre-commit    # Run before committing (smoke + lint)
 make test          # Run all tests (smoke + lint)
 make test-smoke    # Fast smoke tests only (~7 sec)
-make run           # Run server (:8500) and client (:8080)
+make run           # Run dev server on :8080
 make lint          # Run all linters
 make help          # Show all available targets
 ```
@@ -141,34 +141,15 @@ make lint-md
 .venv/bin/python3 -m ruff format server/ smoke_test.py
 ```
 
-## Development Servers
-
-### Both Together
+## Development Server
 
 ```bash
 make run
-# Server: http://localhost:8500
-# Client: http://localhost:8080
-# Press Ctrl+C to stop both
+# Opens http://localhost:8080
+# Press Ctrl+C to stop
 ```
 
-**Important:** When running with separate servers, set the API URL in your browser console:
-
-```javascript
-localStorage.setItem('whereish_api_url', 'http://localhost:8500')
-```
-
-Then refresh the page. This tells the client where to find the API.
-
-### Separately
-
-```bash
-# Terminal 1
-make run-server    # API on :8500
-
-# Terminal 2
-make run-client    # PWA on :8080
-```
+This runs Flask with `SERVE_STATIC=true`, serving both API and PWA from a single server - same as production.
 
 ## Service Worker Cache
 
