@@ -15,9 +15,14 @@ const API = (function() {
     // API uses same-origin (relative URLs) - works for both dev and production
     const BASE_URL = '';
 
+    // App version - must match server's APP_VERSION for compatibility
+    // Increment this when deploying client changes
+    const APP_VERSION = '1';
+
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;
     let currentUser = null;
+    let updateBannerShown = false;
 
     // ===================
     // HTTP Helpers
@@ -46,6 +51,9 @@ const API = (function() {
             headers
         });
 
+        // Check for version mismatch
+        checkVersionHeader(response);
+
         // Handle non-JSON responses
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -62,6 +70,38 @@ const API = (function() {
         }
 
         return data;
+    }
+
+    /**
+     * Check version header and show update banner if mismatch
+     * @param {Response} response - Fetch response
+     */
+    function checkVersionHeader(response) {
+        if (updateBannerShown) return;
+
+        const serverVersion = response.headers.get('X-App-Version');
+        if (serverVersion && serverVersion !== APP_VERSION) {
+            updateBannerShown = true;
+            showUpdateBanner();
+        }
+    }
+
+    /**
+     * Show update available banner
+     */
+    function showUpdateBanner() {
+        // Check if banner already exists
+        if (document.getElementById('update-banner')) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'update-banner';
+        banner.className = 'update-banner';
+        banner.innerHTML = `
+            <span>A new version is available</span>
+            <button onclick="location.reload(true)">Refresh</button>
+            <button onclick="this.parentElement.remove()" class="dismiss">&times;</button>
+        `;
+        document.body.prepend(banner);
     }
 
     // ===================

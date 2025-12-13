@@ -69,6 +69,10 @@ LOCATION_EXPIRY_MINUTES = 30
 # Token expiry
 TOKEN_EXPIRY_DAYS = 30
 
+# App version for client refresh detection
+# Increment this when deploying breaking changes or critical fixes
+APP_VERSION = os.environ.get('APP_VERSION', '1')
+
 # ===================
 # Permission Levels
 # ===================
@@ -994,12 +998,14 @@ def server_error(e):
 
 @app.after_request
 def after_request(response):
-    """Add CORS headers for development."""
+    """Add CORS headers and version header."""
     origin = request.headers.get('Origin', '*')
     response.headers['Access-Control-Allow-Origin'] = origin
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Expose-Headers'] = 'X-App-Version'
+    response.headers['X-App-Version'] = APP_VERSION
     return response
 
 

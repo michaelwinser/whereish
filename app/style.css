@@ -31,6 +31,51 @@ body {
     min-height: 100vh;
 }
 
+/* Update banner */
+.update-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-primary);
+    color: white;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    z-index: 9999;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.update-banner button {
+    background: white;
+    color: var(--color-primary);
+    border: none;
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.update-banner button:hover {
+    background: #f0f0f0;
+}
+
+.update-banner button.dismiss {
+    background: transparent;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.update-banner button.dismiss:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 /* App container */
 .app {
     max-width: 480px;
