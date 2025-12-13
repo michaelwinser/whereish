@@ -128,22 +128,16 @@ lint-md: ## Lint Markdown files
 	@echo "✓ Markdown lint OK"
 
 # =============================================================================
-# Docker (Issue #9)
+# Docker
 # =============================================================================
 
-build: ## Build Docker image (not yet implemented - Issue #9)
-	@if [ -f Dockerfile ]; then \
-		docker build -t whereish .; \
-	else \
-		echo "[TODO] Dockerfile not yet created (see Issue #9)"; \
-		exit 1; \
-	fi
+build: ## Build Docker image
+	docker build -t whereish .
 
-docker-run: ## Run Docker container locally (not yet implemented - Issue #9)
-	@echo "[TODO] Docker setup not yet complete (see Issue #9)"
-	@echo "Once implemented, run:"
-	@echo "  docker run -p 8080:8080 -v whereish-data:/app/data -e SECRET_KEY=dev-secret whereish"
-	@exit 1
+docker-run: build ## Run Docker container locally
+	@echo "Starting Whereish container on http://localhost:8080"
+	@echo "Press Ctrl+C to stop"
+	docker run --rm -p 8080:8080 -v whereish-data:/app/data -e SECRET_KEY=dev-secret-for-local-testing whereish
 
 # =============================================================================
 # Utility
