@@ -17,79 +17,11 @@
     // Configuration
     // ===================
 
-    const CONFIG = {
-        geocodeUrl: 'https://nominatim.openstreetmap.org/reverse',
-        geolocation: {
-            enableHighAccuracy: true,
-            timeout: 30000,
-            maximumAge: 0
-        },
-        userAgent: 'Whereish/1.0 (semantic-location-prototype)',
-        // How often to refresh contacts (ms)
-        contactsRefreshInterval: 60000,  // 1 minute
-        // How often to publish location (ms)
-        locationPublishInterval: 300000   // 5 minutes
-    };
-
     // ===================
-    // Geographic Hierarchy Definition
+    // Configuration and Constants from Model
     // ===================
-
-    const HIERARCHY_LEVELS = [
-        { key: 'address', label: 'Address', nominatimKeys: ['house_number', 'road'] },
-        { key: 'street', label: 'Street', nominatimKeys: ['road'] },
-        { key: 'neighborhood', label: 'Neighborhood', nominatimKeys: ['neighbourhood', 'suburb', 'hamlet'] },
-        { key: 'city', label: 'City', nominatimKeys: ['city', 'town', 'village', 'municipality'] },
-        { key: 'county', label: 'County', nominatimKeys: ['county'] },
-        { key: 'state', label: 'State', nominatimKeys: ['state'] },
-        { key: 'country', label: 'Country', nominatimKeys: ['country'] },
-        { key: 'continent', label: 'Continent', nominatimKeys: [] }
-    ];
-
-    const COUNTRY_TO_CONTINENT = {
-        'United States': 'North America',
-        'Canada': 'North America',
-        'Mexico': 'North America',
-        'United Kingdom': 'Europe',
-        'France': 'Europe',
-        'Germany': 'Europe',
-        'Italy': 'Europe',
-        'Spain': 'Europe',
-        'Netherlands': 'Europe',
-        'Belgium': 'Europe',
-        'Switzerland': 'Europe',
-        'Austria': 'Europe',
-        'Poland': 'Europe',
-        'Sweden': 'Europe',
-        'Norway': 'Europe',
-        'Denmark': 'Europe',
-        'Finland': 'Europe',
-        'Ireland': 'Europe',
-        'Portugal': 'Europe',
-        'Greece': 'Europe',
-        'Japan': 'Asia',
-        'China': 'Asia',
-        'South Korea': 'Asia',
-        'India': 'Asia',
-        'Singapore': 'Asia',
-        'Thailand': 'Asia',
-        'Vietnam': 'Asia',
-        'Indonesia': 'Asia',
-        'Malaysia': 'Asia',
-        'Philippines': 'Asia',
-        'Australia': 'Oceania',
-        'New Zealand': 'Oceania',
-        'Brazil': 'South America',
-        'Argentina': 'South America',
-        'Chile': 'South America',
-        'Colombia': 'South America',
-        'Peru': 'South America',
-        'South Africa': 'Africa',
-        'Egypt': 'Africa',
-        'Nigeria': 'Africa',
-        'Kenya': 'Africa',
-        'Morocco': 'Africa'
-    };
+    // CONFIG, HIERARCHY_LEVELS, COUNTRY_TO_CONTINENT are now in Model
+    // Access via Model.CONFIG, Model.HIERARCHY_LEVELS, Model.COUNTRY_TO_CONTINENT
 
     // ===================
     // State
@@ -219,7 +151,7 @@
                             reject(new Error('An unknown error occurred while getting location.'));
                     }
                 },
-                CONFIG.geolocation
+                Model.CONFIG.geolocation
             );
         });
     }
@@ -229,7 +161,7 @@
     // ===================
 
     async function reverseGeocode(lat, lon) {
-        const url = new URL(CONFIG.geocodeUrl);
+        const url = new URL(Model.CONFIG.geocodeUrl);
         url.searchParams.set('lat', lat);
         url.searchParams.set('lon', lon);
         url.searchParams.set('format', 'json');
@@ -237,7 +169,7 @@
         url.searchParams.set('zoom', '18');
 
         const response = await fetch(url, {
-            headers: { 'User-Agent': CONFIG.userAgent }
+            headers: { 'User-Agent': Model.CONFIG.userAgent }
         });
 
         if (!response.ok) {
@@ -253,39 +185,7 @@
         return data.address || {};
     }
 
-    function buildHierarchy(addressComponents) {
-        const hierarchy = {};
-
-        for (const level of HIERARCHY_LEVELS) {
-            if (level.key === 'continent') {
-                const country = hierarchy.country;
-                hierarchy.continent = country ? (COUNTRY_TO_CONTINENT[country] || 'Planet Earth') : 'Planet Earth';
-                continue;
-            }
-
-            if (level.key === 'address') {
-                const houseNumber = addressComponents.house_number;
-                const road = addressComponents.road;
-                if (houseNumber && road) {
-                    hierarchy.address = `${houseNumber} ${road}`;
-                }
-                continue;
-            }
-
-            for (const nominatimKey of level.nominatimKeys) {
-                if (addressComponents[nominatimKey]) {
-                    hierarchy[level.key] = addressComponents[nominatimKey];
-                    break;
-                }
-            }
-        }
-
-        if (!hierarchy.continent) {
-            hierarchy.continent = 'Planet Earth';
-        }
-
-        return hierarchy;
-    }
+    // buildHierarchy moved to Model.buildHierarchy
 
     // ===================
     // UI Updates
@@ -341,7 +241,7 @@
             return;
         }
 
-        const mostSpecific = findMostSpecificLevel(hierarchy);
+        const mostSpecific = Model.findMostSpecificLevel(hierarchy);
 
         if (match) {
             // Show named location as primary, actual location as secondary
@@ -357,39 +257,7 @@
         }
     }
 
-    function findMostSpecificLevel(hierarchy) {
-        for (const level of HIERARCHY_LEVELS) {
-            if (hierarchy[level.key]) {
-                return hierarchy[level.key];
-            }
-        }
-        return null;
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function formatTimeAgo(dateString) {
-        if (!dateString) return '';
-        try {
-            const date = new Date(dateString);
-            // Check for invalid date
-            if (!(date instanceof Date) || isNaN(date.getTime())) return '';
-            const now = new Date();
-            const seconds = Math.floor((now - date) / 1000);
-
-            if (seconds < 60) return 'Just now';
-            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-            if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-            return date.toLocaleDateString();
-        } catch {
-            return '';
-        }
-    }
+    // findMostSpecificLevel, escapeHtml, formatTimeAgo moved to Model
 
     /**
      * Render the full location hierarchy on the welcome screen
@@ -412,7 +280,7 @@
         const levels = [];
 
         // Add all hierarchy levels that have values
-        for (const level of HIERARCHY_LEVELS) {
+        for (const level of Model.HIERARCHY_LEVELS) {
             if (currentHierarchy[level.key]) {
                 levels.push({
                     icon: '📍',
@@ -432,7 +300,7 @@
         container.innerHTML = levels.map((level, _index) => `
             <div class="welcome-hierarchy-level${level.primary ? ' primary' : ''}">
                 <span class="welcome-hierarchy-icon">${level.icon}</span>
-                <span class="welcome-hierarchy-text">${escapeHtml(level.text)}</span>
+                <span class="welcome-hierarchy-text">${Model.escapeHtml(level.text)}</span>
             </div>
         `).join('');
     }
@@ -611,11 +479,11 @@
             if (contact.location && contact.location.data) {
                 const data = contact.location.data;
                 // Get the most specific level from their filtered hierarchy
-                locationText = data.namedLocation || findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
+                locationText = data.namedLocation || Model.findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
                 locationClass = contact.location.stale ? 'stale' : '';
 
                 if (contact.location.updated_at) {
-                    timeText = formatTimeAgo(contact.location.updated_at);
+                    timeText = Model.formatTimeAgo(contact.location.updated_at);
                 }
 
                 // Calculate distance if we have coordinates
@@ -634,8 +502,8 @@
                 <div class="contact-item contact-item-simple" data-id="${contact.id}">
                     <div class="contact-avatar">${initial}</div>
                     <div class="contact-info">
-                        <div class="contact-name">${escapeHtml(contact.name)}</div>
-                        <div class="contact-location ${locationClass}">${escapeHtml(locationText)}</div>
+                        <div class="contact-name">${Model.escapeHtml(contact.name)}</div>
+                        <div class="contact-location ${locationClass}">${Model.escapeHtml(locationText)}</div>
                     </div>
                     <div class="contact-meta">
                         ${distanceText ? `<div class="contact-distance-simple">${distanceText}</div>` : ''}
@@ -697,8 +565,8 @@
                     <div class="request-info">
                         <div class="request-avatar">${(req.name || req.email || '?')[0].toUpperCase()}</div>
                         <div>
-                            <div class="request-name">${escapeHtml(req.name || req.email)}</div>
-                            ${req.name ? `<div class="request-email">${escapeHtml(req.email)}</div>` : ''}
+                            <div class="request-name">${Model.escapeHtml(req.name || req.email)}</div>
+                            ${req.name ? `<div class="request-email">${Model.escapeHtml(req.email)}</div>` : ''}
                         </div>
                     </div>
                     <div class="request-actions">
@@ -731,8 +599,8 @@
                     <div class="request-info">
                         <span class="request-icon">📤</span>
                         <div>
-                            <div class="request-email">${escapeHtml(req.email)}</div>
-                            <div class="request-time">${formatTimeAgo(req.createdAt)}</div>
+                            <div class="request-email">${Model.escapeHtml(req.email)}</div>
+                            <div class="request-time">${Model.formatTimeAgo(req.createdAt)}</div>
                         </div>
                     </div>
                     <button class="btn btn-small btn-secondary cancel-request-btn" data-id="${req.requestId}">Cancel</button>
@@ -854,8 +722,8 @@
 
         if (contact.location && contact.location.data) {
             const data = contact.location.data;
-            const locationText = data.namedLocation || findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
-            locationDisplay.innerHTML = `<span class="location-text">${escapeHtml(locationText)}</span>`;
+            const locationText = data.namedLocation || Model.findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
+            locationDisplay.innerHTML = `<span class="location-text">${Model.escapeHtml(locationText)}</span>`;
 
             // Calculate distance if we have coordinates
             if (currentCoordinates && contact.latitude && contact.longitude) {
@@ -872,7 +740,7 @@
 
             // Show last updated
             if (contact.location.updated_at) {
-                lastUpdatedEl.textContent = 'Last updated ' + formatTimeAgo(contact.location.updated_at);
+                lastUpdatedEl.textContent = 'Last updated ' + Model.formatTimeAgo(contact.location.updated_at);
             } else {
                 lastUpdatedEl.textContent = '';
             }
@@ -908,15 +776,15 @@
         }
 
         // Get the location text for this permission level
-        const levelIndex = HIERARCHY_LEVELS.findIndex(l => l.key === level);
+        const levelIndex = Model.HIERARCHY_LEVELS.findIndex(l => l.key === level);
         if (levelIndex === -1) {
             previewEl.textContent = 'Planet Earth';
             return;
         }
 
         // Find the first available level from the granted level up
-        for (let i = levelIndex; i < HIERARCHY_LEVELS.length; i++) {
-            const key = HIERARCHY_LEVELS[i].key;
+        for (let i = levelIndex; i < Model.HIERARCHY_LEVELS.length; i++) {
+            const key = Model.HIERARCHY_LEVELS[i].key;
             if (currentHierarchy[key]) {
                 previewEl.textContent = currentHierarchy[key];
                 return;
@@ -979,25 +847,7 @@
     // Named Locations UI
     // ===================
 
-    /**
-     * Get visibility indicator for a place
-     * @param {Object} visibility - { mode: 'private'|'all'|'selected', contactIds: [] }
-     * @returns {Object} { icon, tooltip }
-     */
-    function getVisibilityIndicator(visibility) {
-        if (!visibility || visibility.mode === 'private') {
-            return { icon: '🔒', tooltip: 'Private - no one can see' };
-        }
-        if (visibility.mode === 'all') {
-            return { icon: '👥', tooltip: 'Visible to all contacts' };
-        }
-        // 'selected' mode
-        const count = visibility.contactIds?.length || 0;
-        return {
-            icon: `👤×${count}`,
-            tooltip: `Shared with ${count} contact${count !== 1 ? 's' : ''}`
-        };
-    }
+    // getVisibilityIndicator moved to Model.getVisibilityIndicator
 
     function renderPlacesList() {
         if (!elements.placesList) return;
@@ -1024,13 +874,13 @@
                 ? Geofence.formatDistance(distance)
                 : '';
 
-            const visibilityInfo = getVisibilityIndicator(location.visibility);
+            const visibilityInfo = Model.getVisibilityIndicator(location.visibility);
 
             return `
                 <div class="named-location-item ${isActive ? 'active' : ''}" data-id="${location.id}">
                     <span class="location-item-icon">${isActive ? '📍' : '🏠'}</span>
                     <div class="location-item-content">
-                        <div class="location-item-label">${escapeHtml(location.label)}</div>
+                        <div class="location-item-label">${Model.escapeHtml(location.label)}</div>
                         <div class="location-item-meta">
                             ${location.radiusMeters}m radius${distanceText ? ` • ${distanceText} away` : ''}
                         </div>
@@ -1146,7 +996,7 @@
             return `
                 <label class="contact-checkbox">
                     <input type="checkbox" value="${contactId}" ${isChecked ? 'checked' : ''}>
-                    <span>${escapeHtml(contact.name)}</span>
+                    <span>${Model.escapeHtml(contact.name)}</span>
                 </label>
             `;
         }).join('');
@@ -1230,7 +1080,7 @@
         elements.locationLabelInput.focus();
 
         if (currentHierarchy) {
-            const locationText = findMostSpecificLevel(currentHierarchy) || 'Current location';
+            const locationText = Model.findMostSpecificLevel(currentHierarchy) || 'Current location';
             elements.modalCurrentLocation.textContent = locationText;
         }
     }
@@ -1362,7 +1212,7 @@
                 currentCoordinates.longitude
             );
 
-            currentHierarchy = buildHierarchy(addressComponents);
+            currentHierarchy = Model.buildHierarchy(addressComponents);
 
             currentMatch = Geofence.findBestMatch(
                 currentCoordinates.latitude,
@@ -1429,7 +1279,7 @@
         if (contactsRefreshTimer) {
             clearInterval(contactsRefreshTimer);
         }
-        contactsRefreshTimer = setInterval(refreshContacts, CONFIG.contactsRefreshInterval);
+        contactsRefreshTimer = setInterval(refreshContacts, Model.CONFIG.contactsRefreshInterval);
     }
 
     function startLocationPublishTimer() {
@@ -1438,7 +1288,7 @@
         }
         locationPublishTimer = setInterval(async () => {
             await updateLocation();
-        }, CONFIG.locationPublishInterval);
+        }, Model.CONFIG.locationPublishInterval);
     }
 
     // ===================

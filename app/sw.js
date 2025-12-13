@@ -3,11 +3,13 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v45';
+const CACHE_NAME = 'whereish-v46';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/style.css',
+    '/events.js',
+    '/model.js',
     '/app.js',
     '/storage.js',
     '/geofence.js',

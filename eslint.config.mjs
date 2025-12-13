@@ -33,6 +33,8 @@ export default [
         HTMLElement: "readonly",
 
         // App globals (IIFE modules)
+        Events: "writable",
+        Model: "writable",
         ViewManager: "writable",
         API: "writable",
         Storage: "writable",
@@ -42,7 +44,7 @@ export default [
     rules: {
       "no-unused-vars": ["error", {
         "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^(ViewManager|API|Storage|Geofence)$"
+        "varsIgnorePattern": "^(Events|Model|ViewManager|API|Storage|Geofence)$"
       }],
       "no-console": "off",
       "no-undef": "error",
