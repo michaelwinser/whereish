@@ -17,7 +17,7 @@ const API = (function() {
 
     // App version - must match server's APP_VERSION for compatibility
     // This should match the service worker CACHE_NAME version number
-    const APP_VERSION = 54;
+    const APP_VERSION = 100;
 
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;
@@ -298,39 +298,19 @@ const API = (function() {
     }
 
     // ===================
-    // Location
+    // Location (E2E Encrypted)
     // ===================
 
     /**
-     * Publish current location to server
-     * @param {Object} locationData - Location data to publish
+     * Publish encrypted location blobs for contacts (E2E encryption)
+     * @param {Array<{contactId: string, blob: Object}>} locations - Encrypted location blobs
      * @returns {Promise<Object>}
      */
-    async function publishLocation(locationData) {
-        // Serialize location data as JSON string (the "payload")
-        // In production, this would be encrypted
-        const payload = JSON.stringify(locationData);
-
-        return request('/api/location', {
+    async function publishEncryptedLocations(locations) {
+        return request('/api/location/encrypted', {
             method: 'POST',
-            body: JSON.stringify({ payload })
+            body: JSON.stringify({ locations })
         });
-    }
-
-    /**
-     * Get current user's stored location
-     * @returns {Promise<Object|null>}
-     */
-    async function getMyLocation() {
-        const data = await request('/api/location');
-        if (data.location && data.location.payload) {
-            try {
-                data.location.data = JSON.parse(data.location.payload);
-            } catch (e) {
-                console.warn('Failed to parse location payload:', e);
-            }
-        }
-        return data.location;
     }
 
     // ===================
@@ -338,7 +318,7 @@ const API = (function() {
     // ===================
 
     /**
-     * Get list of contacts
+     * Get list of contacts (without locations)
      * @returns {Promise<Array>}
      */
     async function getContacts() {
@@ -347,34 +327,12 @@ const API = (function() {
     }
 
     /**
-     * Get a specific contact's location
-     * @param {string} contactId
-     * @returns {Promise<Object|null>}
+     * Get contacts with their encrypted location blobs (E2E encryption)
+     * @returns {Promise<Array>} Contacts with encryptedLocation field
      */
-    async function getContactLocation(contactId) {
-        const data = await request(`/api/contacts/${contactId}/location`);
-        if (data.location && data.location.payload) {
-            try {
-                data.location.data = JSON.parse(data.location.payload);
-            } catch (e) {
-                console.warn('Failed to parse contact location payload:', e);
-            }
-        }
-        return data.location;
-    }
-
-    /**
-     * Get all contacts with their locations
-     * @returns {Promise<Array>}
-     */
-    async function getContactsWithLocations() {
-        const data = await request('/api/contacts/locations');
-        const contacts = data.contacts || [];
-
-        // Note: Server now returns pre-filtered location.data (no payload parsing needed)
-        // The response includes permissionGranted and permissionReceived for each contact
-
-        return contacts;
+    async function getContactsEncrypted() {
+        const data = await request('/api/contacts/encrypted');
+        return data.contacts || [];
     }
 
     // ===================
@@ -473,14 +431,12 @@ const API = (function() {
         getUserEmail,
         registerPublicKey,
 
-        // Location
-        publishLocation,
-        getMyLocation,
+        // Location (E2E Encrypted)
+        publishEncryptedLocations,
 
         // Contacts
         getContacts,
-        getContactLocation,
-        getContactsWithLocations,
+        getContactsEncrypted,
         sendContactRequest,
         getContactRequests,
         acceptContactRequest,

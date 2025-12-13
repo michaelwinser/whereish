@@ -113,16 +113,16 @@ def run_smoke_tests():
             failed += 1
 
         # ---------------------------------------------------------------------
-        # Test 5: Publish location (authenticated)
+        # Test 5: Publish encrypted location (authenticated)
         # ---------------------------------------------------------------------
-        print('  Testing POST /api/location...', end=' ')
+        print('  Testing POST /api/location/encrypted...', end=' ')
         if token:
+            # Encrypted endpoint accepts array of per-contact encrypted blobs
+            # Empty array is valid (no contacts to share with yet)
             resp = client.post(
-                '/api/location',
+                '/api/location/encrypted',
                 headers={'Authorization': f'Bearer {token}'},
-                json={
-                    'payload': '{"hierarchy":{"city":"Seattle"},"timestamp":"2024-01-01T00:00:00Z"}'
-                },
+                json={'locations': []},
             )
             if resp.status_code == 200:
                 print('✓ 200')

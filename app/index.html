@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2d3748">
     <meta name="description" content="Privacy-first semantic location sharing">
+    <!-- Security headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://nominatim.openstreetmap.org; img-src 'self' data:; frame-ancestors 'none';">
     <title>Whereish</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
@@ -272,13 +276,23 @@
 
                 <!-- Identity Section (E2E Encryption) -->
                 <section class="settings-section">
-                    <h2 class="settings-section-title">Identity</h2>
+                    <h2 class="settings-section-title">
+                        Identity
+                        <span class="encryption-badge">E2E Encrypted</span>
+                    </h2>
                     <div class="settings-item">
-                        <span class="settings-item-label">Encryption Key</span>
-                        <span class="settings-item-hint">Your private key for encrypted location sharing</span>
+                        <span class="settings-item-label">Encryption Status</span>
+                        <span class="settings-item-value encryption-status">Active</span>
                     </div>
+                    <p class="settings-hint encryption-info">
+                        Your location data is end-to-end encrypted. Only your contacts can see your location -
+                        not even Whereish servers can read it.
+                    </p>
                     <button id="export-identity-btn" class="btn btn-secondary">Export Identity Backup</button>
-                    <p class="settings-hint">Save this file securely. You'll need it to log in on other devices.</p>
+                    <p class="settings-hint">
+                        <strong>Important:</strong> Save this file securely. You'll need it to log in on other devices
+                        or recover your account. Without it, your encrypted data cannot be recovered.
+                    </p>
                 </section>
 
                 <!-- Privacy Section (placeholders) -->

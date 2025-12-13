@@ -1,9 +1,15 @@
 # Encryption Design Document
 
-**Status:** Draft
+**Status:** Implemented (v100)
 **Created:** 2025-12-13
+**Implemented:** 2025-12-13
 **PRD:** PRD_ENCRYPTION.md
 **Related:** Issue #30, DESIGN.md
+
+> **Implementation Note:** E2E encryption was implemented in app version 100 following this design.
+> All location data is now encrypted client-side using tweetnacl-js (NaCl box) before being sent
+> to the server. The server can only store opaque encrypted blobs. See PLAN_ENCRYPTION_IMPL.md
+> for implementation details.
 
 ---
 

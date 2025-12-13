@@ -351,38 +351,35 @@ test.describe('API Module', () => {
 
     });
 
-    test.describe('Location API', () => {
+    test.describe('Location API (E2E Encrypted)', () => {
 
-        test('publishLocation sends correct payload', async ({ page }) => {
+        test('publishEncryptedLocations sends correct payload', async ({ page }) => {
             let capturedBody = null;
-            await page.route('**/api/location', route => {
+            await page.route('**/api/location/encrypted', route => {
                 if (route.request().method() === 'POST') {
                     capturedBody = route.request().postDataJSON();
                     route.fulfill({
                         status: 200,
                         contentType: 'application/json',
-                        body: JSON.stringify({ success: true })
+                        body: JSON.stringify({ success: true, count: 1 })
                     });
                 }
             });
 
             await page.evaluate(async () => {
-                await API.publishLocation({
-                    hierarchy: { city: 'Seattle', state: 'Washington' },
-                    namedLocation: { label: 'Home', visibleTo: 'private' }
-                });
+                await API.publishEncryptedLocations([
+                    { contactId: 'user1', blob: { v: 1, n: 'test-nonce', c: 'test-ciphertext' } }
+                ]);
             });
 
-            expect(capturedBody.payload).toBeDefined();
-            const payload = JSON.parse(capturedBody.payload);
-            expect(payload.hierarchy.city).toBe('Seattle');
-            expect(payload.namedLocation.label).toBe('Home');
+            expect(capturedBody.locations).toBeDefined();
+            expect(Array.isArray(capturedBody.locations)).toBe(true);
+            expect(capturedBody.locations[0].contactId).toBe('user1');
+            expect(capturedBody.locations[0].blob.v).toBe(1);
         });
 
-        test('getContactsWithLocations returns array', async ({ page }) => {
-            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
-            await page.unroute('**/api/contacts/locations');
-            await page.route('**/api/contacts/locations', route => {
+        test('getContactsEncrypted returns array with encrypted locations', async ({ page }) => {
+            await page.route('**/api/contacts/encrypted', route => {
                 route.fulfill({
                     status: 200,
                     contentType: 'application/json',
@@ -390,9 +387,13 @@ test.describe('API Module', () => {
                         contacts: [{
                             id: 'user1',
                             name: 'Alice',
-                            location: {
-                                data: { hierarchy: SEATTLE_HIERARCHY },
-                                updated_at: '2025-12-13T10:00:00Z'
+                            publicKey: 'test-public-key-base64',
+                            permissionGranted: 'city',
+                            permissionReceived: 'city',
+                            encryptedLocation: {
+                                blob: { v: 1, n: 'test-nonce', c: 'test-ciphertext' },
+                                updated_at: '2025-12-13T10:00:00Z',
+                                stale: false
                             }
                         }]
                     })
@@ -400,11 +401,12 @@ test.describe('API Module', () => {
             });
 
             const contacts = await page.evaluate(async () => {
-                return await API.getContactsWithLocations();
+                return await API.getContactsEncrypted();
             });
 
             expect(Array.isArray(contacts)).toBe(true);
-            expect(contacts[0].location.data.hierarchy.city).toBe('Seattle');
+            expect(contacts[0].id).toBe('user1');
+            expect(contacts[0].encryptedLocation.blob.v).toBe(1);
         });
 
     });

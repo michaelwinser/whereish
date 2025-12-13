@@ -3,8 +3,8 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v55';
-const APP_VERSION = 55;  // Must match CACHE_NAME version number
+const CACHE_NAME = 'whereish-v100';
+const APP_VERSION = 100;  // Must match CACHE_NAME version number - v100 for E2E encryption breaking change
 
 const STATIC_ASSETS = [
     '/',

@@ -10,7 +10,7 @@ Tests cover:
 
 import pytest
 
-from .api_client import APIClient, SEATTLE_FULL
+from .api_client import APIClient
 
 
 class TestDefaultPermissions:
@@ -94,105 +94,9 @@ class TestAsymmetricPermissions:
         assert bob_perm['permissionReceived'] == 'city'  # What Bob sees of Alice
 
 
-class TestPermissionFiltering:
-    """Tests for permission filtering of location hierarchy."""
-
-    def test_planet_shows_nothing(self, alice_and_bob_contacts, alice_client, bob_client, alice, bob):
-        """Planet permission shows no location hierarchy."""
-        # Alice publishes full location
-        alice_client.publish_location(SEATTLE_FULL)
-
-        # Bob has default 'planet' permission
-        location = bob_client.get_contact_location(alice.id)
-
-        assert location['location']['data']['hierarchy'] == {}
-
-    def test_continent_shows_continent_only(self, alice_and_bob_contacts, alice_client, bob_client, alice, bob):
-        """Continent permission shows only continent."""
-        alice_client.publish_location(SEATTLE_FULL)
-        alice_client.set_permission(bob.id, 'continent')
-
-        location = bob_client.get_contact_location(alice.id)
-        hierarchy = location['location']['data']['hierarchy']
-
-        assert hierarchy.get('continent') == 'North America'
-        assert 'country' not in hierarchy
-        assert 'city' not in hierarchy
-
-    def test_country_shows_continent_and_country(self, alice_and_bob_contacts, alice_client, bob_client, alice, bob):
-        """Country permission shows continent and country."""
-        alice_client.publish_location(SEATTLE_FULL)
-        alice_client.set_permission(bob.id, 'country')
-
-        location = bob_client.get_contact_location(alice.id)
-        hierarchy = location['location']['data']['hierarchy']
-
-        assert hierarchy.get('continent') == 'North America'
-        assert hierarchy.get('country') == 'United States'
-        assert 'state' not in hierarchy
-
-    def test_city_shows_through_city(self, alice_and_bob_contacts, alice_client, bob_client, alice, bob):
-        """City permission shows continent through city."""
-        alice_client.publish_location(SEATTLE_FULL)
-        alice_client.set_permission(bob.id, 'city')
-
-        location = bob_client.get_contact_location(alice.id)
-        hierarchy = location['location']['data']['hierarchy']
-
-        assert hierarchy.get('continent') == 'North America'
-        assert hierarchy.get('country') == 'United States'
-        assert hierarchy.get('state') == 'Washington'
-        assert hierarchy.get('city') == 'Seattle'
-        assert 'neighborhood' not in hierarchy
-        assert 'street' not in hierarchy
-
-    def test_street_shows_through_street(self, alice_and_bob_contacts, alice_client, bob_client, alice, bob):
-        """Street permission shows continent through street."""
-        alice_client.publish_location(SEATTLE_FULL)
-        alice_client.set_permission(bob.id, 'street')
-
-        location = bob_client.get_contact_location(alice.id)
-        hierarchy = location['location']['data']['hierarchy']
-
-        assert hierarchy.get('continent') == 'North America'
-        assert hierarchy.get('city') == 'Seattle'
-        assert hierarchy.get('street') == 'Broadway E'
-        assert 'address' not in hierarchy
-
-    def test_address_shows_everything(self, alice_and_bob_contacts, alice_client, bob_client, alice, bob):
-        """Address permission shows full hierarchy."""
-        alice_client.publish_location(SEATTLE_FULL)
-        alice_client.set_permission(bob.id, 'address')
-
-        location = bob_client.get_contact_location(alice.id)
-        hierarchy = location['location']['data']['hierarchy']
-
-        assert hierarchy.get('continent') == 'North America'
-        assert hierarchy.get('country') == 'United States'
-        assert hierarchy.get('state') == 'Washington'
-        assert hierarchy.get('city') == 'Seattle'
-        assert hierarchy.get('neighborhood') == 'Capitol Hill'
-        assert hierarchy.get('street') == 'Broadway E'
-        assert hierarchy.get('address') == '123 Broadway E'
-
-    def test_permission_change_affects_future_reads(self, alice_and_bob_contacts, alice_client, bob_client, alice, bob):
-        """Changing permission affects subsequent location reads."""
-        alice_client.publish_location(SEATTLE_FULL)
-
-        # Start with planet - Bob sees nothing
-        location = bob_client.get_contact_location(alice.id)
-        assert location['location']['data']['hierarchy'] == {}
-
-        # Upgrade to city
-        alice_client.set_permission(bob.id, 'city')
-        location = bob_client.get_contact_location(alice.id)
-        assert location['location']['data']['hierarchy'].get('city') == 'Seattle'
-
-        # Downgrade to continent
-        alice_client.set_permission(bob.id, 'continent')
-        location = bob_client.get_contact_location(alice.id)
-        assert 'city' not in location['location']['data']['hierarchy']
-        assert location['location']['data']['hierarchy'].get('continent') == 'North America'
+# NOTE: TestPermissionFiltering removed - with E2E encryption, permission filtering
+# is done client-side before encryption, not on the server.
+# See test_encrypted_location.py for the new encrypted location tests.
 
 
 class TestPermissionLevelsEndpoint:

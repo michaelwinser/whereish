@@ -1689,6 +1689,34 @@ body {
     font-family: monospace;
 }
 
+/* Encryption indicators */
+.encryption-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    background: linear-gradient(135deg, #68d391, #4a7c59);
+    color: white;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+}
+
+.encryption-status {
+    color: #68d391;
+    font-weight: 600;
+}
+
+.encryption-info {
+    background: rgba(104, 211, 145, 0.1);
+    border-left: 3px solid #68d391;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+
 /* Header needs position relative for settings button */
 .header {
     position: relative;

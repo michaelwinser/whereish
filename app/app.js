@@ -487,6 +487,20 @@
     }
 
     async function handleLogout() {
+        // Warn if identity hasn't been exported
+        const identityExported = localStorage.getItem('whereish_identity_exported');
+        if (Identity.hasIdentity() && !identityExported) {
+            const confirmed = confirm(
+                'Warning: You have not exported your identity backup.\n\n' +
+                'If you log out without exporting, you will lose access to your encrypted data ' +
+                'and won\'t be able to log in on other devices.\n\n' +
+                'Are you sure you want to log out?'
+            );
+            if (!confirmed) {
+                return;
+            }
+        }
+
         API.logout();
         currentUserId = null;
 
@@ -495,8 +509,9 @@
         namedLocations = [];
         currentMatch = null;
 
-        // Clear identity (TODO: Phase 5 - warn if not exported)
+        // Clear identity
         await Identity.clear();
+        localStorage.removeItem('whereish_identity_exported');
 
         // Sync with Model
         Model.setCurrentUserId(null);
@@ -532,7 +547,11 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
+            // Mark identity as exported (disables logout warning)
+            localStorage.setItem('whereish_identity_exported', 'true');
+
             console.log('Identity exported successfully');
+            alert('Identity backup saved. Keep this file secure!');
         } catch (error) {
             console.error('Failed to export identity:', error);
             alert('Failed to export identity: ' + error.message);
@@ -582,7 +601,49 @@
         }
 
         try {
-            contacts = await API.getContactsWithLocations();
+            // Get contacts with encrypted locations
+            const rawContacts = await API.getContactsEncrypted();
+            const identity = Identity.getCurrent();
+
+            // Process each contact, decrypting their location if available
+            contacts = rawContacts.map(contact => {
+                const processed = {
+                    id: contact.id,
+                    contactId: contact.id,
+                    name: contact.name,
+                    publicKey: contact.publicKey,
+                    permissionGranted: contact.permissionGranted,
+                    permissionReceived: contact.permissionReceived,
+                    location: null
+                };
+
+                // Try to decrypt location if we have identity and contact has encrypted location
+                if (identity && contact.publicKey && contact.encryptedLocation && contact.encryptedLocation.blob) {
+                    try {
+                        const contactPublicKey = Crypto.decodeBase64(contact.publicKey);
+                        const decrypted = Crypto.decryptFromContact(
+                            contact.encryptedLocation.blob,
+                            contactPublicKey,
+                            identity.privateKey
+                        );
+
+                        processed.location = {
+                            data: {
+                                hierarchy: decrypted.hierarchy,
+                                namedLocation: decrypted.namedLocation
+                            },
+                            updated_at: contact.encryptedLocation.updated_at,
+                            stale: contact.encryptedLocation.stale
+                        };
+                    } catch (err) {
+                        console.warn('Failed to decrypt location from', contact.name, ':', err.message);
+                        processed.decryptionError = true;
+                    }
+                }
+
+                return processed;
+            });
+
             Model.setContacts(contacts);
             renderContactsList();
         } catch (error) {
@@ -1315,38 +1376,77 @@
             return;
         }
 
-        try {
-            // Build named location with visibility metadata
-            let namedLocationPayload = null;
-            if (currentMatch) {
-                const visibility = currentMatch.visibility || { mode: 'private', contactIds: [] };
-                let visibleTo;
+        // Require identity for E2E encryption
+        const identity = Identity.getCurrent();
+        if (!identity) {
+            console.warn('No identity - cannot publish encrypted location');
+            return;
+        }
 
-                if (visibility.mode === 'private') {
-                    visibleTo = 'private';
-                } else if (visibility.mode === 'all') {
-                    visibleTo = 'all';
-                } else {
-                    // 'selected' mode - include the list of contact IDs
-                    visibleTo = visibility.contactIds || [];
+        try {
+            // Get contacts with their public keys and permission levels
+            const contactsWithKeys = await API.getContactsEncrypted();
+            const encryptedLocations = [];
+
+            for (const contact of contactsWithKeys) {
+                // Skip contacts without public keys (haven't upgraded to E2E)
+                if (!contact.publicKey) {
+                    continue;
                 }
 
-                namedLocationPayload = {
-                    label: currentMatch.label,
-                    visibleTo: visibleTo
+                // Get permission level I've granted to this contact
+                const permissionLevel = contact.permissionGranted || 'city';
+
+                // Filter hierarchy based on permission level
+                const filteredHierarchy = Model.getFilteredHierarchy(currentHierarchy, permissionLevel);
+
+                // Build named location if visible to this contact
+                let namedLocation = null;
+                if (currentMatch) {
+                    const visibility = currentMatch.visibility || { mode: 'private', contactIds: [] };
+                    const contactIdStr = String(contact.id);
+
+                    if (visibility.mode === 'all') {
+                        namedLocation = currentMatch.label;
+                    } else if (visibility.mode === 'selected') {
+                        // Check if this contact is in the selected list
+                        const selectedIds = (visibility.contactIds || []).map(String);
+                        if (selectedIds.includes(contactIdStr)) {
+                            namedLocation = currentMatch.label;
+                        }
+                    }
+                    // 'private' mode: namedLocation stays null
+                }
+
+                // Build the location data for this contact
+                const locationData = {
+                    hierarchy: filteredHierarchy,
+                    namedLocation: namedLocation,
+                    timestamp: Date.now()
                 };
+
+                // Encrypt for this contact
+                const contactPublicKey = Crypto.decodeBase64(contact.publicKey);
+                const encryptedBlob = Crypto.encryptForContact(
+                    locationData,
+                    contactPublicKey,
+                    identity.privateKey
+                );
+
+                encryptedLocations.push({
+                    contactId: contact.id,
+                    blob: encryptedBlob
+                });
             }
 
-            const payload = {
-                hierarchy: currentHierarchy,
-                namedLocation: namedLocationPayload,
-                timestamp: Date.now()
-            };
-
-            await API.publishLocation(payload);
-            console.log('Location published to server');
+            if (encryptedLocations.length > 0) {
+                await API.publishEncryptedLocations(encryptedLocations);
+                console.log('Encrypted location published to', encryptedLocations.length, 'contacts');
+            } else {
+                console.log('No contacts with public keys to publish to');
+            }
         } catch (error) {
-            console.error('Failed to publish location:', error);
+            console.error('Failed to publish encrypted location:', error);
         }
     }
 

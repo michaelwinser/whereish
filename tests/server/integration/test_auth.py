@@ -179,9 +179,8 @@ class TestProtectedEndpoints:
             ('GET', '/api/contacts'),
             ('GET', '/api/contacts/requests'),
             ('POST', '/api/contacts/request'),
-            ('GET', '/api/location'),
-            ('POST', '/api/location'),
-            ('GET', '/api/contacts/locations'),
+            ('POST', '/api/location/encrypted'),
+            ('GET', '/api/contacts/encrypted'),
         ]
 
         for method, endpoint in protected_endpoints:

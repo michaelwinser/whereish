@@ -589,16 +589,16 @@ ALTER TABLE users DROP COLUMN location_updated_at;
 
 ### 4.5 Checklist
 
-- [ ] Implement encrypted publish flow
-- [ ] Implement encrypted receive/decrypt flow
-- [ ] Handle decryption errors gracefully
-- [ ] Remove plaintext publish endpoint
-- [ ] Remove plaintext location from contacts endpoint
-- [ ] Remove plaintext location columns from DB
-- [ ] Update all E2E tests for encrypted flow
-- [ ] Full regression testing
-- [ ] Bump APP_VERSION to major number (e.g., 100) - breaking change signal
-- [ ] Clean database (rm whereish.db)
+- [x] Implement encrypted publish flow
+- [x] Implement encrypted receive/decrypt flow
+- [x] Handle decryption errors gracefully
+- [x] Remove plaintext publish endpoint
+- [x] Remove plaintext location from contacts endpoint
+- [x] Remove plaintext location columns from DB (locations table removed)
+- [x] Update all E2E tests for encrypted flow (2 skipped pending identity setup)
+- [x] Full regression testing (73 server tests + 203 client tests pass)
+- [x] Bump APP_VERSION to major number (v100) - breaking change signal
+- [ ] Clean database (rm whereish.db) - user action needed
 
 **Exit criteria:** All location data encrypted. Server cannot read locations. Tests pass.
 
@@ -610,32 +610,32 @@ ALTER TABLE users DROP COLUMN location_updated_at;
 
 ### 5.1 Security review
 
-- [ ] Verify nonces are never reused
-- [ ] Verify server cannot decrypt any stored data
-- [ ] Review CSP headers for XSS protection
-- [ ] Audit IndexedDB access patterns
+- [x] Verify nonces are never reused (nacl.randomBytes(24) per encryption)
+- [x] Verify server cannot decrypt any stored data (only stores encrypted_blob)
+- [x] Review CSP headers for XSS protection (added CSP, X-Frame-Options, X-Content-Type-Options)
+- [x] Audit IndexedDB access patterns (single identity key, proper transaction handling)
 
 ### 5.2 UX polish
 
-- [ ] Clear messaging about identity backup importance
-- [ ] Warning on logout if identity not exported
-- [ ] "Encrypted" indicator in UI
-- [ ] Error handling for crypto failures
+- [x] Clear messaging about identity backup importance (updated settings section)
+- [x] Warning on logout if identity not exported (confirm dialog with explanation)
+- [x] "Encrypted" indicator in UI (E2E Encrypted badge + status in settings)
+- [x] Error handling for crypto failures (try/catch with console warnings)
 
 ### 5.3 Documentation
 
-- [ ] Update PRD with implementation status
-- [ ] Update DESIGN.md architecture section
-- [ ] User-facing docs about encryption
-- [ ] Update API documentation
+- [x] Update PRD with implementation status (PRD_ENCRYPTION.md)
+- [x] Update DESIGN.md architecture section (DESIGN_ENCRYPTION.md)
+- [ ] User-facing docs about encryption (can add later if needed)
+- [ ] Update API documentation (can add later if needed)
 
 ### 5.4 Checklist
 
-- [ ] Security review complete
-- [ ] UX polish complete
-- [ ] Documentation updated
-- [ ] Final regression testing
-- [ ] Close Issue #30
+- [x] Security review complete
+- [x] UX polish complete
+- [x] Documentation updated (core docs)
+- [x] Final regression testing (73 server + 203 client tests pass)
+- [ ] Close Issue #30 (user action)
 
 ---
 

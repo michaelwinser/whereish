@@ -71,13 +71,13 @@ TOKEN_EXPIRY_DAYS = 30
 
 # App version for client refresh detection
 # This should match the service worker CACHE_NAME version number
-# Increment this when deploying any client changes
-APP_VERSION = os.environ.get('APP_VERSION', '54')
+# v100 - E2E encryption (breaking change from plaintext location sharing)
+APP_VERSION = os.environ.get('APP_VERSION', '100')
 
 # Minimum supported client version
 # Clients below this version will be forced to update
-# Increment this only when old clients would break (API changes, etc.)
-MIN_APP_VERSION = os.environ.get('MIN_APP_VERSION', '54')
+# v100 required for E2E encryption compatibility
+MIN_APP_VERSION = os.environ.get('MIN_APP_VERSION', '100')
 
 # ===================
 # Permission Levels
@@ -99,100 +99,6 @@ PERMISSION_LEVELS = [
 
 # Default permission level for new contacts
 DEFAULT_PERMISSION_LEVEL = 'planet'
-
-
-def get_permission_index(level):
-    """Get numeric index for permission level."""
-    try:
-        return PERMISSION_LEVELS.index(level)
-    except ValueError:
-        return 0  # Default to planet
-
-
-def filter_hierarchy_by_permission(hierarchy, permission_level):
-    """
-    Filter a location hierarchy based on permission level.
-    Returns only the levels the viewer is allowed to see.
-    """
-    if not hierarchy:
-        return {}
-
-    allowed_index = get_permission_index(permission_level)
-    filtered = {}
-
-    # Map hierarchy keys to permission levels
-    key_to_level = {
-        'continent': 'continent',
-        'country': 'country',
-        'state': 'state',
-        'county': 'county',
-        'city': 'city',
-        'neighborhood': 'neighborhood',
-        'street': 'street',
-        'address': 'address',
-    }
-
-    for key, value in hierarchy.items():
-        level = key_to_level.get(key)
-        if level:
-            level_index = get_permission_index(level)
-            if level_index <= allowed_index:
-                filtered[key] = value
-
-    return filtered
-
-
-def should_show_named_location(named_location, viewer_id):
-    """
-    Determine if a named location should be shown to a viewer.
-
-    Named location visibility is INDEPENDENT of geographic permissions.
-    This is controlled by the visibleTo field in the named location.
-
-    Args:
-        named_location: The namedLocation from the payload. Can be:
-            - None (no named location)
-            - str (legacy format - just a label, defaults to private)
-            - dict with { label, visibleTo } where visibleTo is:
-                - 'private': no one sees it
-                - 'all': everyone sees it
-                - list of contact IDs: only those contacts see it
-        viewer_id: The ID of the contact viewing the location
-
-    Returns:
-        The named location label if visible to this viewer, None otherwise
-    """
-    if not named_location:
-        return None
-
-    # Handle legacy format (just a string label)
-    if isinstance(named_location, str):
-        # Legacy behavior: treat as private (no one sees)
-        # This is a change from the old behavior where street+ permission saw it
-        return None
-
-    # New format: { label, visibleTo }
-    if not isinstance(named_location, dict):
-        return None
-
-    label = named_location.get('label')
-    if not label:
-        return None
-
-    visible_to = named_location.get('visibleTo', 'private')
-
-    # Check visibility setting
-    if visible_to == 'private':
-        return None
-    elif visible_to == 'all':
-        return label
-    elif isinstance(visible_to, list):
-        # Show if viewer is in the list
-        if viewer_id in visible_to:
-            return label
-        return None
-
-    return None
 
 
 # ===================
@@ -293,16 +199,6 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_contacts_recipient
         ON contacts(recipient_id);
-
-        CREATE TABLE IF NOT EXISTS locations (
-            user_id TEXT PRIMARY KEY,
-            payload TEXT NOT NULL,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_locations_updated
-        ON locations(updated_at);
 
         CREATE TABLE IF NOT EXISTS permissions (
             granter_id TEXT NOT NULL,
@@ -579,63 +475,6 @@ def get_current_user_info():
 def get_permission_levels():
     """Get available permission levels."""
     return jsonify({'levels': PERMISSION_LEVELS, 'default': DEFAULT_PERMISSION_LEVEL})
-
-
-# ===================
-# API Routes - Location
-# ===================
-
-
-@app.route('/api/location', methods=['POST'])
-@require_auth
-def publish_location():
-    """Publish current user's location."""
-    user = g.current_user
-    data = request.get_json()
-
-    if not data or 'payload' not in data:
-        return jsonify({'error': 'Missing payload'}), 400
-
-    payload = data['payload']
-
-    db = get_db()
-    db.execute(
-        """
-        INSERT INTO locations (user_id, payload, updated_at)
-        VALUES (?, ?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET
-            payload = excluded.payload,
-            updated_at = excluded.updated_at
-    """,
-        (user['id'], payload, datetime.utcnow()),
-    )
-    db.commit()
-
-    return jsonify({'success': True, 'timestamp': datetime.utcnow().isoformat()})
-
-
-@app.route('/api/location', methods=['GET'])
-@require_auth
-def get_my_location():
-    """Get current user's stored location."""
-    user = g.current_user
-
-    db = get_db()
-    row = db.execute(
-        'SELECT payload, updated_at FROM locations WHERE user_id = ?', (user['id'],)
-    ).fetchone()
-
-    if not row:
-        return jsonify({'location': None})
-
-    return jsonify(
-        {
-            'location': {
-                'payload': row['payload'],
-                'updated_at': format_timestamp(row['updated_at']),
-            }
-        }
-    )
 
 
 # ===================
@@ -1077,144 +916,6 @@ def update_contact_permission(contact_id):
     set_permission_level(user['id'], contact_id, level)
 
     return jsonify({'success': True, 'contactId': contact_id, 'permissionGranted': level})
-
-
-@app.route('/api/contacts/<contact_id>/location', methods=['GET'])
-@require_auth
-def get_contact_location(contact_id):
-    """Get a contact's location filtered by permission level."""
-    user = g.current_user
-
-    # Verify contact exists
-    contact_ids = get_user_contacts(user['id'])
-    if contact_id not in contact_ids:
-        return jsonify({'error': 'Not a contact'}), 403
-
-    # Get permission level contact has granted to me
-    permission_level = get_permission_level(contact_id, user['id'])
-
-    # Get contact's location
-    db = get_db()
-    row = db.execute(
-        'SELECT payload, updated_at FROM locations WHERE user_id = ?', (contact_id,)
-    ).fetchone()
-
-    if not row:
-        return jsonify({'location': None, 'permissionLevel': permission_level})
-
-    # Parse and filter the location
-    try:
-        location_data = json.loads(row['payload'])
-    except json.JSONDecodeError:
-        return jsonify({'location': None, 'permissionLevel': permission_level})
-
-    # Filter hierarchy based on permission
-    filtered_hierarchy = filter_hierarchy_by_permission(
-        location_data.get('hierarchy', {}), permission_level
-    )
-
-    # Filter named location based on visibility settings (INDEPENDENT of geographic permission)
-    filtered_named = should_show_named_location(location_data.get('namedLocation'), user['id'])
-
-    # Build filtered payload
-    filtered_data = {
-        'hierarchy': filtered_hierarchy,
-        'namedLocation': filtered_named,
-        'timestamp': location_data.get('timestamp'),
-    }
-
-    # Check staleness
-    updated_at = row['updated_at']
-    is_stale = False
-    if updated_at:
-        expiry_time = datetime.utcnow() - timedelta(minutes=LOCATION_EXPIRY_MINUTES)
-        is_stale = updated_at < expiry_time
-
-    return jsonify(
-        {
-            'location': {
-                'data': filtered_data,
-                'updated_at': format_timestamp(updated_at),
-                'stale': is_stale,
-            },
-            'permissionLevel': permission_level,
-        }
-    )
-
-
-@app.route('/api/contacts/locations', methods=['GET'])
-@require_auth
-def get_all_contact_locations():
-    """Get locations for all contacts with permission filtering."""
-    user = g.current_user
-    contact_ids = get_user_contacts(user['id'])
-
-    if not contact_ids:
-        return jsonify({'contacts': []})
-
-    db = get_db()
-    placeholders = ','.join('?' * len(contact_ids))
-    rows = db.execute(
-        f'SELECT user_id, payload, updated_at FROM locations WHERE user_id IN ({placeholders})',
-        contact_ids,
-    ).fetchall()
-
-    location_map = {row['user_id']: row for row in rows}
-    expiry_time = datetime.utcnow() - timedelta(minutes=LOCATION_EXPIRY_MINUTES)
-    contacts = []
-
-    for contact_id in contact_ids:
-        contact = get_user_by_id(contact_id)
-        if not contact:
-            continue
-
-        # Get permission level this contact has granted to me
-        permission_level = get_permission_level(contact_id, user['id'])
-        # Get permission level I've granted to this contact
-        granted_level = get_permission_level(user['id'], contact_id)
-
-        contact_data = {
-            'id': contact['id'],
-            'name': contact['name'],
-            'permissionGranted': granted_level,
-            'permissionReceived': permission_level,
-            'location': None,
-        }
-
-        if contact_id in location_map:
-            row = location_map[contact_id]
-            updated_at = row['updated_at']
-            is_stale = updated_at and updated_at < expiry_time
-
-            # Parse and filter location
-            try:
-                location_data = json.loads(row['payload'])
-            except json.JSONDecodeError:
-                location_data = {}
-
-            # Filter hierarchy based on permission
-            filtered_hierarchy = filter_hierarchy_by_permission(
-                location_data.get('hierarchy', {}), permission_level
-            )
-
-            # Filter named location based on visibility (INDEPENDENT of geographic permission)
-            filtered_named = should_show_named_location(
-                location_data.get('namedLocation'), user['id']
-            )
-
-            contact_data['location'] = {
-                'data': {
-                    'hierarchy': filtered_hierarchy,
-                    'namedLocation': filtered_named,
-                    'timestamp': location_data.get('timestamp'),
-                },
-                'updated_at': format_timestamp(updated_at),
-                'stale': is_stale,
-            }
-
-        contacts.append(contact_data)
-
-    return jsonify({'contacts': contacts})
 
 
 # ===================

@@ -7,7 +7,7 @@
 
 /* exported BUILD_INFO */
 const BUILD_INFO = {
-    version: 55,
-    buildTime: '2025-12-13T20:32:08Z',
-    gitCommit: 'daf3d66'
+    version: 100,
+    buildTime: '2025-12-13T21:58:24Z',
+    gitCommit: '73bee21'
 };
