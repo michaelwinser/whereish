@@ -1,7 +1,7 @@
 # Whereish Makefile
 # Run 'make help' to see available targets
 
-.PHONY: help test test-smoke test-unit run run-server run-client build docker-run clean clean-all lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
+.PHONY: help test test-smoke test-unit run build docker-run clean clean-all clean-db lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
 
 # Default target
 .DEFAULT_GOAL := help
@@ -146,6 +146,11 @@ clean-all: clean ## Remove everything including venv
 	@echo "Removing virtual environment..."
 	rm -rf $(VENV)
 	@echo "✓ Full clean complete"
+
+clean-db: ## Clear the development database
+	@echo "Removing development database..."
+	rm -f server/whereish.db
+	@echo "✓ Database cleared"
 
 kill-servers: ## Kill any running dev servers
 	@echo "Stopping servers..."
