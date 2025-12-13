@@ -282,11 +282,16 @@
                     <h2 class="settings-section-title">About</h2>
                     <div class="settings-item">
                         <span class="settings-item-label">Version</span>
-                        <span class="settings-item-value">0.5.0</span>
+                        <span class="settings-item-value" id="settings-version">--</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="settings-item-label">Build</span>
+                        <span class="settings-item-value settings-item-value-small" id="settings-build">--</span>
                     </div>
                     <div class="settings-item">
                         <span class="settings-item-label">Privacy-first location sharing</span>
                     </div>
+                    <button id="force-refresh-btn" class="btn btn-secondary settings-refresh">Force Refresh</button>
                 </section>
             </main>
         </section>
@@ -471,6 +476,7 @@
     </div>
 
     <!-- Scripts (order matters) -->
+    <script src="version.js"></script>
     <script src="events.js"></script>
     <script src="storage.js"></script>
     <script src="geofence.js"></script>

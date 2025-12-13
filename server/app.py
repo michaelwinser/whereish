@@ -72,12 +72,12 @@ TOKEN_EXPIRY_DAYS = 30
 # App version for client refresh detection
 # This should match the service worker CACHE_NAME version number
 # Increment this when deploying any client changes
-APP_VERSION = os.environ.get('APP_VERSION', '53')
+APP_VERSION = os.environ.get('APP_VERSION', '54')
 
 # Minimum supported client version
 # Clients below this version will be forced to update
 # Increment this only when old clients would break (API changes, etc.)
-MIN_APP_VERSION = os.environ.get('MIN_APP_VERSION', '53')
+MIN_APP_VERSION = os.environ.get('MIN_APP_VERSION', '54')
 
 # ===================
 # Permission Levels

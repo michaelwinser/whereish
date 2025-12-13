@@ -17,7 +17,7 @@ const API = (function() {
 
     // App version - must match server's APP_VERSION for compatibility
     // This should match the service worker CACHE_NAME version number
-    const APP_VERSION = 53;
+    const APP_VERSION = 54;
 
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;

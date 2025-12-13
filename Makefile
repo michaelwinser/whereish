@@ -126,7 +126,7 @@ lint-md: ## Lint Markdown files
 # Docker
 # =============================================================================
 
-build: ## Build Docker image
+build: update-build-info ## Build Docker image (updates build info first)
 	docker build -t whereish .
 
 docker-run: build ## Run Docker container locally
@@ -166,3 +166,29 @@ kill-servers: ## Kill any running dev servers
 	@-pkill -f "python run.py" 2>/dev/null || true
 	@-pkill -f "python -m http.server 8080" 2>/dev/null || true
 	@echo "✓ Servers stopped"
+
+# =============================================================================
+# Version Management
+# =============================================================================
+
+bump-version: ## Bump version number in all files
+	@./scripts/bump-version.sh
+
+update-build-info: ## Update build info (time, git commit) without bumping version
+	@BUILD_TIME=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
+	GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	VERSION=$$(grep -oE "version: [0-9]+" app/version.js | grep -oE "[0-9]+"); \
+	echo "/**" > app/version.js; \
+	echo " * Whereish Version Information" >> app/version.js; \
+	echo " *" >> app/version.js; \
+	echo " * This file is updated by the build process." >> app/version.js; \
+	echo " * Do not edit manually - use 'make bump-version' instead." >> app/version.js; \
+	echo " */" >> app/version.js; \
+	echo "" >> app/version.js; \
+	echo "/* exported BUILD_INFO */" >> app/version.js; \
+	echo "const BUILD_INFO = {" >> app/version.js; \
+	echo "    version: $$VERSION," >> app/version.js; \
+	echo "    buildTime: '$$BUILD_TIME'," >> app/version.js; \
+	echo "    gitCommit: '$$GIT_COMMIT'" >> app/version.js; \
+	echo "};" >> app/version.js; \
+	echo "✓ Build info updated: version=$$VERSION, commit=$$GIT_COMMIT"

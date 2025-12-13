@@ -39,6 +39,7 @@ export default [
         API: "writable",
         Storage: "writable",
         Geofence: "writable",
+        BUILD_INFO: "readonly",
       }
     },
     rules: {

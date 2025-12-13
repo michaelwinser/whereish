@@ -1679,6 +1679,16 @@ body {
     margin-top: 0.5rem;
 }
 
+.settings-refresh {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.settings-item-value-small {
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
 /* Header needs position relative for settings button */
 .header {
     position: relative;

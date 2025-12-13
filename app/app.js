@@ -76,6 +76,7 @@
         settingsBtn: document.getElementById('settings-btn'),
         settingsUserEmail: document.getElementById('settings-user-email'),
         settingsLogoutBtn: document.getElementById('settings-logout-btn'),
+        forceRefreshBtn: document.getElementById('force-refresh-btn'),
 
         // Auth modal
         authModal: document.getElementById('auth-modal'),
@@ -440,13 +441,8 @@
         Model.setPlaces([]);
         Model.setCurrentMatch(null);
 
-        renderContactsList();
-        renderNamedLocationsList();
-        displayLocation(currentHierarchy, null);
-        updateAuthUI();
-
-        // Navigate to welcome screen
-        ViewManager.navigate('welcome');
+        // Force refresh to ensure fresh assets and clean state
+        forceRefresh();
     }
 
     // ===================
@@ -1364,6 +1360,7 @@
         elements.settingsBtn?.addEventListener('click', () => ViewManager.navigate('settings'));
         document.getElementById('settings-back-btn')?.addEventListener('click', () => ViewManager.goBack());
         elements.settingsLogoutBtn?.addEventListener('click', handleLogout);
+        elements.forceRefreshBtn?.addEventListener('click', forceRefresh);
 
         // Welcome screen buttons
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
@@ -1450,6 +1447,33 @@
             } catch (error) {
                 console.warn('ServiceWorker registration failed:', error);
             }
+        }
+    }
+
+    /**
+     * Force refresh: clear all caches and reload the app
+     * Used for manual refresh button and after logout
+     */
+    async function forceRefresh() {
+        try {
+            // Unregister all service workers
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(r => r.unregister()));
+            }
+
+            // Clear all caches
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+
+            // Hard reload (bypass cache)
+            window.location.reload(true);
+        } catch (error) {
+            console.error('Force refresh failed:', error);
+            // Fall back to regular reload
+            window.location.reload();
         }
     }
 
@@ -1703,6 +1727,17 @@
                 const userEmail = API.getUserEmail?.() || '--';
                 if (elements.settingsUserEmail) {
                     elements.settingsUserEmail.textContent = userEmail;
+                }
+                // Update version and build info
+                const versionEl = document.getElementById('settings-version');
+                const buildEl = document.getElementById('settings-build');
+                if (typeof BUILD_INFO !== 'undefined') {
+                    if (versionEl) versionEl.textContent = `v${BUILD_INFO.version}`;
+                    if (buildEl) {
+                        const buildDate = new Date(BUILD_INFO.buildTime);
+                        const dateStr = buildDate.toLocaleDateString();
+                        buildEl.textContent = `${BUILD_INFO.gitCommit} (${dateStr})`;
+                    }
                 }
             },
             onExit: () => {}
