@@ -20,9 +20,9 @@
     const CONFIG = {
         geocodeUrl: 'https://nominatim.openstreetmap.org/reverse',
         geolocation: {
-            enableHighAccuracy: false,
+            enableHighAccuracy: true,
             timeout: 30000,
-            maximumAge: 300000
+            maximumAge: 0
         },
         userAgent: 'Whereish/1.0 (semantic-location-prototype)',
         // How often to refresh contacts (ms)
@@ -1107,6 +1107,7 @@
             );
 
             displayLocation(currentHierarchy, currentMatch);
+            renderWelcomeHierarchy();  // Also update welcome screen
             renderNamedLocationsList();
             saveLastLocation();
 
@@ -1373,7 +1374,6 @@
         });
 
         setupEventListeners();
-        registerServiceWorker();
 
         // Check server connection (this will load user data if authenticated)
         await checkServerConnection();
@@ -1408,6 +1408,9 @@
 
         // Get fresh location
         await updateLocation();
+
+        // Register service worker AFTER initial render to avoid race conditions
+        registerServiceWorker();
 
         // Start refresh timers
         startContactsRefreshTimer();
