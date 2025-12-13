@@ -24,9 +24,11 @@
     // Access via Model.CONFIG, Model.HIERARCHY_LEVELS, Model.COUNTRY_TO_CONTINENT
 
     // ===================
-    // State
+    // State (location state synced with Model)
     // ===================
 
+    // Note: currentCoordinates and currentHierarchy are cached here for convenience
+    // but Model is the source of truth. Use Model.getLocation() when possible.
     let currentCoordinates = null;
     let currentHierarchy = null;
     let namedLocations = [];
@@ -1194,6 +1196,7 @@
     // ===================
 
     async function updateLocation() {
+        Model.setLocationLoading();
         showLoading();
 
         try {
@@ -1214,6 +1217,9 @@
 
             currentHierarchy = Model.buildHierarchy(addressComponents);
 
+            // Update Model state (emits LOCATION_CHANGED event)
+            Model.setLocation(currentCoordinates, currentHierarchy);
+
             currentMatch = Geofence.findBestMatch(
                 currentCoordinates.latitude,
                 currentCoordinates.longitude,
@@ -1230,6 +1236,7 @@
 
         } catch (error) {
             console.error('Location error:', error);
+            Model.setLocationError(error.message);
             showError(error.message);
         }
     }
@@ -1240,9 +1247,10 @@
 
     function saveLastLocation() {
         try {
+            const location = Model.getLocation();
             localStorage.setItem('whereish_lastLocation', JSON.stringify({
-                coordinates: currentCoordinates,
-                hierarchy: currentHierarchy,
+                coordinates: location.coordinates,
+                hierarchy: location.hierarchy,
                 timestamp: Date.now()
             }));
         } catch (e) {
@@ -1672,6 +1680,11 @@
         if (lastLocation && lastLocation.hierarchy) {
             currentCoordinates = lastLocation.coordinates;
             currentHierarchy = lastLocation.hierarchy;
+
+            // Sync with Model
+            if (currentCoordinates && currentHierarchy) {
+                Model.setLocation(currentCoordinates, currentHierarchy);
+            }
 
             if (currentCoordinates) {
                 currentMatch = Geofence.findBestMatch(

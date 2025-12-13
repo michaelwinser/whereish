@@ -118,10 +118,9 @@ const Model = (function() {
     };
 
     // ===================
-    // State (will be populated in later phases)
+    // State
     // ===================
 
-    // eslint-disable-next-line no-unused-vars
     let state = {
         // Location state
         currentCoordinates: null,
@@ -308,6 +307,51 @@ const Model = (function() {
     }
 
     // ===================
+    // Location State Management
+    // ===================
+
+    /**
+     * Get the current location state
+     * @returns {Object} { coordinates, hierarchy }
+     */
+    function getLocation() {
+        return {
+            coordinates: state.currentCoordinates,
+            hierarchy: state.currentHierarchy
+        };
+    }
+
+    /**
+     * Set the current location (called after geocoding)
+     * @param {Object} coordinates - { latitude, longitude }
+     * @param {Object} hierarchy - Location hierarchy from buildHierarchy
+     */
+    function setLocation(coordinates, hierarchy) {
+        state.currentCoordinates = coordinates;
+        state.currentHierarchy = hierarchy;
+
+        Events.emit(EVENTS.LOCATION_CHANGED, {
+            coordinates: state.currentCoordinates,
+            hierarchy: state.currentHierarchy
+        });
+    }
+
+    /**
+     * Signal that location is being loaded
+     */
+    function setLocationLoading() {
+        Events.emit(EVENTS.LOCATION_LOADING);
+    }
+
+    /**
+     * Signal a location error
+     * @param {string} message - Error message
+     */
+    function setLocationError(message) {
+        Events.emit(EVENTS.LOCATION_ERROR, { message: message });
+    }
+
+    // ===================
     // Event Helpers
     // ===================
 
@@ -347,6 +391,12 @@ const Model = (function() {
         escapeHtml: escapeHtml,
         getVisibilityIndicator: getVisibilityIndicator,
         getFilteredHierarchy: getFilteredHierarchy,
-        getPermissionLabel: getPermissionLabel
+        getPermissionLabel: getPermissionLabel,
+
+        // Location state
+        getLocation: getLocation,
+        setLocation: setLocation,
+        setLocationLoading: setLocationLoading,
+        setLocationError: setLocationError
     };
 })();
