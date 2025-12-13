@@ -582,6 +582,7 @@
                         <div>
                             <div class="request-name">${Model.escapeHtml(req.name || req.email)}</div>
                             ${req.name ? `<div class="request-email">${Model.escapeHtml(req.email)}</div>` : ''}
+                            ${req.createdAt ? `<div class="request-time">${Model.formatTimeAgo(req.createdAt)}</div>` : ''}
                         </div>
                     </div>
                     <div class="request-actions">
@@ -1328,7 +1329,10 @@
         if (contactsRefreshTimer) {
             clearInterval(contactsRefreshTimer);
         }
-        contactsRefreshTimer = setInterval(refreshContacts, Model.CONFIG.contactsRefreshInterval);
+        contactsRefreshTimer = setInterval(async () => {
+            await refreshContacts();
+            await loadContactRequests();
+        }, Model.CONFIG.contactsRefreshInterval);
     }
 
     function startLocationPublishTimer() {
