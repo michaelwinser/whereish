@@ -8,6 +8,6 @@
 /* exported BUILD_INFO */
 const BUILD_INFO = {
     version: 100,
-    buildTime: '2025-12-13T21:58:24Z',
-    gitCommit: '73bee21'
+    buildTime: '2025-12-13T22:08:21Z',
+    gitCommit: '284ba9d'
 };

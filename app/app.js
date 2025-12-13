@@ -92,6 +92,9 @@
         authNameInput: document.getElementById('auth-name'),
         authEmailInput: document.getElementById('auth-email'),
         authPasswordInput: document.getElementById('auth-password'),
+        authConfirmGroup: document.getElementById('auth-confirm-group'),
+        authConfirmInput: document.getElementById('auth-confirm-password'),
+        authShowPassword: document.getElementById('auth-show-password'),
         authError: document.getElementById('auth-error'),
         authSubmitBtn: document.getElementById('auth-submit-btn'),
         authSwitch: document.getElementById('auth-switch'),
@@ -364,13 +367,19 @@
         if (loginMode) {
             elements.authModalTitle.textContent = 'Log In';
             elements.authNameGroup.classList.add('hidden');
+            elements.authConfirmGroup.classList.add('hidden');
             elements.authNameInput.required = false;
+            elements.authConfirmInput.required = false;
+            elements.authPasswordInput.autocomplete = 'current-password';
             elements.authSubmitBtn.textContent = 'Log In';
             elements.authSwitch.innerHTML = 'Don\'t have an account? <a href="#" id="auth-switch-link">Sign up</a>';
         } else {
             elements.authModalTitle.textContent = 'Sign Up';
             elements.authNameGroup.classList.remove('hidden');
+            elements.authConfirmGroup.classList.remove('hidden');
             elements.authNameInput.required = true;
+            elements.authConfirmInput.required = true;
+            elements.authPasswordInput.autocomplete = 'new-password';
             elements.authSubmitBtn.textContent = 'Create Account';
             elements.authSwitch.innerHTML = 'Already have an account? <a href="#" id="auth-switch-link">Log in</a>';
         }
@@ -404,6 +413,11 @@
                 // Login flow with identity management
                 await handleLoginWithIdentity(email, password);
             } else {
+                // Registration: verify passwords match
+                const confirmPassword = elements.authConfirmInput.value;
+                if (password !== confirmPassword) {
+                    throw new Error('Passwords do not match');
+                }
                 // Registration flow with identity creation
                 await handleRegistrationWithIdentity(email, password, name);
             }
@@ -1609,6 +1623,11 @@
         elements.authModalCloseBtn.addEventListener('click', closeAuthModal);
         elements.authForm.addEventListener('submit', handleAuthSubmit);
         elements.authModal.querySelector('.modal-backdrop').addEventListener('click', closeAuthModal);
+        elements.authShowPassword.addEventListener('change', () => {
+            const type = elements.authShowPassword.checked ? 'text' : 'password';
+            elements.authPasswordInput.type = type;
+            elements.authConfirmInput.type = type;
+        });
 
         // Add contact
         elements.addContactBtn.addEventListener('click', openAddContactModal);

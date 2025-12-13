@@ -603,6 +603,25 @@ body {
     padding: 0.5rem 0;
 }
 
+.form-group-inline {
+    margin-bottom: 0.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
 .modal-actions {
     display: flex;
     gap: 0.75rem;

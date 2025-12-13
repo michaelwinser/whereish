@@ -409,6 +409,16 @@
                     <label for="auth-password">Password</label>
                     <input type="password" id="auth-password" name="password" placeholder="Password" required autocomplete="current-password" minlength="6">
                 </div>
+                <div id="auth-confirm-group" class="form-group hidden">
+                    <label for="auth-confirm-password">Confirm Password</label>
+                    <input type="password" id="auth-confirm-password" name="confirm-password" placeholder="Confirm password" autocomplete="new-password" minlength="6">
+                </div>
+                <div class="form-group form-group-inline">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="auth-show-password">
+                        <span>Show password</span>
+                    </label>
+                </div>
                 <div id="auth-error" class="form-error hidden"></div>
                 <div class="modal-actions">
                     <button type="submit" id="auth-submit-btn" class="btn btn-primary">Log In</button>

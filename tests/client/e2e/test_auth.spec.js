@@ -185,6 +185,7 @@ test.describe('Authentication Flow', () => {
             await page.fill('#auth-name', 'New User');
             await page.fill('#auth-email', 'new@example.com');
             await page.fill('#auth-password', 'password123');
+            await page.fill('#auth-confirm-password', 'password123');
             await page.click('#auth-submit-btn');
 
             // Should navigate to main view
