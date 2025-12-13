@@ -3,7 +3,7 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v40';
+const CACHE_NAME = 'whereish-v41';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

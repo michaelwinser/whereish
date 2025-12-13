@@ -602,7 +602,7 @@
                 locationClass = contact.location.stale ? 'stale' : '';
 
                 if (contact.location.updated_at) {
-                    timeText = formatTimeAgo(new Date(contact.location.updated_at));
+                    timeText = formatTimeAgo(contact.location.updated_at);
                 }
 
                 // Calculate distance if we have coordinates
@@ -859,8 +859,7 @@
 
             // Show last updated
             if (contact.location.updated_at) {
-                const lastUpdate = new Date(contact.location.updated_at);
-                lastUpdatedEl.textContent = 'Last updated ' + formatTimeAgo(lastUpdate);
+                lastUpdatedEl.textContent = 'Last updated ' + formatTimeAgo(contact.location.updated_at);
             } else {
                 lastUpdatedEl.textContent = '';
             }

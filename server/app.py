@@ -24,6 +24,25 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 # ===================
+# Utilities
+# ===================
+
+
+def format_timestamp(ts):
+    """Format timestamp for JSON - handles both datetime objects and strings.
+
+    SQLite can return TIMESTAMP columns as either datetime objects or strings
+    depending on how the data was inserted. This handles both cases.
+    """
+    if ts is None:
+        return None
+    if hasattr(ts, 'isoformat'):
+        return ts.isoformat()
+    # Already a string (SQLite sometimes returns strings for TIMESTAMP)
+    return str(ts)
+
+
+# ===================
 # Configuration
 # ===================
 
@@ -517,7 +536,7 @@ def get_my_location():
         {
             'location': {
                 'payload': row['payload'],
-                'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None,
+                'updated_at': format_timestamp(row['updated_at']),
             }
         }
     )
@@ -603,15 +622,6 @@ def get_pending_requests():
     """,
         (user['id'],),
     ).fetchall()
-
-    def format_timestamp(ts):
-        """Format timestamp for JSON - handles both datetime objects and strings."""
-        if ts is None:
-            return None
-        if hasattr(ts, 'isoformat'):
-            return ts.isoformat()
-        # Already a string (SQLite sometimes returns strings for TIMESTAMP)
-        return str(ts)
 
     return jsonify(
         {
@@ -879,7 +889,7 @@ def get_contact_location(contact_id):
         {
             'location': {
                 'data': filtered_data,
-                'updated_at': updated_at.isoformat() if updated_at else None,
+                'updated_at': format_timestamp(updated_at),
                 'stale': is_stale,
             },
             'permissionLevel': permission_level,
@@ -953,7 +963,7 @@ def get_all_contact_locations():
                     'namedLocation': filtered_named,
                     'timestamp': location_data.get('timestamp'),
                 },
-                'updated_at': updated_at.isoformat() if updated_at else None,
+                'updated_at': format_timestamp(updated_at),
                 'stale': is_stale,
             }
 
