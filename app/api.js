@@ -12,13 +12,8 @@ const API = (function() {
     // Configuration
     // ===================
 
-    // API base URL configuration:
-    // - If whereish_api_url is set in localStorage, use that (for development with separate servers)
-    // - Otherwise use same-origin (relative URLs) - works for Docker and any same-origin deployment
-    //
-    // For development with separate servers (client on :8080, API on :8500):
-    //   localStorage.setItem('whereish_api_url', 'http://localhost:8500')
-    const BASE_URL = localStorage.getItem('whereish_api_url') || '';
+    // API uses same-origin (relative URLs) - works for both dev and production
+    const BASE_URL = '';
 
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;
@@ -356,23 +351,6 @@ const API = (function() {
         }
     }
 
-    /**
-     * Set API base URL
-     * @param {string} url
-     */
-    function setBaseUrl(url) {
-        localStorage.setItem('whereish_api_url', url);
-        // Note: Requires page reload to take effect
-    }
-
-    /**
-     * Get current API base URL
-     * @returns {string}
-     */
-    function getBaseUrl() {
-        return BASE_URL;
-    }
-
     // ===================
     // Public API
     // ===================
@@ -416,9 +394,7 @@ const API = (function() {
         updateContactPermission,
 
         // Utility
-        checkHealth,
-        setBaseUrl,
-        getBaseUrl
+        checkHealth
     };
 
 })();
