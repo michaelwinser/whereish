@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date:** December 13, 2025
-**Related:** PRD.md, DESIGN.md, Issue #40
+**Related:** docs/PRD.md, docs/DESIGN.md, Issue #40
 
 ---
 

@@ -1,0 +1,1 @@
+- I think Issue #31 can be marked complete. Add that to the Priority 2 and go ahead with 1, 2, and 3
