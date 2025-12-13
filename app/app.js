@@ -77,6 +77,11 @@
         settingsUserEmail: document.getElementById('settings-user-email'),
         settingsLogoutBtn: document.getElementById('settings-logout-btn'),
         forceRefreshBtn: document.getElementById('force-refresh-btn'),
+        exportIdentityBtn: document.getElementById('export-identity-btn'),
+
+        // Identity import (welcome screen)
+        importIdentityBtn: document.getElementById('import-identity-btn'),
+        identityFileInput: document.getElementById('identity-file-input'),
 
         // Auth modal
         authModal: document.getElementById('auth-modal'),
@@ -396,9 +401,11 @@
 
         try {
             if (isLoginMode) {
-                await API.login(email, password);
+                // Login flow with identity management
+                await handleLoginWithIdentity(email, password);
             } else {
-                await API.register(email, password, name);
+                // Registration flow with identity creation
+                await handleRegistrationWithIdentity(email, password, name);
             }
 
             // Success - update UI
@@ -426,7 +433,60 @@
         }
     }
 
-    function handleLogout() {
+    /**
+     * Handle registration with identity creation
+     */
+    async function handleRegistrationWithIdentity(email, password, name) {
+        // 1. Create a new identity
+        await Identity.create();
+        const publicKey = Identity.getPublicKeyBase64();
+
+        // 2. Register with server
+        await API.register(email, password, name);
+
+        // 3. Register public key with server
+        await API.registerPublicKey(publicKey);
+
+        console.log('Registration complete with identity');
+    }
+
+    /**
+     * Handle login with identity verification
+     */
+    async function handleLoginWithIdentity(email, password) {
+        // 1. Try to load existing identity
+        await Identity.load();
+        const localPublicKey = Identity.getPublicKeyBase64();
+
+        // 2. Login to server
+        const response = await API.login(email, password);
+
+        // 3. Check for identity mismatch
+        if (response.hasPublicKey && response.publicKey) {
+            if (!localPublicKey) {
+                // Server has key but we don't - need to import identity
+                throw new Error('This account has an identity on another device. Please import your identity file to continue, or log out on your other device first.');
+            }
+
+            if (localPublicKey !== response.publicKey) {
+                // Keys don't match - different identity
+                throw new Error('Identity mismatch: Your local identity does not match this account. Please import the correct identity file.');
+            }
+        } else {
+            // Server has no key - register ours if we have one
+            if (localPublicKey) {
+                await API.registerPublicKey(localPublicKey);
+                console.log('Registered existing identity with server');
+            } else {
+                // Neither has identity - create one
+                await Identity.create();
+                await API.registerPublicKey(Identity.getPublicKeyBase64());
+                console.log('Created new identity for existing account');
+            }
+        }
+    }
+
+    async function handleLogout() {
         API.logout();
         currentUserId = null;
 
@@ -434,6 +494,9 @@
         contacts = [];
         namedLocations = [];
         currentMatch = null;
+
+        // Clear identity (TODO: Phase 5 - warn if not exported)
+        await Identity.clear();
 
         // Sync with Model
         Model.setCurrentUserId(null);
@@ -443,6 +506,67 @@
 
         // Force refresh to ensure fresh assets and clean state
         forceRefresh();
+    }
+
+    /**
+     * Handle export identity button click
+     */
+    function handleExportIdentity() {
+        try {
+            if (!Identity.hasIdentity()) {
+                alert('No identity to export. Please log in first.');
+                return;
+            }
+
+            const email = API.getUserEmail() || 'unknown';
+            const json = Identity.exportPrivate({ email: email, name: '' });
+
+            // Create download
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'whereish-identity.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            console.log('Identity exported successfully');
+        } catch (error) {
+            console.error('Failed to export identity:', error);
+            alert('Failed to export identity: ' + error.message);
+        }
+    }
+
+    /**
+     * Handle import identity file selection
+     */
+    async function handleImportIdentity(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            const json = await file.text();
+            const account = await Identity.importPrivate(json);
+
+            alert(`Identity loaded for ${account.email || 'unknown account'}. Please log in to continue.`);
+
+            // Pre-fill email if available
+            if (account.email) {
+                elements.authEmailInput.value = account.email;
+            }
+
+            // Open login modal
+            openAuthModal(true);
+
+        } catch (error) {
+            console.error('Failed to import identity:', error);
+            alert('Failed to import identity: ' + error.message);
+        } finally {
+            // Clear file input so same file can be selected again
+            event.target.value = '';
+        }
     }
 
     // ===================
@@ -1361,10 +1485,15 @@
         document.getElementById('settings-back-btn')?.addEventListener('click', () => ViewManager.goBack());
         elements.settingsLogoutBtn?.addEventListener('click', handleLogout);
         elements.forceRefreshBtn?.addEventListener('click', forceRefresh);
+        elements.exportIdentityBtn?.addEventListener('click', handleExportIdentity);
 
         // Welcome screen buttons
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
         document.getElementById('welcome-signup-btn')?.addEventListener('click', () => openAuthModal(false));
+
+        // Identity import (welcome screen)
+        elements.importIdentityBtn?.addEventListener('click', () => elements.identityFileInput?.click());
+        elements.identityFileInput?.addEventListener('change', handleImportIdentity);
 
         // Tab bar
         document.querySelectorAll('.tab-item').forEach(tab => {

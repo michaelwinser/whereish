@@ -1877,3 +1877,36 @@ body {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Identity Management (E2E Encryption) */
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    text-decoration: underline;
+}
+
+.btn-link:hover {
+    color: var(--color-primary-dark);
+}
+
+.settings-hint {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    padding: 0 0.5rem;
+}
+
+.welcome-import {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.welcome-import-text {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}

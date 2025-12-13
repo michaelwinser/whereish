@@ -76,6 +76,12 @@
                     <button id="welcome-login-btn" class="btn btn-primary">Log In</button>
                     <button id="welcome-signup-btn" class="btn btn-secondary">Sign Up</button>
                 </div>
+
+                <div class="welcome-import">
+                    <p class="welcome-import-text">Logging in on a new device?</p>
+                    <button id="import-identity-btn" class="btn btn-link">Import Identity File</button>
+                    <input type="file" id="identity-file-input" accept=".json" class="hidden">
+                </div>
             </div>
         </section>
 
@@ -262,6 +268,17 @@
                         <span class="settings-item-value" id="settings-user-email">--</span>
                     </div>
                     <button id="settings-logout-btn" class="btn btn-secondary settings-logout">Log Out</button>
+                </section>
+
+                <!-- Identity Section (E2E Encryption) -->
+                <section class="settings-section">
+                    <h2 class="settings-section-title">Identity</h2>
+                    <div class="settings-item">
+                        <span class="settings-item-label">Encryption Key</span>
+                        <span class="settings-item-hint">Your private key for encrypted location sharing</span>
+                    </div>
+                    <button id="export-identity-btn" class="btn btn-secondary">Export Identity Backup</button>
+                    <p class="settings-hint">Save this file securely. You'll need it to log in on other devices.</p>
                 </section>
 
                 <!-- Privacy Section (placeholders) -->

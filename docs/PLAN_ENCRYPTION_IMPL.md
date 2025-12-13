@@ -473,16 +473,26 @@ document.getElementById('identityFileInput').addEventListener('change', async (e
 
 ### 3.6 Checklist
 
-- [ ] Modify registration to generate identity and send public key
-- [ ] Modify login to check identity match
-- [ ] Add identity mismatch handling/UI
-- [ ] Add "Export Identity" button in Settings
-- [ ] Add "Import Identity" option on welcome screen
-- [ ] Update logout to clear identity from IndexedDB
-- [ ] Add E2E tests for identity flows
-- [ ] Bump version
+- [x] Modify registration to generate identity and send public key
+- [x] Modify login to check identity match
+- [x] Add identity mismatch handling/UI (error messages in auth modal)
+- [x] Add "Export Identity" button in Settings
+- [x] Add "Import Identity" option on welcome screen
+- [x] Update logout to clear identity from IndexedDB
+- [x] Add E2E tests for identity flows (updated existing auth tests)
+- [ ] Bump version (deferred to Phase 4 - not a breaking change yet)
 
 **Exit criteria:** New users get identity. Export/import works. Existing functionality unchanged (location still plaintext).
+
+### 3.7 Implementation Notes (Completed)
+
+**Decisions made:**
+- Server login endpoint now returns `hasPublicKey` and `publicKey` for identity verification
+- Login creates new identity if neither client nor server has one (backwards compatible)
+- Identity mismatch shows error message in auth modal (no separate modal)
+- Export downloads `whereish-identity.json` file with user metadata
+- Import pre-fills email in login form after successful import
+- Identity cleared on logout (Phase 5: warn if not exported)
 
 ---
 

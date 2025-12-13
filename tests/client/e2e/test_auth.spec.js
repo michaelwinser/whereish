@@ -65,12 +65,17 @@ test.describe('Authentication Flow', () => {
         });
 
         test('successful login redirects to main view', async ({ page }) => {
-            // Mock login endpoint
+            // Mock login endpoint (with identity info)
             await page.route('**/api/auth/login', route => {
                 route.fulfill({
                     status: 200,
                     contentType: 'application/json',
-                    body: JSON.stringify({ user: MOCK_USER, token: 'test-token' })
+                    body: JSON.stringify({
+                        user: MOCK_USER,
+                        token: 'test-token',
+                        hasPublicKey: false,  // No existing key, will create new identity
+                        publicKey: null
+                    })
                 });
             });
             // Mock /api/me for post-login user fetch
@@ -79,6 +84,14 @@ test.describe('Authentication Flow', () => {
                     status: 200,
                     contentType: 'application/json',
                     body: JSON.stringify(MOCK_USER)
+                });
+            });
+            // Mock identity registration endpoint
+            await page.route('**/api/identity/register', route => {
+                route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ success: true })
                 });
             });
 
@@ -154,6 +167,14 @@ test.describe('Authentication Flow', () => {
                     status: 200,
                     contentType: 'application/json',
                     body: JSON.stringify({ ...MOCK_USER, name: 'New User' })
+                });
+            });
+            // Mock identity registration endpoint
+            await page.route('**/api/identity/register', route => {
+                route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ success: true })
                 });
             });
 

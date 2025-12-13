@@ -35,6 +35,7 @@ export default [
         confirm: "readonly",
         Event: "readonly",
         HTMLElement: "readonly",
+        Blob: "readonly",
 
         // External libraries (CDN)
         nacl: "readonly",

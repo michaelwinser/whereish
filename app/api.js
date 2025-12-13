@@ -217,6 +217,18 @@ const API = (function() {
         }
     }
 
+    /**
+     * Register user's public key for E2E encryption
+     * @param {string} publicKey - Base64-encoded 32-byte public key
+     * @returns {Promise<Object>}
+     */
+    async function registerPublicKey(publicKey) {
+        return request('/api/identity/register', {
+            method: 'POST',
+            body: JSON.stringify({ publicKey })
+        });
+    }
+
     // ===================
     // Contact Requests
     // ===================
@@ -459,6 +471,7 @@ const API = (function() {
         logout,
         getCurrentUser,
         getUserEmail,
+        registerPublicKey,
 
         // Location
         publishLocation,

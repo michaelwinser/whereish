@@ -548,11 +548,22 @@ def login():
     if not check_password_hash(user['password_hash'], password):
         return jsonify({'error': 'Invalid email or password'}), 401
 
+    # Get public key status
+    db = get_db()
+    row = db.execute('SELECT public_key FROM users WHERE id = ?', (user['id'],)).fetchone()
+    has_public_key = row and row['public_key'] is not None
+    server_public_key = row['public_key'] if row else None
+
     # Generate token
     token = generate_token(user['id'])
 
     return jsonify(
-        {'user': {'id': user['id'], 'email': user['email'], 'name': user['name']}, 'token': token}
+        {
+            'user': {'id': user['id'], 'email': user['email'], 'name': user['name']},
+            'token': token,
+            'hasPublicKey': has_public_key,
+            'publicKey': server_public_key,
+        }
     )
 
 
