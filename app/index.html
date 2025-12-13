@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2d3748">
     <meta name="description" content="Privacy-first semantic location sharing">
-    <!-- Security headers -->
+    <!-- Security headers (frame protection requires HTTP headers, not meta tags) -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://nominatim.openstreetmap.org; img-src 'self' data:; frame-ancestors 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://nominatim.openstreetmap.org; img-src 'self' data:;">
     <title>Whereish</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
