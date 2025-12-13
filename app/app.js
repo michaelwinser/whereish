@@ -24,11 +24,11 @@
     // Access via Model.CONFIG, Model.HIERARCHY_LEVELS, Model.COUNTRY_TO_CONTINENT
 
     // ===================
-    // State (location state synced with Model)
+    // State (synced with Model)
     // ===================
 
-    // Note: currentCoordinates and currentHierarchy are cached here for convenience
-    // but Model is the source of truth. Use Model.getLocation() when possible.
+    // Note: Location and places state are cached here for convenience
+    // but Model is the source of truth. Use Model.getLocation(), Model.getPlaces(), etc.
     let currentCoordinates = null;
     let currentHierarchy = null;
     let namedLocations = [];
@@ -431,6 +431,10 @@
         contacts = [];
         namedLocations = [];
         currentMatch = null;
+
+        // Sync with Model
+        Model.setPlaces([]);
+        Model.setCurrentMatch(null);
 
         renderContactsList();
         renderNamedLocationsList();
@@ -926,12 +930,16 @@
                 await Storage.deleteNamedLocation(id);
                 namedLocations = namedLocations.filter(loc => loc.id !== id);
 
+                // Sync with Model
+                Model.removePlace(id);
+
                 if (currentCoordinates) {
                     currentMatch = Geofence.findBestMatch(
                         currentCoordinates.latitude,
                         currentCoordinates.longitude,
                         namedLocations
                     );
+                    Model.setCurrentMatch(currentMatch);
                 }
 
                 renderNamedLocationsList();
@@ -1053,9 +1061,13 @@
                 namedLocations[index] = updatedPlace;
             }
 
+            // Sync with Model
+            Model.updatePlace(editingPlace.id, updatedPlace);
+
             // Update currentMatch if editing the currently matched place
             if (currentMatch && currentMatch.id === editingPlace.id) {
                 currentMatch = updatedPlace;
+                Model.setCurrentMatch(currentMatch);
             }
 
             closeEditPlaceModal();
@@ -1124,11 +1136,15 @@
 
             namedLocations.push(newLocation);
 
+            // Sync with Model
+            Model.addPlace(newLocation);
+
             currentMatch = Geofence.findBestMatch(
                 currentCoordinates.latitude,
                 currentCoordinates.longitude,
                 namedLocations
             );
+            Model.setCurrentMatch(currentMatch);
 
             closeModal();
             renderNamedLocationsList();
@@ -1225,6 +1241,7 @@
                 currentCoordinates.longitude,
                 namedLocations
             );
+            Model.setCurrentMatch(currentMatch);
 
             displayLocation(currentHierarchy, currentMatch);
             renderWelcomeHierarchy();  // Also update welcome screen
@@ -1273,9 +1290,11 @@
     async function loadNamedLocations() {
         try {
             namedLocations = await Storage.getAllNamedLocations(currentUserId);
+            Model.setPlaces(namedLocations);
         } catch (error) {
             console.error('Failed to load named locations:', error);
             namedLocations = [];
+            Model.setPlaces([]);
         }
     }
 
@@ -1692,6 +1711,7 @@
                     currentCoordinates.longitude,
                     namedLocations
                 );
+                Model.setCurrentMatch(currentMatch);
             }
 
             displayLocation(currentHierarchy, currentMatch);

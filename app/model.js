@@ -352,6 +352,79 @@ const Model = (function() {
     }
 
     // ===================
+    // Places State Management
+    // ===================
+
+    /**
+     * Get all named locations
+     * @returns {Array} Named locations array
+     */
+    function getPlaces() {
+        return state.namedLocations;
+    }
+
+    /**
+     * Set named locations
+     * @param {Array} places - Array of named location objects
+     */
+    function setPlaces(places) {
+        state.namedLocations = places || [];
+        Events.emit(EVENTS.PLACES_CHANGED, { places: state.namedLocations });
+    }
+
+    /**
+     * Add a place to the list
+     * @param {Object} place - Named location object
+     */
+    function addPlace(place) {
+        state.namedLocations.push(place);
+        Events.emit(EVENTS.PLACES_CHANGED, { places: state.namedLocations });
+    }
+
+    /**
+     * Update a place in the list
+     * @param {string} placeId - ID of place to update
+     * @param {Object} updatedPlace - Updated place object
+     */
+    function updatePlace(placeId, updatedPlace) {
+        const index = state.namedLocations.findIndex(function(p) {
+            return p.id === placeId;
+        });
+        if (index !== -1) {
+            state.namedLocations[index] = updatedPlace;
+            Events.emit(EVENTS.PLACES_CHANGED, { places: state.namedLocations });
+        }
+    }
+
+    /**
+     * Remove a place from the list
+     * @param {string} placeId - ID of place to remove
+     */
+    function removePlace(placeId) {
+        state.namedLocations = state.namedLocations.filter(function(p) {
+            return p.id !== placeId;
+        });
+        Events.emit(EVENTS.PLACES_CHANGED, { places: state.namedLocations });
+    }
+
+    /**
+     * Get the current place match
+     * @returns {Object|null} Current matched place or null
+     */
+    function getCurrentMatch() {
+        return state.currentMatch;
+    }
+
+    /**
+     * Set the current place match
+     * @param {Object|null} match - Matched place object or null
+     */
+    function setCurrentMatch(match) {
+        state.currentMatch = match;
+        Events.emit(EVENTS.PLACE_MATCH_CHANGED, { match: state.currentMatch });
+    }
+
+    // ===================
     // Event Helpers
     // ===================
 
@@ -397,6 +470,15 @@ const Model = (function() {
         getLocation: getLocation,
         setLocation: setLocation,
         setLocationLoading: setLocationLoading,
-        setLocationError: setLocationError
+        setLocationError: setLocationError,
+
+        // Places state
+        getPlaces: getPlaces,
+        setPlaces: setPlaces,
+        addPlace: addPlace,
+        updatePlace: updatePlace,
+        removePlace: removePlace,
+        getCurrentMatch: getCurrentMatch,
+        setCurrentMatch: setCurrentMatch
     };
 })();
