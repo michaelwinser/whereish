@@ -79,6 +79,7 @@
         forceRefreshBtn: document.getElementById('force-refresh-btn'),
         exportIdentityBtn: document.getElementById('export-identity-btn'),
         deleteIdentityBtn: document.getElementById('delete-identity-btn'),
+        deleteAccountBtn: document.getElementById('delete-account-btn'),
 
         // Identity import (welcome screen)
         importIdentityBtn: document.getElementById('import-identity-btn'),
@@ -567,8 +568,45 @@
         localStorage.removeItem('whereish_identity_exported');
         API.logout();
 
-        alert('Identity deleted. You will now be logged out.');
+        alert('Local identity cleared. You will now be logged out.');
         forceRefresh();
+    }
+
+    /**
+     * Handle delete account - permanently deletes account from server
+     */
+    async function handleDeleteAccount() {
+        const confirmed = confirm(
+            'WARNING: This will permanently delete your account and all data from the server.\n\n' +
+            'This includes:\n' +
+            '• Your account and login credentials\n' +
+            '• All your contacts and location sharing settings\n' +
+            '• All named locations you\'ve saved\n\n' +
+            'This cannot be undone. Are you sure?'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        const password = window.prompt('Enter your password to confirm account deletion:');
+        if (!password) {
+            alert('Account deletion cancelled.');
+            return;
+        }
+
+        try {
+            await API.deleteAccount(password);
+
+            // Clear local identity too
+            await Identity.clear();
+            localStorage.removeItem('whereish_identity_exported');
+
+            alert('Your account has been deleted.');
+            forceRefresh();
+        } catch (error) {
+            alert('Failed to delete account: ' + error.message);
+        }
     }
 
     /**
@@ -1666,6 +1704,7 @@
         elements.forceRefreshBtn?.addEventListener('click', forceRefresh);
         elements.exportIdentityBtn?.addEventListener('click', handleExportIdentity);
         elements.deleteIdentityBtn?.addEventListener('click', handleDeleteIdentity);
+        elements.deleteAccountBtn?.addEventListener('click', handleDeleteAccount);
 
         // Welcome screen buttons
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));

@@ -198,6 +198,21 @@ const API = (function() {
     }
 
     /**
+     * Delete user account permanently
+     * @param {string} password - Password for confirmation
+     * @returns {Promise<Object>}
+     */
+    async function deleteAccount(password) {
+        const result = await request('/api/auth/delete-account', {
+            method: 'POST',
+            body: JSON.stringify({ password })
+        });
+        // Clear local auth state after successful deletion
+        logout();
+        return result;
+    }
+
+    /**
      * Get current user info
      * @returns {Promise<Object>}
      */
@@ -427,6 +442,7 @@ const API = (function() {
         getAuthToken,
         isAuthenticated,
         logout,
+        deleteAccount,
         getCurrentUser,
         getUserEmail,
         registerPublicKey,

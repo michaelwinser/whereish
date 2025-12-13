@@ -271,6 +271,12 @@
                         <span class="settings-item-value" id="settings-user-email">--</span>
                     </div>
                     <button id="settings-logout-btn" class="btn btn-secondary settings-logout">Log Out</button>
+                    <div class="settings-danger-zone">
+                        <button id="delete-account-btn" class="btn btn-danger">Delete Account</button>
+                        <p class="settings-hint">
+                            Permanently delete your account and all data from the server.
+                        </p>
+                    </div>
                 </section>
 
                 <!-- Identity Section (E2E Encryption) -->
@@ -293,10 +299,10 @@
                         or recover your account. Without it, your encrypted data cannot be recovered.
                     </p>
                     <div class="settings-danger-zone">
-                        <button id="delete-identity-btn" class="btn btn-danger">Delete Identity</button>
+                        <button id="delete-identity-btn" class="btn btn-danger">Clear Local Identity</button>
                         <p class="settings-hint">
-                            Permanently removes your cryptographic identity from this device.
-                            Use this when switching accounts or before giving away your device.
+                            Removes encryption keys from this device only. Your server account remains intact.
+                            Use when switching accounts or wiping this device.
                         </p>
                     </div>
                 </section>

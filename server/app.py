@@ -471,6 +471,37 @@ def get_current_user_info():
     return jsonify({'id': user['id'], 'name': user['name'], 'email': user['email']})
 
 
+@app.route('/api/auth/delete-account', methods=['POST'])
+@require_auth
+def delete_account():
+    """Permanently delete user account. Requires password confirmation."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Missing request body'}), 400
+
+    password = data.get('password', '')
+    if not password:
+        return jsonify({'error': 'Password required to confirm account deletion'}), 400
+
+    user = g.current_user
+
+    # Verify password
+    if not check_password_hash(user['password_hash'], password):
+        return jsonify({'error': 'Incorrect password'}), 401
+
+    user_id = user['id']
+    db = get_db()
+
+    # Delete all user data
+    db.execute('DELETE FROM encrypted_locations WHERE user_id = ?', (user_id,))
+    db.execute('DELETE FROM named_locations WHERE user_id = ?', (user_id,))
+    db.execute('DELETE FROM contacts WHERE user_id = ? OR contact_user_id = ?', (user_id, user_id))
+    db.execute('DELETE FROM users WHERE id = ?', (user_id,))
+    db.commit()
+
+    return jsonify({'success': True, 'message': 'Account deleted'})
+
+
 @app.route('/api/permission-levels', methods=['GET'])
 def get_permission_levels():
     """Get available permission levels."""
