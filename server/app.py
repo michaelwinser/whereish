@@ -17,8 +17,9 @@ import secrets
 import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
+from pathlib import Path
 
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, request, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 
 # ===================
@@ -28,6 +29,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 app = Flask(__name__)
 app.config['DATABASE'] = os.environ.get('DATABASE_PATH', 'whereish.db')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Static file serving for production (Docker)
+# In development, use separate http.server on :8080
+STATIC_DIR = Path(__file__).parent.parent / 'app'
+SERVE_STATIC = os.environ.get('SERVE_STATIC', 'false').lower() == 'true'
 
 # Location expiry (how long before a location is considered stale)
 LOCATION_EXPIRY_MINUTES = 30
@@ -950,6 +956,30 @@ def after_request(response):
 def handle_options(path):
     """Handle CORS preflight requests."""
     return '', 204
+
+
+# ===================
+# Static File Serving (Production)
+# ===================
+
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_static(path):
+    """Serve static PWA files when SERVE_STATIC is enabled."""
+    if not SERVE_STATIC:
+        return jsonify({'error': 'Static serving disabled'}), 404
+
+    # Don't serve static for API routes (shouldn't reach here, but safety check)
+    if path.startswith('api/'):
+        return jsonify({'error': 'Not found'}), 404
+
+    # Serve requested file or index.html for SPA routing
+    if path and (STATIC_DIR / path).is_file():
+        return send_from_directory(STATIC_DIR, path)
+
+    # Default to index.html
+    return send_from_directory(STATIC_DIR, 'index.html')
 
 
 # ===================

@@ -12,9 +12,27 @@ const API = (function() {
     // Configuration
     // ===================
 
-    // API base URL - defaults to localhost for development
-    // In production, this would be the Cloud Run URL
-    const BASE_URL = localStorage.getItem('whereish_api_url') || 'http://localhost:8500';
+    // API base URL configuration:
+    // - If whereish_api_url is set in localStorage, use that (for development/testing)
+    // - If served from same origin as API (production Docker), use empty string (relative URLs)
+    // - Otherwise fall back to localhost:8500 for development
+    function detectBaseUrl() {
+        const stored = localStorage.getItem('whereish_api_url');
+        if (stored) return stored;
+
+        // In production (Docker), client is served from same origin as API
+        // Check if we're on a non-development server (not localhost:8080)
+        const loc = window.location;
+        if (loc.hostname !== 'localhost' || loc.port !== '8080') {
+            // Same origin - use relative URLs
+            return '';
+        }
+
+        // Development mode - API on separate port
+        return 'http://localhost:8500';
+    }
+
+    const BASE_URL = detectBaseUrl();
 
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;
