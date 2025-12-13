@@ -38,6 +38,8 @@ Whereish is a privacy-first semantic location sharing PWA. Users share location 
 
 **Pause for review on phased work.** When a task is large enough to warrant a plan with phases, pause for human review before committing the finished work. Interim commits for rollback are fine, but the human should evaluate before the final commit.
 
+**Update plans after each phase.** After completing a phase, provide a summary of what was implemented and any design decisions made. Then update the implementation plan document to reflect actual decisions (not just the original plan). This keeps the plan accurate as a reference and captures the reasoning behind deviations.
+
 ## For Non-Trivial Tasks
 
 Before implementing significant features or changes:
@@ -64,6 +66,25 @@ make bump-version # Bump version across all files
 - **Event-driven**: Model emits events, views subscribe
 - **Two permission systems**: Geographic granularity + named location visibility
 - **Version sync**: Client and server versions must match (see `APP_VERSION`)
+
+## Supply Chain Security
+
+**Bundle dependencies locally, not via CDN.** External JavaScript dependencies should be downloaded and committed to the repository rather than loaded from CDNs at runtime. This provides:
+
+- **Auditability**: We control exactly what code runs
+- **Reproducibility**: Builds are deterministic regardless of CDN state
+- **Offline support**: PWA works without external network access
+- **Security**: No runtime dependency on third-party infrastructure
+
+When adding a new dependency:
+1. Download the specific version to `app/` (or appropriate directory)
+2. Add to ESLint ignores if minified (see `eslint.config.mjs`)
+3. Add to service worker cache list (`sw.js`)
+4. Document the version and source in a comment or this file
+
+Current bundled dependencies:
+- `nacl-fast.min.js` - tweetnacl v1.0.3
+- `nacl-util.min.js` - tweetnacl-util v0.15.1
 
 ## Current State
 

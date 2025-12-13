@@ -2,6 +2,10 @@
 // ESLint 9+ flat config format
 
 export default [
+  // Global ignores
+  {
+    ignores: ["app/nacl-*.min.js"]
+  },
   // Main app files
   {
     files: ["app/*.js"],
@@ -32,7 +36,12 @@ export default [
         Event: "readonly",
         HTMLElement: "readonly",
 
+        // External libraries (CDN)
+        nacl: "readonly",
+
         // App globals (IIFE modules)
+        Crypto: "writable",
+        Identity: "writable",
         Events: "writable",
         Model: "writable",
         ViewManager: "writable",
@@ -45,7 +54,7 @@ export default [
     rules: {
       "no-unused-vars": ["error", {
         "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^(Events|Model|ViewManager|API|Storage|Geofence)$"
+        "varsIgnorePattern": "^(Crypto|Identity|Events|Model|ViewManager|API|Storage|Geofence)$"
       }],
       "no-console": "off",
       "no-undef": "error",

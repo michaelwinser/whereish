@@ -476,7 +476,13 @@
     </div>
 
     <!-- Scripts (order matters) -->
+    <!-- Crypto dependencies (bundled locally for offline PWA support) -->
+    <script src="nacl-fast.min.js"></script>
+    <script src="nacl-util.min.js"></script>
+    <!-- App modules -->
     <script src="version.js"></script>
+    <script src="crypto.js"></script>
+    <script src="identity.js"></script>
     <script src="events.js"></script>
     <script src="storage.js"></script>
     <script src="geofence.js"></script>
