@@ -267,6 +267,42 @@ class APIClient:
         response = self._get('/api/contacts/locations', expected_status=200)
         return response.json()['contacts']
 
+    # ===================
+    # Encrypted Location (E2E Encryption)
+    # ===================
+
+    def register_public_key(self, public_key: str) -> dict:
+        """Register user's public key for E2E encryption."""
+        response = self._post('/api/identity/register', {'publicKey': public_key}, expected_status=200)
+        return response.json()
+
+    def register_public_key_raw(self, public_key: str):
+        """Register public key without status check."""
+        return self._post('/api/identity/register', {'publicKey': public_key})
+
+    def get_contact_public_key(self, contact_id: str) -> dict:
+        """Get a contact's public key."""
+        response = self._get(f'/api/contacts/{contact_id}/public-key', expected_status=200)
+        return response.json()
+
+    def get_contact_public_key_raw(self, contact_id: str):
+        """Get contact public key without status check."""
+        return self._get(f'/api/contacts/{contact_id}/public-key')
+
+    def publish_encrypted_locations(self, locations: list) -> dict:
+        """Publish encrypted location blobs for contacts."""
+        response = self._post('/api/location/encrypted', {'locations': locations}, expected_status=200)
+        return response.json()
+
+    def publish_encrypted_locations_raw(self, locations: list):
+        """Publish encrypted locations without status check."""
+        return self._post('/api/location/encrypted', {'locations': locations})
+
+    def get_contacts_encrypted(self) -> list:
+        """Get contacts with encrypted location blobs."""
+        response = self._get('/api/contacts/encrypted', expected_status=200)
+        return response.json()['contacts']
+
 
 # ===================
 # Test Data Helpers

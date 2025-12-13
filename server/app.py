@@ -269,6 +269,7 @@ def init_db():
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             name TEXT NOT NULL,
+            public_key TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -312,8 +313,29 @@ def init_db():
             FOREIGN KEY (granter_id) REFERENCES users(id),
             FOREIGN KEY (grantee_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS encrypted_locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_user_id TEXT NOT NULL,
+            to_user_id TEXT NOT NULL,
+            encrypted_blob TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (from_user_id) REFERENCES users(id),
+            FOREIGN KEY (to_user_id) REFERENCES users(id),
+            UNIQUE(from_user_id, to_user_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_encrypted_locations_to_user
+        ON encrypted_locations(to_user_id);
     """)
     db.commit()
+
+    # Migration: add public_key column to existing users table if missing
+    cursor = db.execute('PRAGMA table_info(users)')
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'public_key' not in columns:
+        db.execute('ALTER TABLE users ADD COLUMN public_key TEXT')
+        db.commit()
 
 
 @app.before_request
@@ -603,6 +625,158 @@ def get_my_location():
             }
         }
     )
+
+
+# ===================
+# API Routes - Encrypted Location (E2E Encryption)
+# ===================
+
+
+@app.route('/api/identity/register', methods=['POST'])
+@require_auth
+def register_public_key():
+    """Register or update user's public key for E2E encryption."""
+    user = g.current_user
+    data = request.get_json()
+
+    if not data or 'publicKey' not in data:
+        return jsonify({'error': 'Missing publicKey'}), 400
+
+    public_key = data['publicKey']
+
+    # Validate: should be base64, 44 chars (32 bytes encoded)
+    if not public_key or len(public_key) != 44:
+        return jsonify({'error': 'Invalid public key format'}), 400
+
+    db = get_db()
+    db.execute('UPDATE users SET public_key = ? WHERE id = ?', (public_key, user['id']))
+    db.commit()
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/contacts/<contact_id>/public-key', methods=['GET'])
+@require_auth
+def get_contact_public_key(contact_id):
+    """Get a contact's public key for encryption."""
+    user = g.current_user
+
+    # Verify contact relationship exists
+    contact_ids = get_user_contacts(user['id'])
+    if contact_id not in contact_ids:
+        return jsonify({'error': 'Not a contact'}), 403
+
+    db = get_db()
+    row = db.execute('SELECT public_key, name FROM users WHERE id = ?', (contact_id,)).fetchone()
+
+    if not row:
+        return jsonify({'error': 'Contact not found'}), 404
+
+    return jsonify({'publicKey': row['public_key'], 'name': row['name']})
+
+
+@app.route('/api/location/encrypted', methods=['POST'])
+@require_auth
+def publish_encrypted_locations():
+    """Publish encrypted location blobs for contacts."""
+    user = g.current_user
+    data = request.get_json()
+
+    if not data or 'locations' not in data:
+        return jsonify({'error': 'Missing locations'}), 400
+
+    locations = data['locations']
+    if not isinstance(locations, list):
+        return jsonify({'error': 'locations must be an array'}), 400
+
+    db = get_db()
+    for loc in locations:
+        contact_id = loc.get('contactId')
+        blob = loc.get('blob')
+
+        if not contact_id or not blob:
+            continue
+
+        # Verify contact relationship
+        contact_ids = get_user_contacts(user['id'])
+        if contact_id not in contact_ids:
+            continue
+
+        db.execute(
+            """
+            INSERT INTO encrypted_locations (from_user_id, to_user_id, encrypted_blob, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
+                encrypted_blob = excluded.encrypted_blob,
+                updated_at = excluded.updated_at
+        """,
+            (user['id'], contact_id, json.dumps(blob), datetime.utcnow()),
+        )
+
+    db.commit()
+    return jsonify({'success': True, 'count': len(locations)})
+
+
+@app.route('/api/contacts/encrypted', methods=['GET'])
+@require_auth
+def get_contacts_encrypted():
+    """Get contacts with their encrypted location blobs."""
+    user = g.current_user
+    contact_ids = get_user_contacts(user['id'])
+
+    if not contact_ids:
+        return jsonify({'contacts': []})
+
+    db = get_db()
+    contacts = []
+    expiry_time = datetime.utcnow() - timedelta(minutes=LOCATION_EXPIRY_MINUTES)
+
+    for contact_id in contact_ids:
+        contact = get_user_by_id(contact_id)
+        if not contact:
+            continue
+
+        # Get contact's public key
+        row = db.execute('SELECT public_key FROM users WHERE id = ?', (contact_id,)).fetchone()
+        public_key = row['public_key'] if row else None
+
+        # Get permission levels
+        granted_level = get_permission_level(user['id'], contact_id)
+        received_level = get_permission_level(contact_id, user['id'])
+
+        # Get encrypted location blob from this contact to me
+        enc_row = db.execute(
+            'SELECT encrypted_blob, updated_at FROM encrypted_locations WHERE from_user_id = ? AND to_user_id = ?',
+            (contact_id, user['id']),
+        ).fetchone()
+
+        contact_data = {
+            'id': contact['id'],
+            'name': contact['name'],
+            'publicKey': public_key,
+            'permissionGranted': granted_level,
+            'permissionReceived': received_level,
+            'encryptedLocation': None,
+        }
+
+        if enc_row:
+            updated_at = enc_row['updated_at']
+            is_stale = updated_at and updated_at < expiry_time
+
+            try:
+                blob = json.loads(enc_row['encrypted_blob'])
+            except json.JSONDecodeError:
+                blob = None
+
+            contact_data['encryptedLocation'] = {
+                'blob': blob,
+                'updated_at': format_timestamp(updated_at),
+                'stale': is_stale,
+            }
+
+        contacts.append(contact_data)
+
+    return jsonify({'contacts': contacts})
 
 
 # ===================

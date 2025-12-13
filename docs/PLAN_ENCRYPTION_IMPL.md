@@ -344,16 +344,25 @@ def publish_encrypted_locations():
 
 ### 2.4 Checklist
 
-- [ ] Add migration for public_key column
-- [ ] Add migration for encrypted_locations table
-- [ ] Implement `/api/identity/register`
-- [ ] Implement `/api/contacts/{id}/public-key`
-- [ ] Implement `/api/location/encrypted`
-- [ ] Implement `/api/contacts/encrypted`
-- [ ] Add server tests for new endpoints
-- [ ] Verify old endpoints still work
+- [x] Add migration for public_key column
+- [x] Add migration for encrypted_locations table
+- [x] Implement `/api/identity/register`
+- [x] Implement `/api/contacts/{id}/public-key`
+- [x] Implement `/api/location/encrypted`
+- [x] Implement `/api/contacts/encrypted`
+- [x] Add server tests for new endpoints (20 new tests)
+- [x] Verify old endpoints still work (all 205 Playwright tests pass)
 
 **Exit criteria:** New endpoints work. Old endpoints still work. Server tests pass.
+
+### 2.5 Implementation Notes (Completed)
+
+**Decisions made:**
+- Used TEXT user_id (existing schema) not INTEGER - matches current users table
+- Added automatic migration in `init_db()` to add `public_key` column to existing databases
+- Added index on `encrypted_locations(to_user_id)` for efficient lookups
+- Public key validation: 44 characters (base64 encoding of 32 bytes)
+- `GET /api/contacts/encrypted` returns permission levels alongside encrypted locations
 
 ---
 

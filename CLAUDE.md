@@ -40,6 +40,8 @@ Whereish is a privacy-first semantic location sharing PWA. Users share location 
 
 **Update plans after each phase.** After completing a phase, provide a summary of what was implemented and any design decisions made. Then update the implementation plan document to reflect actual decisions (not just the original plan). This keeps the plan accurate as a reference and captures the reasoning behind deviations.
 
+**Include design decisions in commit messages.** When committing phased work, the commit message should include both the normal change summary AND a section documenting key design decisions made during implementation. This creates a permanent record in git history of why choices were made, which is valuable for future debugging and code archaeology.
+
 ## For Non-Trivial Tasks
 
 Before implementing significant features or changes:
