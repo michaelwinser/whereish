@@ -1,0 +1,26 @@
+# Whereish - Docker Compose for Self-Hosting
+# Usage: docker compose up -d
+
+services:
+  whereish:
+    build: .
+    container_name: whereish
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - DATABASE_PATH=/app/data/whereish.db
+      - SERVE_STATIC=true
+    volumes:
+      - whereish-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  whereish-data:
+    driver: local
