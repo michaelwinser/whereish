@@ -78,4 +78,4 @@ make test-client
 
 ## License
 
-MIT
+See [LICENSE](LICENSE) for details. Commercial use requires permission.
