@@ -480,6 +480,61 @@ const Model = (function() {
     }
 
     // ===================
+    // Auth/App State Management
+    // ===================
+
+    /**
+     * Get current user ID
+     * @returns {string|null} User ID or null
+     */
+    function getCurrentUserId() {
+        return state.currentUserId;
+    }
+
+    /**
+     * Set current user ID
+     * @param {string|null} userId - User ID or null
+     */
+    function setCurrentUserId(userId) {
+        state.currentUserId = userId;
+        Events.emit(EVENTS.AUTH_CHANGED, { userId: state.currentUserId, authenticated: !!userId });
+    }
+
+    /**
+     * Get server connected status
+     * @returns {boolean} True if connected
+     */
+    function isServerConnected() {
+        return state.serverConnected;
+    }
+
+    /**
+     * Set server connected status
+     * @param {boolean} connected - Connection status
+     */
+    function setServerConnected(connected) {
+        state.serverConnected = connected;
+        Events.emit(EVENTS.SERVER_STATUS_CHANGED, { connected: state.serverConnected });
+    }
+
+    /**
+     * Get permission levels
+     * @returns {Array} Array of permission level strings
+     */
+    function getPermissionLevels() {
+        return state.permissionLevels;
+    }
+
+    /**
+     * Set permission levels
+     * @param {Array} levels - Array of permission level strings
+     */
+    function setPermissionLevels(levels) {
+        state.permissionLevels = levels || [];
+        Events.emit(EVENTS.PERMISSION_LEVELS_LOADED, { levels: state.permissionLevels });
+    }
+
+    // ===================
     // Event Helpers
     // ===================
 
@@ -542,6 +597,14 @@ const Model = (function() {
         getSelectedContact: getSelectedContact,
         setSelectedContact: setSelectedContact,
         getContactRequests: getContactRequests,
-        setContactRequests: setContactRequests
+        setContactRequests: setContactRequests,
+
+        // Auth/App state
+        getCurrentUserId: getCurrentUserId,
+        setCurrentUserId: setCurrentUserId,
+        isServerConnected: isServerConnected,
+        setServerConnected: setServerConnected,
+        getPermissionLevels: getPermissionLevels,
+        setPermissionLevels: setPermissionLevels
     };
 })();

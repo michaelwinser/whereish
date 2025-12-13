@@ -27,8 +27,8 @@
     // State (synced with Model)
     // ===================
 
-    // Note: Location, places, and contacts state are cached here for convenience
-    // but Model is the source of truth. Use Model.getLocation(), Model.getPlaces(), Model.getContacts(), etc.
+    // Note: All state is cached here for convenience but Model is the source of truth.
+    // Use Model.getLocation(), Model.getPlaces(), Model.getContacts(), Model.getCurrentUserId(), etc.
     let currentCoordinates = null;
     let currentHierarchy = null;
     let namedLocations = [];
@@ -313,6 +313,7 @@
 
     function updateServerStatus(connected) {
         serverConnected = connected;
+        Model.setServerConnected(connected);
 
         if (connected) {
             elements.serverStatus.classList.add('connected');
@@ -402,6 +403,7 @@
             // Success - update UI
             const user = await API.getCurrentUser();
             currentUserId = user.id;
+            Model.setCurrentUserId(user.id);
             updateAuthUI();
             closeAuthModal();
 
@@ -433,6 +435,7 @@
         currentMatch = null;
 
         // Sync with Model
+        Model.setCurrentUserId(null);
         Model.setContacts([]);
         Model.setPlaces([]);
         Model.setCurrentMatch(null);
@@ -1603,6 +1606,7 @@
                     try {
                         const user = await API.getCurrentUser();
                         currentUserId = user.id;
+                        Model.setCurrentUserId(user.id);
                         await loadNamedLocations();
                         renderNamedLocationsList();
                         await refreshContacts();
@@ -1611,6 +1615,7 @@
                         // Token invalid, already logged out by API
                         console.warn('Session expired');
                         currentUserId = null;
+                        Model.setCurrentUserId(null);
                     }
                 }
 
@@ -1626,10 +1631,12 @@
         try {
             const data = await API.getPermissionLevels();
             permissionLevels = data.levels || [];
+            Model.setPermissionLevels(permissionLevels);
         } catch (error) {
             console.warn('Could not load permission levels:', error);
             // Fallback to default levels
             permissionLevels = ['planet', 'continent', 'country', 'state', 'county', 'city', 'neighborhood', 'street', 'address'];
+            Model.setPermissionLevels(permissionLevels);
         }
     }
 
