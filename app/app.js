@@ -924,6 +924,9 @@
             selectedContact.permissionGranted = newLevel;
             updatePermissionPreview(newLevel);
 
+            // Republish location so the change takes effect immediately
+            await publishLocationToServer();
+
             // Also update the contact in the main list
             const contactIndex = contacts.findIndex(c => c.contactId === selectedContact.contactId);
             if (contactIndex !== -1) {
