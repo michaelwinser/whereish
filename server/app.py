@@ -680,6 +680,29 @@ def decline_contact_request(request_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/contacts/requests/<int:request_id>/cancel', methods=['POST'])
+@require_auth
+def cancel_contact_request(request_id):
+    """Cancel a pending contact request sent by current user."""
+    user = g.current_user
+    db = get_db()
+
+    # Verify request exists and user is the requester
+    row = db.execute(
+        'SELECT * FROM contacts WHERE id = ? AND requester_id = ? AND status = ?',
+        (request_id, user['id'], 'pending'),
+    ).fetchone()
+
+    if not row:
+        return jsonify({'error': 'Request not found'}), 404
+
+    # Delete request
+    db.execute('DELETE FROM contacts WHERE id = ?', (request_id,))
+    db.commit()
+
+    return jsonify({'success': True})
+
+
 @app.route('/api/contacts/<contact_id>', methods=['DELETE'])
 @require_auth
 def remove_contact(contact_id):

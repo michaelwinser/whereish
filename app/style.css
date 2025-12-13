@@ -893,12 +893,67 @@ body {
 }
 
 .request-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.9rem;
 }
 
 .request-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+/* Section headers for request groups */
+.requests-section-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+}
+
+/* Outgoing request items - muted style */
+.request-item-outgoing {
+    background: #f1f5f9;
+}
+
+.request-icon {
+    font-size: 1.25rem;
+}
+
+.request-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.request-name {
+    font-weight: 500;
+}
+
+.request-email {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.request-time {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+/* Spacing between incoming and outgoing sections */
+#incoming-requests:not(:empty) {
+    margin-bottom: 1rem;
 }
 
 /* Dark mode for Milestone 4 */
@@ -909,6 +964,10 @@ body {
 
     .request-item {
         background: rgba(254, 243, 199, 0.1);
+    }
+
+    .request-item-outgoing {
+        background: rgba(241, 245, 249, 0.1);
     }
 }
 

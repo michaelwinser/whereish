@@ -210,6 +210,17 @@ const API = (function() {
     }
 
     /**
+     * Cancel an outgoing contact request
+     * @param {number} requestId
+     * @returns {Promise<Object>}
+     */
+    async function cancelContactRequest(requestId) {
+        return request(`/api/contacts/requests/${requestId}/cancel`, {
+            method: 'POST'
+        });
+    }
+
+    /**
      * Remove a contact
      * @param {string} contactId
      * @returns {Promise<Object>}
@@ -386,6 +397,7 @@ const API = (function() {
         getContactRequests,
         acceptContactRequest,
         declineContactRequest,
+        cancelContactRequest,
         removeContact,
 
         // Permissions

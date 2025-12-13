@@ -294,6 +294,78 @@ This document defines the key user scenarios for Whereish and proposes a UX desi
 
 ---
 
+### 4.1.1 Pending Contact Requests
+
+**Purpose:** Show incoming and outgoing contact requests awaiting action
+
+**When shown:** Only when there are pending requests (hidden otherwise)
+
+**Placement:** Between the CONTACTS header and the contact list
+
+**Layout:**
+```
+┌────────────────────────────────────┐
+│ CONTACTS                    [+][↻]│
+├────────────────────────────────────┤
+│ INCOMING REQUESTS                  │  ← Only if incoming exists
+│ ┌────────────────────────────────┐ │
+│ │ 👤 Alice                       │ │
+│ │    alice@example.com           │ │
+│ │    [Accept]  [Decline]         │ │
+│ └────────────────────────────────┘ │
+│ ┌────────────────────────────────┐ │
+│ │ 👤 Bob                         │ │
+│ │    bob@example.com             │ │
+│ │    [Accept]  [Decline]         │ │
+│ └────────────────────────────────┘ │
+├────────────────────────────────────┤
+│ SENT REQUESTS                      │  ← Only if outgoing exists
+│ ┌────────────────────────────────┐ │
+│ │ 📤 charlie@example.com         │ │
+│ │    Sent 2 hours ago   [Cancel] │ │
+│ └────────────────────────────────┘ │
+├────────────────────────────────────┤
+│ ┌────────────────────────────────┐ │
+│ │ 👤 Sarah                       │ │  ← Regular contacts below
+│ │    Boston, MA            2.4k mi│ │
+│ └────────────────────────────────┘ │
+```
+
+**Key decisions:**
+
+1. **Two separate sections**
+   - Incoming requests: Require action (Accept/Decline)
+   - Sent requests: Informational with cancel option
+   - Each section only appears if there are items
+
+2. **Visual distinction**
+   - Incoming: Amber/warning background (#fef3c7) to draw attention
+   - Sent: Muted/gray background, less prominent
+   - Clear separation from the main contact list
+
+3. **Incoming request items show:**
+   - Avatar with initial
+   - Name (if available) or email
+   - Email (if name shown)
+   - Accept and Decline buttons
+
+4. **Sent request items show:**
+   - Email icon (📤) instead of avatar
+   - Recipient email
+   - Time since sent
+   - Cancel button (to withdraw invitation)
+
+5. **Badge indicator** (optional enhancement)
+   - Show count on Contacts tab when incoming requests exist
+   - Only count incoming (those requiring action)
+
+6. **After action:**
+   - Accept: Request disappears, contact appears in list
+   - Decline: Request disappears
+   - Cancel: Sent request disappears
+
+---
+
 ### 4.2 Contact Detail Screen
 
 **Purpose:** Full information about one contact, including permission management

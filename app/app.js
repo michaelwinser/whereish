@@ -162,6 +162,7 @@
         contactsList: document.getElementById('contacts-list'),
         pendingRequests: document.getElementById('pending-requests'),
         incomingRequests: document.getElementById('incoming-requests'),
+        outgoingRequests: document.getElementById('outgoing-requests'),
         addContactBtn: document.getElementById('add-contact-btn'),
         refreshContactsBtn: document.getElementById('refresh-contacts-btn'),
 
@@ -356,6 +357,19 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function formatTimeAgo(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const seconds = Math.floor((now - date) / 1000);
+
+        if (seconds < 60) return 'Just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+        if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+        return date.toLocaleDateString();
     }
 
     /**
@@ -637,7 +651,15 @@
 
         try {
             const requests = await API.getContactRequests();
-            renderIncomingRequests(requests.incoming || []);
+            const incoming = requests.incoming || [];
+            const outgoing = requests.outgoing || [];
+
+            renderIncomingRequests(incoming);
+            renderOutgoingRequests(outgoing);
+
+            // Show/hide container based on whether any requests exist
+            const hasRequests = incoming.length > 0 || outgoing.length > 0;
+            elements.pendingRequests.classList.toggle('hidden', !hasRequests);
         } catch (error) {
             console.error('Failed to load contact requests:', error);
         }
@@ -645,22 +667,28 @@
 
     function renderIncomingRequests(incoming) {
         if (incoming.length === 0) {
-            elements.pendingRequests.classList.add('hidden');
+            elements.incomingRequests.innerHTML = '';
             return;
         }
 
-        elements.pendingRequests.classList.remove('hidden');
-        elements.incomingRequests.innerHTML = incoming.map(req => `
-            <div class="request-item" data-request-id="${req.requestId}">
-                <div class="request-info">
-                    <strong>${escapeHtml(req.name)}</strong> wants to connect
+        elements.incomingRequests.innerHTML = `
+            <div class="requests-section-header">Incoming Requests</div>
+            ${incoming.map(req => `
+                <div class="request-item" data-request-id="${req.requestId}">
+                    <div class="request-info">
+                        <div class="request-avatar">${(req.name || req.email || '?')[0].toUpperCase()}</div>
+                        <div>
+                            <div class="request-name">${escapeHtml(req.name || req.email)}</div>
+                            ${req.name ? `<div class="request-email">${escapeHtml(req.email)}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="request-actions">
+                        <button class="btn btn-small btn-primary accept-request-btn" data-id="${req.requestId}">Accept</button>
+                        <button class="btn btn-small decline-request-btn" data-id="${req.requestId}">Decline</button>
+                    </div>
                 </div>
-                <div class="request-actions">
-                    <button class="btn btn-small btn-primary accept-request-btn" data-id="${req.requestId}">Accept</button>
-                    <button class="btn btn-small decline-request-btn" data-id="${req.requestId}">Decline</button>
-                </div>
-            </div>
-        `).join('');
+            `).join('')}
+        `;
 
         // Attach handlers
         elements.incomingRequests.querySelectorAll('.accept-request-btn').forEach(btn => {
@@ -668,6 +696,34 @@
         });
         elements.incomingRequests.querySelectorAll('.decline-request-btn').forEach(btn => {
             btn.addEventListener('click', handleDeclineRequest);
+        });
+    }
+
+    function renderOutgoingRequests(outgoing) {
+        if (outgoing.length === 0) {
+            elements.outgoingRequests.innerHTML = '';
+            return;
+        }
+
+        elements.outgoingRequests.innerHTML = `
+            <div class="requests-section-header">Sent Requests</div>
+            ${outgoing.map(req => `
+                <div class="request-item request-item-outgoing" data-request-id="${req.requestId}">
+                    <div class="request-info">
+                        <span class="request-icon">📤</span>
+                        <div>
+                            <div class="request-email">${escapeHtml(req.email)}</div>
+                            <div class="request-time">${formatTimeAgo(req.createdAt)}</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-small btn-secondary cancel-request-btn" data-id="${req.requestId}">Cancel</button>
+                </div>
+            `).join('')}
+        `;
+
+        // Attach handlers
+        elements.outgoingRequests.querySelectorAll('.cancel-request-btn').forEach(btn => {
+            btn.addEventListener('click', handleCancelRequest);
         });
     }
 
@@ -696,6 +752,20 @@
         } catch (error) {
             console.error('Failed to decline request:', error);
             alert('Failed to decline request. Please try again.');
+            event.target.disabled = false;
+        }
+    }
+
+    async function handleCancelRequest(event) {
+        const requestId = event.target.dataset.id;
+        event.target.disabled = true;
+
+        try {
+            await API.cancelContactRequest(requestId);
+            await loadContactRequests();
+        } catch (error) {
+            console.error('Failed to cancel request:', error);
+            alert('Failed to cancel request. Please try again.');
             event.target.disabled = false;
         }
     }
