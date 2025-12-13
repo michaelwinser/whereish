@@ -4,6 +4,8 @@
  */
 
 const CACHE_NAME = 'whereish-v53';
+const APP_VERSION = 53;  // Must match CACHE_NAME version number
+
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -32,7 +34,7 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// Activate: clean up old caches
+// Activate: clean up old caches and notify clients
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys()
@@ -44,6 +46,18 @@ self.addEventListener('activate', (event) => {
                 );
             })
             .then(() => self.clients.claim())
+            .then(() => {
+                // Notify all clients that a new version is available
+                return self.clients.matchAll({ type: 'window' });
+            })
+            .then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({
+                        type: 'SW_UPDATED',
+                        version: APP_VERSION
+                    });
+                });
+            })
     );
 });
 

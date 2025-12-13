@@ -70,8 +70,14 @@ LOCATION_EXPIRY_MINUTES = 30
 TOKEN_EXPIRY_DAYS = 30
 
 # App version for client refresh detection
-# Increment this when deploying breaking changes or critical fixes
-APP_VERSION = os.environ.get('APP_VERSION', '1')
+# This should match the service worker CACHE_NAME version number
+# Increment this when deploying any client changes
+APP_VERSION = os.environ.get('APP_VERSION', '53')
+
+# Minimum supported client version
+# Clients below this version will be forced to update
+# Increment this only when old clients would break (API changes, etc.)
+MIN_APP_VERSION = os.environ.get('MIN_APP_VERSION', '53')
 
 # ===================
 # Permission Levels
@@ -1054,8 +1060,9 @@ def after_request(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
-    response.headers['Access-Control-Expose-Headers'] = 'X-App-Version'
+    response.headers['Access-Control-Expose-Headers'] = 'X-App-Version, X-Min-App-Version'
     response.headers['X-App-Version'] = APP_VERSION
+    response.headers['X-Min-App-Version'] = MIN_APP_VERSION
     return response
 
 

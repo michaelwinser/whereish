@@ -16,13 +16,13 @@ const API = (function() {
     const BASE_URL = '';
 
     // App version - must match server's APP_VERSION for compatibility
-    // Increment this when deploying client changes
-    const APP_VERSION = '1';
+    // This should match the service worker CACHE_NAME version number
+    const APP_VERSION = 53;
 
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;
     let currentUser = null;
-    let updateBannerShown = false;
+    let updatePending = false;
 
     // ===================
     // HTTP Helpers
@@ -73,33 +73,47 @@ const API = (function() {
     }
 
     /**
-     * Check version header and show update banner if mismatch
+     * Check version header and auto-update if needed
      * @param {Response} response - Fetch response
      */
     function checkVersionHeader(response) {
-        if (updateBannerShown) return;
+        if (updatePending) return;
 
-        const serverVersion = response.headers.get('X-App-Version');
-        if (serverVersion && serverVersion !== APP_VERSION) {
-            updateBannerShown = true;
-            showUpdateBanner();
+        const serverVersion = parseInt(response.headers.get('X-App-Version'), 10);
+        const minVersion = parseInt(response.headers.get('X-Min-App-Version'), 10);
+
+        if (!serverVersion || isNaN(serverVersion)) return;
+
+        // Check if client is below minimum supported version (forced update)
+        if (minVersion && !isNaN(minVersion) && APP_VERSION < minVersion) {
+            updatePending = true;
+            showForcedUpdateBanner();
+            // Auto-reload after 3 seconds
+            setTimeout(() => window.location.reload(true), 3000);
+            return;
+        }
+
+        // Check if newer version is available (auto-update)
+        if (serverVersion > APP_VERSION) {
+            updatePending = true;
+            // Reload automatically - no banner needed
+            // Small delay to let current request complete
+            setTimeout(() => window.location.reload(true), 100);
         }
     }
 
     /**
-     * Show update available banner
+     * Show forced update banner (cannot be dismissed)
      */
-    function showUpdateBanner() {
+    function showForcedUpdateBanner() {
         // Check if banner already exists
         if (document.getElementById('update-banner')) return;
 
         const banner = document.createElement('div');
         banner.id = 'update-banner';
-        banner.className = 'update-banner';
+        banner.className = 'update-banner update-banner-forced';
         banner.innerHTML = `
-            <span>A new version is available</span>
-            <button onclick="location.reload(true)">Refresh</button>
-            <button onclick="this.parentElement.remove()" class="dismiss">&times;</button>
+            <span>Update required - refreshing...</span>
         `;
         document.body.prepend(banner);
     }
@@ -400,6 +414,27 @@ const API = (function() {
         } catch {
             return false;
         }
+    }
+
+    // ===================
+    // Service Worker Updates
+    // ===================
+
+    /**
+     * Listen for service worker update notifications
+     * When SW activates a new version, reload the page
+     */
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'SW_UPDATED') {
+                console.log('Service worker updated to version', event.data.version);
+                // Reload to get new version
+                if (!updatePending) {
+                    updatePending = true;
+                    window.location.reload(true);
+                }
+            }
+        });
     }
 
     // ===================

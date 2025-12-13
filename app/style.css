@@ -76,6 +76,10 @@ body {
     background: rgba(255, 255, 255, 0.2);
 }
 
+.update-banner-forced {
+    background: #d32f2f;
+}
+
 /* App container */
 .app {
     max-width: 480px;
