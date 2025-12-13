@@ -573,30 +573,37 @@ This document defines the key user scenarios for Whereish and proposes a UX desi
 
 **Purpose:** Manage named locations (a primary entity, not a setting)
 
+#### Key Concept: Visibility is Independent of Geographic Permissions
+
+Named location visibility is **completely separate** from geographic permissions:
+- A contact with "street" geographic access does NOT automatically see your place names
+- A contact with "planet" geographic access CAN see "Soccer Field" if you grant visibility
+- By default, all places are **private** (nobody sees the label)
+
 **Layout:**
 ```
 ┌────────────────────────────────────┐
 │ ← Back              My Places      │
 ├────────────────────────────────────┤
 │                                    │
-│   Your saved places appear when    │
-│   you're nearby, letting contacts  │
-│   see meaningful names like "Home" │
-│   instead of just addresses.       │
+│   Control who sees your place      │
+│   names. By default, places are    │
+│   private - you choose who can     │
+│   see each one.                    │
 │                                    │
 ├────────────────────────────────────┤
 │ ┌────────────────────────────────┐ │
-│ │ 🏠 Home                        │ │
+│ │ 🏠 Home                     🔒 │ │  ← Private
 │ │    Street radius (~150m)       │ │
 │ │    123 Main Street, Seattle    │ │
 │ └────────────────────────────────┘ │
 │ ┌────────────────────────────────┐ │
-│ │ 💼 Office                      │ │
+│ │ 💼 Office                   👥 │ │  ← All contacts
 │ │    Neighborhood radius (~750m) │ │
 │ │    Downtown Seattle            │ │
 │ └────────────────────────────────┘ │
 │ ┌────────────────────────────────┐ │
-│ │ ⚽ Soccer Field                │ │
+│ │ ⚽ Soccer Field           👤×5 │ │  ← 5 specific contacts
 │ │    Street radius (~150m)       │ │
 │ │    Greenwood Park              │ │
 │ └────────────────────────────────┘ │
@@ -604,6 +611,11 @@ This document defines the key user scenarios for Whereish and proposes a UX desi
 │      [ + Add New Place ]           │
 └────────────────────────────────────┘
 ```
+
+**Visibility indicators:**
+- 🔒 = Private (nobody sees this label)
+- 👥 = All contacts can see
+- 👤×N = Shared with N specific contacts
 
 **Tap a place to edit:**
 ```
@@ -627,11 +639,31 @@ This document defines the key user scenarios for Whereish and proposes a UX desi
 │ │            [Use Current Location]│
 │ └────────────────────────────────┘ │
 ├────────────────────────────────────┤
+│ WHO CAN SEE THIS PLACE?            │
+│ ┌────────────────────────────────┐ │
+│ │ ○ Nobody (private)             │ │  ← Default
+│ │ ○ All contacts                 │ │
+│ │ ● Specific contacts...         │ │
+│ │   ┌──────────────────────────┐ │ │
+│ │   │ ☑ Sarah                  │ │ │
+│ │   │ ☑ Mike                   │ │ │
+│ │   │ ☐ Mom                    │ │ │
+│ │   │ ☐ Dad                    │ │ │
+│ │   └──────────────────────────┘ │ │
+│ └────────────────────────────────┘ │
+├────────────────────────────────────┤
 │                                    │
 │   [ Save ]         [ Delete ]      │
 │                                    │
 └────────────────────────────────────┘
 ```
+
+**Privacy example:**
+
+User has "Cancer Treatment Facility" as a private place:
+- Spouse (with street geographic access): sees "123 Medical Plaza" but NOT the label
+- If user grants visibility to Spouse: Spouse sees "Cancer Treatment Facility"
+- Friend (with city geographic access): sees "Seattle" and nothing about the place
 
 ---
 
@@ -726,6 +758,7 @@ This document defines the key user scenarios for Whereish and proposes a UX desi
 | **Presence, not tracking** | Only current location shown, no history, no breadcrumbs |
 | **Semantic over precise** | Labels like "Downtown Seattle" not coordinates |
 | **Simple until complex** | Main list is clean; details on tap; settings for advanced |
+| **Orthogonal permissions** | Geographic permissions and named location visibility are independent systems—street access doesn't reveal place names |
 
 ---
 
@@ -807,6 +840,7 @@ Settings → Log Out → Welcome Screen
 | **Stale location indicator** | Text "Last updated X ago" in Contact Detail |
 | **Blocked contacts** | Section on contacts list OR separate list accessible from contacts page |
 | **Circles UI** | Dedicated Circles screen (secondary entity); bidirectional management with contacts |
+| **Named location visibility** | Completely separate from geographic permissions. Street access does NOT automatically show place names. Each place has its own visibility setting (private/all/selected). Default is private. See §4.6 for UI. |
 
 ---
 
@@ -822,7 +856,7 @@ Settings → Log Out → Welcome Screen
 
 2. **Phase 2: Secondary entities**
    - Bottom tab navigation (Contacts, Places, Circles)
-   - My Places screen (move from main, make it a tab)
+   - My Places screen with per-place visibility settings (private/all/selected)
    - Circles screen with bidirectional contact management
 
 3. **Phase 3: Privacy features**

@@ -136,6 +136,59 @@ def filter_hierarchy_by_permission(hierarchy, permission_level):
     return filtered
 
 
+def should_show_named_location(named_location, viewer_id):
+    """
+    Determine if a named location should be shown to a viewer.
+
+    Named location visibility is INDEPENDENT of geographic permissions.
+    This is controlled by the visibleTo field in the named location.
+
+    Args:
+        named_location: The namedLocation from the payload. Can be:
+            - None (no named location)
+            - str (legacy format - just a label, defaults to private)
+            - dict with { label, visibleTo } where visibleTo is:
+                - 'private': no one sees it
+                - 'all': everyone sees it
+                - list of contact IDs: only those contacts see it
+        viewer_id: The ID of the contact viewing the location
+
+    Returns:
+        The named location label if visible to this viewer, None otherwise
+    """
+    if not named_location:
+        return None
+
+    # Handle legacy format (just a string label)
+    if isinstance(named_location, str):
+        # Legacy behavior: treat as private (no one sees)
+        # This is a change from the old behavior where street+ permission saw it
+        return None
+
+    # New format: { label, visibleTo }
+    if not isinstance(named_location, dict):
+        return None
+
+    label = named_location.get('label')
+    if not label:
+        return None
+
+    visible_to = named_location.get('visibleTo', 'private')
+
+    # Check visibility setting
+    if visible_to == 'private':
+        return None
+    elif visible_to == 'all':
+        return label
+    elif isinstance(visible_to, list):
+        # Show if viewer is in the list
+        if viewer_id in visible_to:
+            return label
+        return None
+
+    return None
+
+
 # ===================
 # Token Management
 # ===================
@@ -480,7 +533,7 @@ def login():
 def get_current_user_info():
     """Get current user info."""
     user = g.current_user
-    return jsonify({'id': user['id'], 'name': user['name']})
+    return jsonify({'id': user['id'], 'name': user['name'], 'email': user['email']})
 
 
 @app.route('/api/permission-levels', methods=['GET'])
@@ -869,11 +922,8 @@ def get_contact_location(contact_id):
         location_data.get('hierarchy', {}), permission_level
     )
 
-    # Filter named location (only show if permission is high enough)
-    # Named locations are considered street-level precision
-    filtered_named = None
-    if get_permission_index(permission_level) >= get_permission_index('street'):
-        filtered_named = location_data.get('namedLocation')
+    # Filter named location based on visibility settings (INDEPENDENT of geographic permission)
+    filtered_named = should_show_named_location(location_data.get('namedLocation'), user['id'])
 
     # Build filtered payload
     filtered_data = {
@@ -956,10 +1006,10 @@ def get_all_contact_locations():
                 location_data.get('hierarchy', {}), permission_level
             )
 
-            # Filter named location
-            filtered_named = None
-            if get_permission_index(permission_level) >= get_permission_index('street'):
-                filtered_named = location_data.get('namedLocation')
+            # Filter named location based on visibility (INDEPENDENT of geographic permission)
+            filtered_named = should_show_named_location(
+                location_data.get('namedLocation'), user['id']
+            )
 
             contact_data['location'] = {
                 'data': {

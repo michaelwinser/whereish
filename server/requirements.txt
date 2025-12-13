@@ -3,3 +3,7 @@
 
 flask==3.0.0
 gunicorn==21.2.0
+
+# CLI dependencies
+click==8.1.7
+requests==2.31.0

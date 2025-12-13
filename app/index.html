@@ -12,6 +12,43 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Install Banner (Android/Chrome) -->
+    <div id="install-banner" class="install-banner hidden">
+        <div class="install-banner-content">
+            <span class="install-banner-icon">📲</span>
+            <div class="install-banner-text">
+                <strong>Install Whereish</strong>
+                <span>Quick access from your home screen</span>
+            </div>
+        </div>
+        <div class="install-banner-actions">
+            <button id="install-btn" class="btn btn-primary btn-small">Install</button>
+            <button id="install-dismiss-btn" class="btn btn-small">Later</button>
+        </div>
+    </div>
+
+    <!-- iOS Install Instructions -->
+    <div id="ios-install-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Install Whereish</h2>
+                <button id="ios-install-close-btn" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body ios-install-instructions">
+                <p>Install this app on your iPhone for quick access:</p>
+                <ol>
+                    <li>Tap the <strong>Share</strong> button <span class="ios-share-icon">⎙</span> at the bottom of Safari</li>
+                    <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                    <li>Tap <strong>"Add"</strong> in the top right</li>
+                </ol>
+                <div class="modal-actions">
+                    <button id="ios-install-done-btn" class="btn btn-primary">Got it</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="app">
         <!-- Welcome View (logged-out entry point) -->
         <section class="view hidden" data-view="welcome" id="view-welcome">
@@ -364,6 +401,69 @@
                 <div class="modal-actions">
                     <button type="button" id="add-contact-cancel-btn" class="btn">Cancel</button>
                     <button type="submit" class="btn btn-primary">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Place Modal -->
+    <div id="edit-place-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h2>Edit Place</h2>
+                <button id="edit-place-close-btn" class="modal-close">&times;</button>
+            </div>
+            <form id="edit-place-form" class="modal-body">
+                <div class="form-group">
+                    <label for="edit-place-label">Name</label>
+                    <input
+                        type="text"
+                        id="edit-place-label"
+                        name="label"
+                        placeholder="e.g., Home, Office, Gym"
+                        required
+                        maxlength="50"
+                        autocomplete="off"
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="edit-place-radius">Radius</label>
+                    <select id="edit-place-radius" name="radius">
+                        <option value="150">Street (~150m)</option>
+                        <option value="750">Neighborhood (~750m)</option>
+                        <option value="10000">City (~10km)</option>
+                    </select>
+                    <p class="form-help">How close do you need to be to count as "here"?</p>
+                </div>
+                <div class="form-group visibility-section">
+                    <label>Who can see this place?</label>
+                    <p class="form-help">Control who sees the place name when you're here. This is separate from your geographic sharing level.</p>
+                    <div class="visibility-options">
+                        <label class="radio-option">
+                            <input type="radio" name="visibility" value="private" checked>
+                            <span class="radio-label">Nobody</span>
+                            <span class="radio-desc">Keep this place private</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="visibility" value="all">
+                            <span class="radio-label">All contacts</span>
+                            <span class="radio-desc">Everyone can see when you're here</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="visibility" value="selected">
+                            <span class="radio-label">Specific contacts</span>
+                            <span class="radio-desc">Choose who can see</span>
+                        </label>
+                    </div>
+                    <div id="visibility-contact-selector" class="contact-selector hidden">
+                        <p class="empty-state">Loading contacts...</p>
+                    </div>
+                </div>
+                <div id="edit-place-error" class="form-error hidden"></div>
+                <div class="modal-actions">
+                    <button type="button" id="edit-place-cancel-btn" class="btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>

@@ -69,13 +69,33 @@ Each contact has a **baseline** geographic level—they see your location at tha
 
 ### 4.3 Named Locations
 
-User-defined semantic places that can **exceed** geographic baseline permissions:
+User-defined semantic places with **independent visibility controls**:
 
 - You define "Soccer Field" and share it with your Soccer Team group
-- Team members normally see City-level, but when you're at Soccer Field, they see "Soccer Field"
-- Named locations are explicit grants—bonuses on top of geographic baseline
+- Team members see "Soccer Field" when you're there (if granted visibility)
 - **Named locations are per-user:** Each user creates and manages their own named locations
 - Named location coordinates are stored locally on the user's device (never sent to server)
+
+#### Key Principle: Two Orthogonal Permission Systems
+
+**Named location visibility is completely independent of geographic permissions.** These are two separate, parallel permission systems:
+
+| Permission Type | Controls | Default |
+|----------------|----------|---------|
+| Geographic baseline | What level of address hierarchy a contact sees (city, street, etc.) | Planet Earth |
+| Named location visibility | Whether a contact sees semantic labels like "Home" or "Work" | Private (nobody) |
+
+**Critical privacy example:**
+
+User has a named location "Cancer Treatment Facility":
+- Friend has **street-level** geographic permission → sees "123 Medical Plaza, Seattle"
+- Friend does NOT have visibility to that named location → does **NOT** see "Cancer Treatment Facility"
+- Spouse has visibility to that named location → sees "Cancer Treatment Facility"
+
+This separation ensures:
+- A contact with "planet" geographic access could still see "Soccer Field" if explicitly granted visibility
+- A contact with "street" geographic access would NOT see sensitive named locations unless explicitly granted
+- User-defined semantic labels are never automatically exposed based on geographic permissions
 
 ### 4.4 Asymmetric, Opt-In Sharing
 
@@ -278,20 +298,24 @@ To be addressed in future iteration:
 
 ## 9. Open Issues
 
-### 9.1 Named Location Visibility Downgrade
+### 9.1 Named Location Visibility ✓ RESOLVED
 
 **Question:** Can named locations restrict visibility (not just enhance)?
 
 **Scenario:** User is at "Therapist Office" (a named location not shared with anyone). Contact has street-level access. What do they see?
 
-**Options:**
-1. Named locations only upgrade, never downgrade → Contact sees street address
-2. Unshared named locations can hide → Contact sees City (or lower)
-3. Named locations can be marked "private" explicitly
+**Resolution:** Named location visibility is **orthogonal** to geographic permissions.
 
-**Guiding Principle:** No surprises. User should always know what's shared.
+The contact sees:
+- **Geographic info:** "123 Medical Plaza, Seattle" (based on their street-level permission)
+- **Named location label:** Nothing (because they don't have visibility to "Therapist Office")
 
-**Resolution:** TBD - explore in design phase, possibly solve with UX ("preview what Mary sees")
+Named locations are **opt-in only**. By default, no one sees any named location labels. The user must explicitly grant visibility per named location. Geographic permissions only affect the address hierarchy, never the semantic labels.
+
+This means:
+- Named locations don't "downgrade" geographic visibility—they're separate systems
+- A private named location simply doesn't show its label; geographic info shows normally
+- Users can share precise addresses without revealing sensitive semantic meaning
 
 ### 9.2 Multi-Device Handling
 

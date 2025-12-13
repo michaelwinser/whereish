@@ -33,3 +33,11 @@ Thumbs.db
 
 # Node (if added later)
 node_modules/
+
+# Test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Claude Code exports
+claude-chat-*.txt

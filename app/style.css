@@ -1017,6 +1017,214 @@ body {
 }
 
 /* ===================
+   PWA Install Banner (Issue #31)
+   =================== */
+
+.install-banner {
+    position: fixed;
+    bottom: 70px; /* Above tab bar */
+    left: 1rem;
+    right: 1rem;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+}
+
+.install-banner.hidden {
+    display: none;
+}
+
+.install-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.install-banner-icon {
+    font-size: 1.5rem;
+}
+
+.install-banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.install-banner-text strong {
+    font-size: 0.9375rem;
+}
+
+.install-banner-text span {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.install-banner-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* iOS Install Instructions */
+.ios-install-instructions {
+    text-align: left;
+}
+
+.ios-install-instructions p {
+    margin-bottom: 1rem;
+}
+
+.ios-install-instructions ol {
+    margin: 0 0 1.5rem 0;
+    padding-left: 1.25rem;
+}
+
+.ios-install-instructions li {
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.ios-share-icon {
+    display: inline-block;
+    font-size: 1.125rem;
+    vertical-align: middle;
+}
+
+/* Dark mode for install banner */
+@media (prefers-color-scheme: dark) {
+    .install-banner {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* ===================
+   Place Visibility (Issue #21)
+   =================== */
+
+/* Larger modal for edit place */
+.modal-content-large {
+    max-width: 500px;
+}
+
+/* Visibility section in place form */
+.visibility-section {
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.visibility-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.radio-option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.radio-option:hover {
+    border-color: var(--color-primary);
+    background: var(--color-card);
+}
+
+.radio-option:has(input:checked) {
+    border-color: var(--color-primary);
+    background: rgba(49, 130, 206, 0.05);
+}
+
+.radio-option input[type="radio"] {
+    margin: 0;
+    accent-color: var(--color-primary);
+}
+
+.radio-label {
+    font-weight: 500;
+    flex: 1;
+}
+
+.radio-desc {
+    width: 100%;
+    margin-left: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+/* Contact selector for visibility */
+.contact-selector {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.contact-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.contact-checkbox:hover {
+    background: var(--color-bg-muted);
+}
+
+.contact-checkbox input[type="checkbox"] {
+    margin: 0;
+    accent-color: var(--color-primary);
+}
+
+/* Visibility indicator in places list */
+.location-item-visibility {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    padding: 0 0.5rem;
+    white-space: nowrap;
+}
+
+/* Dark mode for visibility */
+@media (prefers-color-scheme: dark) {
+    .radio-option {
+        background: var(--color-bg-muted);
+    }
+
+    .radio-option:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .radio-option:has(input:checked) {
+        background: rgba(49, 130, 206, 0.15);
+    }
+
+    .contact-selector {
+        background: var(--color-bg-muted);
+    }
+}
+
+/* ===================
    View System (Phase 0)
    =================== */
 

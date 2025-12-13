@@ -1,7 +1,7 @@
 # Whereish Makefile
 # Run 'make help' to see available targets
 
-.PHONY: help test test-smoke test-unit run build docker-run clean clean-all clean-db clean-docker-db lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
+.PHONY: help test test-smoke test-server test-client test-all run build docker-run clean clean-all clean-db clean-docker-db lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
 
 # Default target
 .DEFAULT_GOAL := help
@@ -88,13 +88,17 @@ test-smoke: ## Run fast smoke tests (~7 seconds)
 	@node --check app/app.js
 	@echo "✓ JavaScript syntax OK"
 
-test-unit: ## Run unit tests (not yet implemented - Issue #5)
-	@echo "[TODO] Unit tests not yet implemented (see Issue #5)"
-	@exit 1
+test-server: ## Run server tests (pytest)
+	@echo "Running server tests..."
+	@$(PYTHON) -m pytest tests/server -v
+	@echo "✓ Server tests OK"
 
-test-integration: ## Run integration tests (not yet implemented - Issue #5)
-	@echo "[TODO] Integration tests not yet implemented (see Issue #5)"
-	@exit 1
+test-client: ## Run client tests (Playwright)
+	@echo "Running client tests..."
+	@npx playwright test
+	@echo "✓ Client tests OK"
+
+test-all: test-server test-client ## Run all tests (server + client)
 
 # =============================================================================
 # Linting
@@ -115,7 +119,7 @@ lint-js: ## Lint JavaScript code with eslint
 
 lint-md: ## Lint Markdown files
 	@echo "Linting Markdown..."
-	@npx markdownlint-cli@0.41.0 '**/*.md' --ignore node_modules --ignore .venv
+	@npx markdownlint-cli@0.41.0 '**/*.md' --ignore node_modules --ignore .venv --ignore test-results
 	@echo "✓ Markdown lint OK"
 
 # =============================================================================

@@ -85,8 +85,34 @@ const Storage = (function() {
     }
 
     /**
+     * Default visibility for named locations (private - no one sees)
+     */
+    const DEFAULT_VISIBILITY = { mode: 'private', contactIds: [] };
+
+    /**
+     * Ensure location has valid visibility structure
+     * @param {Object} location
+     * @returns {Object} Location with valid visibility
+     */
+    function ensureVisibility(location) {
+        if (!location.visibility || typeof location.visibility !== 'object') {
+            return { ...location, visibility: { ...DEFAULT_VISIBILITY } };
+        }
+        // Ensure visibility has required fields
+        return {
+            ...location,
+            visibility: {
+                mode: location.visibility.mode || 'private',
+                contactIds: Array.isArray(location.visibility.contactIds)
+                    ? location.visibility.contactIds
+                    : []
+            }
+        };
+    }
+
+    /**
      * Save a named location
-     * @param {Object} location - { label, latitude, longitude, radiusMeters, userId }
+     * @param {Object} location - { label, latitude, longitude, radiusMeters, userId, visibility? }
      * @returns {Promise<Object>} The saved location with id
      */
     async function saveNamedLocation(location) {
@@ -96,6 +122,16 @@ const Storage = (function() {
             throw new Error('userId is required to save a named location');
         }
 
+        // Ensure visibility has valid structure
+        const visibility = location.visibility && typeof location.visibility === 'object'
+            ? {
+                mode: location.visibility.mode || 'private',
+                contactIds: Array.isArray(location.visibility.contactIds)
+                    ? location.visibility.contactIds
+                    : []
+            }
+            : { ...DEFAULT_VISIBILITY };
+
         const record = {
             id: location.id || generateId(),
             userId: location.userId,
@@ -103,6 +139,7 @@ const Storage = (function() {
             latitude: location.latitude,
             longitude: location.longitude,
             radiusMeters: location.radiusMeters || 100,
+            visibility: visibility,
             createdAt: location.createdAt || Date.now(),
             updatedAt: Date.now()
         };
@@ -135,7 +172,11 @@ const Storage = (function() {
             const index = store.index('userId');
             const request = index.getAll(userId);
 
-            request.onsuccess = () => resolve(request.result || []);
+            request.onsuccess = () => {
+                // Migrate existing locations to include visibility
+                const locations = request.result || [];
+                resolve(locations.map(ensureVisibility));
+            };
             request.onerror = () => reject(new Error('Failed to get locations: ' + request.error));
         });
     }
@@ -153,7 +194,10 @@ const Storage = (function() {
             const store = transaction.objectStore('namedLocations');
             const request = store.get(id);
 
-            request.onsuccess = () => resolve(request.result || null);
+            request.onsuccess = () => {
+                const result = request.result;
+                resolve(result ? ensureVisibility(result) : null);
+            };
             request.onerror = () => reject(new Error('Failed to get location: ' + request.error));
         });
     }

@@ -172,11 +172,24 @@
         addContactCloseBtn: document.getElementById('add-contact-close-btn'),
         addContactCancelBtn: document.getElementById('add-contact-cancel-btn'),
         contactEmailInput: document.getElementById('contact-email'),
-        addContactError: document.getElementById('add-contact-error')
+        addContactError: document.getElementById('add-contact-error'),
+
+        // Edit place modal
+        editPlaceModal: document.getElementById('edit-place-modal'),
+        editPlaceForm: document.getElementById('edit-place-form'),
+        editPlaceCloseBtn: document.getElementById('edit-place-close-btn'),
+        editPlaceCancelBtn: document.getElementById('edit-place-cancel-btn'),
+        editPlaceLabelInput: document.getElementById('edit-place-label'),
+        editPlaceRadiusSelect: document.getElementById('edit-place-radius'),
+        editPlaceError: document.getElementById('edit-place-error'),
+        visibilityContactSelector: document.getElementById('visibility-contact-selector')
     };
 
     // Auth state
     let isLoginMode = true;
+
+    // Edit place state
+    let editingPlace = null;
 
     // ===================
     // Geolocation Service
@@ -966,6 +979,26 @@
     // Named Locations UI
     // ===================
 
+    /**
+     * Get visibility indicator for a place
+     * @param {Object} visibility - { mode: 'private'|'all'|'selected', contactIds: [] }
+     * @returns {Object} { icon, tooltip }
+     */
+    function getVisibilityIndicator(visibility) {
+        if (!visibility || visibility.mode === 'private') {
+            return { icon: '🔒', tooltip: 'Private - no one can see' };
+        }
+        if (visibility.mode === 'all') {
+            return { icon: '👥', tooltip: 'Visible to all contacts' };
+        }
+        // 'selected' mode
+        const count = visibility.contactIds?.length || 0;
+        return {
+            icon: `👤×${count}`,
+            tooltip: `Shared with ${count} contact${count !== 1 ? 's' : ''}`
+        };
+    }
+
     function renderPlacesList() {
         if (!elements.placesList) return;
 
@@ -991,6 +1024,8 @@
                 ? Geofence.formatDistance(distance)
                 : '';
 
+            const visibilityInfo = getVisibilityIndicator(location.visibility);
+
             return `
                 <div class="named-location-item ${isActive ? 'active' : ''}" data-id="${location.id}">
                     <span class="location-item-icon">${isActive ? '📍' : '🏠'}</span>
@@ -1000,7 +1035,13 @@
                             ${location.radiusMeters}m radius${distanceText ? ` • ${distanceText} away` : ''}
                         </div>
                     </div>
+                    <div class="location-item-visibility" title="${visibilityInfo.tooltip}">
+                        ${visibilityInfo.icon}
+                    </div>
                     <div class="location-item-actions">
+                        <button class="btn btn-small edit-location-btn" data-id="${location.id}" title="Edit">
+                            ✏️
+                        </button>
                         <button class="btn btn-danger delete-location-btn" data-id="${location.id}" title="Delete">
                             🗑️
                         </button>
@@ -1011,6 +1052,10 @@
 
         elements.placesList.querySelectorAll('.delete-location-btn').forEach(btn => {
             btn.addEventListener('click', handleDeleteLocation);
+        });
+
+        elements.placesList.querySelectorAll('.edit-location-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditLocation);
         });
     }
 
@@ -1043,6 +1088,135 @@
                 console.error('Failed to delete location:', error);
                 alert('Failed to delete location. Please try again.');
             }
+        }
+    }
+
+    // ===================
+    // Edit Place Modal
+    // ===================
+
+    function handleEditLocation(event) {
+        event.stopPropagation();
+        const id = event.currentTarget.dataset.id;
+        const location = namedLocations.find(loc => loc.id === id);
+
+        if (location) {
+            openEditPlaceModal(location);
+        }
+    }
+
+    function openEditPlaceModal(place) {
+        editingPlace = place;
+        elements.editPlaceModal.classList.remove('hidden');
+        elements.editPlaceError.classList.add('hidden');
+
+        // Populate form fields
+        elements.editPlaceLabelInput.value = place.label;
+        elements.editPlaceRadiusSelect.value = place.radiusMeters.toString();
+
+        // Set visibility radio
+        const visibility = place.visibility || { mode: 'private', contactIds: [] };
+        const radioValue = visibility.mode;
+        const radio = elements.editPlaceForm.querySelector(`input[name="visibility"][value="${radioValue}"]`);
+        if (radio) radio.checked = true;
+
+        // Populate contact selector
+        renderVisibilityContactSelector(visibility.contactIds || []);
+        updateContactSelectorVisibility();
+
+        elements.editPlaceLabelInput.focus();
+    }
+
+    function closeEditPlaceModal() {
+        elements.editPlaceModal.classList.add('hidden');
+        elements.editPlaceForm.reset();
+        elements.editPlaceError.classList.add('hidden');
+        editingPlace = null;
+    }
+
+    function renderVisibilityContactSelector(selectedContactIds) {
+        if (contacts.length === 0) {
+            elements.visibilityContactSelector.innerHTML = '<p class="empty-state">No contacts to select</p>';
+            return;
+        }
+
+        elements.visibilityContactSelector.innerHTML = contacts.map(contact => {
+            const contactId = contact.contactId || contact.id;
+            const isChecked = selectedContactIds.includes(contactId);
+            return `
+                <label class="contact-checkbox">
+                    <input type="checkbox" value="${contactId}" ${isChecked ? 'checked' : ''}>
+                    <span>${escapeHtml(contact.name)}</span>
+                </label>
+            `;
+        }).join('');
+    }
+
+    function updateContactSelectorVisibility() {
+        const selectedMode = elements.editPlaceForm.querySelector('input[name="visibility"]:checked')?.value;
+        elements.visibilityContactSelector.classList.toggle('hidden', selectedMode !== 'selected');
+    }
+
+    function getVisibilityFromForm() {
+        const mode = elements.editPlaceForm.querySelector('input[name="visibility"]:checked')?.value || 'private';
+
+        if (mode === 'selected') {
+            const checkboxes = elements.visibilityContactSelector.querySelectorAll('input[type="checkbox"]:checked');
+            const contactIds = Array.from(checkboxes).map(cb => cb.value);
+            return { mode: 'selected', contactIds };
+        }
+
+        return { mode, contactIds: [] };
+    }
+
+    async function handleEditPlaceSubmit(event) {
+        event.preventDefault();
+
+        if (!editingPlace) {
+            closeEditPlaceModal();
+            return;
+        }
+
+        const label = elements.editPlaceLabelInput.value.trim();
+        const radius = parseInt(elements.editPlaceRadiusSelect.value, 10);
+        const visibility = getVisibilityFromForm();
+
+        if (!label) {
+            elements.editPlaceError.textContent = 'Please enter a name for this place.';
+            elements.editPlaceError.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const updatedPlace = await Storage.saveNamedLocation({
+                ...editingPlace,
+                label,
+                radiusMeters: radius,
+                visibility
+            });
+
+            // Update in local array
+            const index = namedLocations.findIndex(loc => loc.id === editingPlace.id);
+            if (index !== -1) {
+                namedLocations[index] = updatedPlace;
+            }
+
+            // Update currentMatch if editing the currently matched place
+            if (currentMatch && currentMatch.id === editingPlace.id) {
+                currentMatch = updatedPlace;
+            }
+
+            closeEditPlaceModal();
+            renderNamedLocationsList();
+            displayLocation(currentHierarchy, currentMatch);
+
+            // Republish location to update visibility
+            await publishLocationToServer();
+
+        } catch (error) {
+            console.error('Failed to update place:', error);
+            elements.editPlaceError.textContent = 'Failed to save changes. Please try again.';
+            elements.editPlaceError.classList.remove('hidden');
         }
     }
 
@@ -1131,9 +1305,30 @@
         }
 
         try {
+            // Build named location with visibility metadata
+            let namedLocationPayload = null;
+            if (currentMatch) {
+                const visibility = currentMatch.visibility || { mode: 'private', contactIds: [] };
+                let visibleTo;
+
+                if (visibility.mode === 'private') {
+                    visibleTo = 'private';
+                } else if (visibility.mode === 'all') {
+                    visibleTo = 'all';
+                } else {
+                    // 'selected' mode - include the list of contact IDs
+                    visibleTo = visibility.contactIds || [];
+                }
+
+                namedLocationPayload = {
+                    label: currentMatch.label,
+                    visibleTo: visibleTo
+                };
+            }
+
             const payload = {
                 hierarchy: currentHierarchy,
-                namedLocation: currentMatch ? currentMatch.label : null,
+                namedLocation: namedLocationPayload,
                 timestamp: Date.now()
             };
 
@@ -1296,6 +1491,17 @@
         // Contacts
         elements.refreshContactsBtn.addEventListener('click', refreshContacts);
 
+        // Edit place modal
+        elements.editPlaceCloseBtn?.addEventListener('click', closeEditPlaceModal);
+        elements.editPlaceCancelBtn?.addEventListener('click', closeEditPlaceModal);
+        elements.editPlaceForm?.addEventListener('submit', handleEditPlaceSubmit);
+        elements.editPlaceModal?.querySelector('.modal-backdrop')?.addEventListener('click', closeEditPlaceModal);
+
+        // Visibility radio change - show/hide contact selector
+        elements.editPlaceForm?.querySelectorAll('input[name="visibility"]').forEach(radio => {
+            radio.addEventListener('change', updateContactSelectorVisibility);
+        });
+
         // Contact detail
         document.getElementById('contact-detail-back-btn')?.addEventListener('click', () => ViewManager.goBack());
         document.getElementById('detail-permission-select')?.addEventListener('change', handleDetailPermissionChange);
@@ -1315,6 +1521,10 @@
                 }
                 if (!elements.addContactModal.classList.contains('hidden')) {
                     closeAddContactModal();
+                    return;
+                }
+                if (!elements.editPlaceModal.classList.contains('hidden')) {
+                    closeEditPlaceModal();
                     return;
                 }
                 // No modal open - navigate back if possible
@@ -1337,6 +1547,155 @@
             } catch (error) {
                 console.warn('ServiceWorker registration failed:', error);
             }
+        }
+    }
+
+    // ===================
+    // PWA Install Prompt
+    // ===================
+
+    let deferredInstallPrompt = null;
+
+    function isRunningStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+    }
+
+    function isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    }
+
+    function shouldShowInstallPrompt() {
+        // Don't show if already installed
+        if (isRunningStandalone()) {
+            return false;
+        }
+
+        // Check if user dismissed recently (within 7 days)
+        const dismissedAt = localStorage.getItem('installPromptDismissed');
+        if (dismissedAt) {
+            const daysSinceDismissed = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60 * 24);
+            if (daysSinceDismissed < 7) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function showInstallBanner() {
+        if (!shouldShowInstallPrompt()) {
+            return;
+        }
+
+        const banner = document.getElementById('install-banner');
+        if (banner) {
+            banner.classList.remove('hidden');
+        }
+    }
+
+    function hideInstallBanner() {
+        const banner = document.getElementById('install-banner');
+        if (banner) {
+            banner.classList.add('hidden');
+        }
+    }
+
+    function dismissInstallPrompt() {
+        localStorage.setItem('installPromptDismissed', Date.now().toString());
+        hideInstallBanner();
+    }
+
+    async function handleInstallClick() {
+        if (!deferredInstallPrompt) {
+            return;
+        }
+
+        // Show the browser's install prompt
+        deferredInstallPrompt.prompt();
+
+        // Wait for user response
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        console.log('Install prompt outcome:', outcome);
+
+        // Clear the deferred prompt
+        deferredInstallPrompt = null;
+        hideInstallBanner();
+    }
+
+    function showIOSInstallInstructions() {
+        if (!shouldShowInstallPrompt()) {
+            return;
+        }
+
+        const modal = document.getElementById('ios-install-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function hideIOSInstallModal() {
+        const modal = document.getElementById('ios-install-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        // Mark as dismissed so we don't show again for a while
+        localStorage.setItem('installPromptDismissed', Date.now().toString());
+    }
+
+    function setupInstallPrompt() {
+        // Listen for the beforeinstallprompt event (Chrome/Android)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing
+            e.preventDefault();
+            // Save the event for later
+            deferredInstallPrompt = e;
+            // Show our custom install banner
+            showInstallBanner();
+        });
+
+        // Listen for successful install
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            hideInstallBanner();
+            deferredInstallPrompt = null;
+        });
+
+        // Set up button handlers
+        const installBtn = document.getElementById('install-btn');
+        const dismissBtn = document.getElementById('install-dismiss-btn');
+
+        if (installBtn) {
+            installBtn.addEventListener('click', handleInstallClick);
+        }
+
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', dismissInstallPrompt);
+        }
+
+        // iOS-specific handlers
+        const iosCloseBtn = document.getElementById('ios-install-close-btn');
+        const iosDoneBtn = document.getElementById('ios-install-done-btn');
+        const iosModal = document.getElementById('ios-install-modal');
+
+        if (iosCloseBtn) {
+            iosCloseBtn.addEventListener('click', hideIOSInstallModal);
+        }
+
+        if (iosDoneBtn) {
+            iosDoneBtn.addEventListener('click', hideIOSInstallModal);
+        }
+
+        if (iosModal) {
+            iosModal.querySelector('.modal-backdrop')?.addEventListener('click', hideIOSInstallModal);
+        }
+
+        // For iOS, show instructions after a brief delay (if not already installed)
+        if (isIOS() && !isRunningStandalone() && shouldShowInstallPrompt()) {
+            // Show iOS prompt after 3 seconds
+            setTimeout(() => {
+                showIOSInstallInstructions();
+            }, 3000);
         }
     }
 
@@ -1443,6 +1802,7 @@
         });
 
         setupEventListeners();
+        setupInstallPrompt();
 
         // Check server connection (this will load user data if authenticated)
         await checkServerConnection();

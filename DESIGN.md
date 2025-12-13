@@ -81,14 +81,16 @@ Clean separation allows transport swap without rewriting app logic:
 | Decryption keys | For contacts' location data |
 | Own location history | Not stored (design decision) |
 
-### 3.4 Open Question: Named Location Labels
+### 3.4 Named Location Labels
 
 Should the server know named location labels ("Soccer Field") or only encrypted references?
 
 - **Labels visible:** Enables server-side features (search, suggestions)
 - **Labels hidden:** Maximum privacy, but limits functionality
 
-**Current decision:** Defer. Design allows either; implement hidden first.
+**Current decision:** Labels are included in the location payload (currently plaintext, eventually encrypted). The server performs visibility filtering based on `visible_to` metadata, but ideally should not read the labels themselves. See Issue #30 for zero-knowledge architecture plans.
+
+**Key privacy note:** Named location visibility is controlled separately from geographic permissions. A contact with street-level geographic access does NOT automatically see named location labels. See §5.5 for details.
 
 ---
 
@@ -249,12 +251,29 @@ NamedLocation {
     label: String
     coordinates: { lat: Float, lng: Float }  // Never sent to server
     radius_meters: Float
-    visible_to: List<UUID>     // Contact or Circle IDs
+    visibility: {
+        mode: Enum (private, all, selected)
+        contact_ids: List<UUID>  // Only used when mode is "selected"
+    }
     created_at: Timestamp
 }
 ```
 
-**Note:** Named locations are stored in IndexedDB on the client, scoped by user_id. Each user has their own set of named locations. Circle-owned shared locations are a deferred feature (see PRD §5.3).
+**Storage:** Named locations are stored in IndexedDB on the client, scoped by user_id. Each user has their own set of named locations. Circle-owned shared locations are a deferred feature (see PRD §5.3).
+
+#### Key Principle: Orthogonal Permission Systems
+
+**Named location visibility is completely independent of geographic permissions.**
+
+| Permission Type | Controls | Default | Stored |
+|----------------|----------|---------|--------|
+| Geographic baseline | Address hierarchy level (city, street, etc.) | Planet Earth | Server |
+| Named location visibility | Whether semantic labels are shown | Private | Client |
+
+This means:
+- A contact with "planet" geographic permission can still see "Soccer Field" if granted visibility
+- A contact with "street" geographic permission will NOT see "Cancer Treatment Facility" unless granted visibility
+- The two permission systems never interact—they control different data
 
 ### 5.6 Location Update (Encrypted Blob)
 ```
@@ -269,7 +288,6 @@ LocationUpdate {
 The encrypted payload, when decrypted, contains:
 ```
 DecryptedLocation {
-    semantic_label: String  // "Downtown Seattle" or "Soccer Field"
     hierarchy: {
         continent: String?,
         country: String?,
@@ -280,11 +298,27 @@ DecryptedLocation {
         street: String?,
         address: String?
     }
-    is_named_location: Boolean
+    named_location: {
+        label: String           // "Soccer Field", "Home", etc.
+        visible_to: "private" | "all" | List<UUID>  // Who can see this label
+    }?
     precision_mode: Boolean  // Temporary precision sharing active
     timestamp: Timestamp
 }
 ```
+
+#### Filtering Logic
+
+When a contact requests location, the server applies **two independent filters**:
+
+1. **Geographic filter:** Based on `PermissionGrant.geographic_level`, include only hierarchy fields at or above that level
+
+2. **Named location filter:** Based on `named_location.visible_to`:
+   - `"private"` → never include named_location
+   - `"all"` → include named_location for all contacts
+   - `[list of UUIDs]` → include only if requesting contact's ID is in the list
+
+These filters operate independently. A contact may see the street address but not the named location label, or vice versa.
 
 ---
 

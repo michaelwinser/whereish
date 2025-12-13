@@ -1,0 +1,17 @@
+{
+  "name": "whereish",
+  "version": "1.0.0",
+  "description": "Privacy-first semantic location sharing",
+  "private": true,
+  "scripts": {
+    "test": "npx playwright test",
+    "test:client": "npx playwright test tests/client",
+    "test:client:unit": "npx playwright test tests/client/unit",
+    "test:client:e2e": "npx playwright test tests/client/e2e",
+    "test:ui": "npx playwright test --ui",
+    "test:debug": "npx playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
