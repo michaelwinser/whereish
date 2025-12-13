@@ -425,6 +425,61 @@ const Model = (function() {
     }
 
     // ===================
+    // Contacts State Management
+    // ===================
+
+    /**
+     * Get all contacts
+     * @returns {Array} Contacts array
+     */
+    function getContacts() {
+        return state.contacts;
+    }
+
+    /**
+     * Set contacts
+     * @param {Array} contacts - Array of contact objects
+     */
+    function setContacts(contacts) {
+        state.contacts = contacts || [];
+        Events.emit(EVENTS.CONTACTS_CHANGED, { contacts: state.contacts });
+    }
+
+    /**
+     * Get the selected contact
+     * @returns {Object|null} Selected contact or null
+     */
+    function getSelectedContact() {
+        return state.selectedContact;
+    }
+
+    /**
+     * Set the selected contact
+     * @param {Object|null} contact - Contact object or null
+     */
+    function setSelectedContact(contact) {
+        state.selectedContact = contact;
+        Events.emit(EVENTS.CONTACT_SELECTED, { contact: state.selectedContact });
+    }
+
+    /**
+     * Get contact requests
+     * @returns {Object} { incoming: [], outgoing: [] }
+     */
+    function getContactRequests() {
+        return state.contactRequests;
+    }
+
+    /**
+     * Set contact requests
+     * @param {Object} requests - { incoming: [], outgoing: [] }
+     */
+    function setContactRequests(requests) {
+        state.contactRequests = requests || { incoming: [], outgoing: [] };
+        Events.emit(EVENTS.CONTACT_REQUESTS_CHANGED, { requests: state.contactRequests });
+    }
+
+    // ===================
     // Event Helpers
     // ===================
 
@@ -479,6 +534,14 @@ const Model = (function() {
         updatePlace: updatePlace,
         removePlace: removePlace,
         getCurrentMatch: getCurrentMatch,
-        setCurrentMatch: setCurrentMatch
+        setCurrentMatch: setCurrentMatch,
+
+        // Contacts state
+        getContacts: getContacts,
+        setContacts: setContacts,
+        getSelectedContact: getSelectedContact,
+        setSelectedContact: setSelectedContact,
+        getContactRequests: getContactRequests,
+        setContactRequests: setContactRequests
     };
 })();

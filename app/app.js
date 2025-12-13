@@ -27,8 +27,8 @@
     // State (synced with Model)
     // ===================
 
-    // Note: Location and places state are cached here for convenience
-    // but Model is the source of truth. Use Model.getLocation(), Model.getPlaces(), etc.
+    // Note: Location, places, and contacts state are cached here for convenience
+    // but Model is the source of truth. Use Model.getLocation(), Model.getPlaces(), Model.getContacts(), etc.
     let currentCoordinates = null;
     let currentHierarchy = null;
     let namedLocations = [];
@@ -433,6 +433,7 @@
         currentMatch = null;
 
         // Sync with Model
+        Model.setContacts([]);
         Model.setPlaces([]);
         Model.setCurrentMatch(null);
 
@@ -452,12 +453,14 @@
     async function refreshContacts() {
         if (!API.isAuthenticated()) {
             contacts = [];
+            Model.setContacts([]);
             renderContactsList();
             return;
         }
 
         try {
             contacts = await API.getContactsWithLocations();
+            Model.setContacts(contacts);
             renderContactsList();
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
@@ -546,6 +549,9 @@
             const requests = await API.getContactRequests();
             const incoming = requests.incoming || [];
             const outgoing = requests.outgoing || [];
+
+            // Sync with Model
+            Model.setContactRequests({ incoming: incoming, outgoing: outgoing });
 
             renderIncomingRequests(incoming);
             renderOutgoingRequests(outgoing);
@@ -698,6 +704,7 @@
 
     function openContactDetail(contact) {
         selectedContact = contact;
+        Model.setSelectedContact(contact);
         ViewManager.navigate('contact-detail', { contactId: contact.contactId });
     }
 
@@ -839,7 +846,9 @@
             try {
                 await API.removeContact(selectedContact.contactId);
                 contacts = contacts.filter(c => c.contactId !== selectedContact.contactId);
+                Model.setContacts(contacts);
                 selectedContact = null;
+                Model.setSelectedContact(null);
                 ViewManager.goBack();
                 renderContactsList();
             } catch (error) {
