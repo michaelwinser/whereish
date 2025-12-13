@@ -573,27 +573,33 @@
     }
 
     /**
-     * Handle delete account - permanently deletes account from server
+     * Handle delete account button - navigate to delete account view
      */
-    async function handleDeleteAccount() {
-        const confirmed = confirm(
-            'WARNING: This will permanently delete your account and all data from the server.\n\n' +
-            'This includes:\n' +
-            '• Your account and login credentials\n' +
-            '• All your contacts and location sharing settings\n' +
-            '• All named locations you\'ve saved\n\n' +
-            'This cannot be undone. Are you sure?'
-        );
+    function handleDeleteAccount() {
+        ViewManager.navigate('delete-account');
+    }
 
-        if (!confirmed) {
-            return;
-        }
+    /**
+     * Handle delete account form submission
+     */
+    async function handleDeleteAccountSubmit(event) {
+        event.preventDefault();
 
-        const password = window.prompt('Enter your password to confirm account deletion:');
+        const passwordInput = document.getElementById('delete-account-password');
+        const errorDiv = document.getElementById('delete-account-error');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+
+        const password = passwordInput.value;
         if (!password) {
-            alert('Account deletion cancelled.');
+            errorDiv.textContent = 'Please enter your password';
+            errorDiv.classList.remove('hidden');
             return;
         }
+
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Deleting...';
+        errorDiv.classList.add('hidden');
 
         try {
             await API.deleteAccount(password);
@@ -602,10 +608,14 @@
             await Identity.clear();
             localStorage.removeItem('whereish_identity_exported');
 
+            // Show success and refresh
             alert('Your account has been deleted.');
             forceRefresh();
         } catch (error) {
-            alert('Failed to delete account: ' + error.message);
+            errorDiv.textContent = error.message || 'Failed to delete account';
+            errorDiv.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Permanently Delete My Account';
         }
     }
 
@@ -1706,6 +1716,11 @@
         elements.deleteIdentityBtn?.addEventListener('click', handleDeleteIdentity);
         elements.deleteAccountBtn?.addEventListener('click', handleDeleteAccount);
 
+        // Delete account view
+        document.getElementById('delete-account-form')?.addEventListener('submit', handleDeleteAccountSubmit);
+        document.getElementById('delete-account-back-btn')?.addEventListener('click', () => ViewManager.goBack());
+        document.getElementById('delete-account-cancel-btn')?.addEventListener('click', () => ViewManager.goBack());
+
         // Welcome screen buttons
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
         document.getElementById('welcome-signup-btn')?.addEventListener('click', () => openAuthModal(false));
@@ -2099,6 +2114,17 @@
                         buildEl.textContent = `${BUILD_INFO.gitCommit} (${dateStr})`;
                     }
                 }
+            },
+            onExit: () => {}
+        });
+
+        ViewManager.register('delete-account', {
+            onEnter: () => {
+                // Clear the password field and error when entering
+                const passwordInput = document.getElementById('delete-account-password');
+                const errorDiv = document.getElementById('delete-account-error');
+                if (passwordInput) passwordInput.value = '';
+                if (errorDiv) errorDiv.classList.add('hidden');
             },
             onExit: () => {}
         });

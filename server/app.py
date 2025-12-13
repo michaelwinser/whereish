@@ -484,13 +484,17 @@ def delete_account():
         return jsonify({'error': 'Password required to confirm account deletion'}), 400
 
     user = g.current_user
+    user_id = user['id']
+
+    # Fetch password hash (not included in g.current_user for security)
+    db = get_db()
+    row = db.execute('SELECT password_hash FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not row:
+        return jsonify({'error': 'User not found'}), 404
 
     # Verify password
-    if not check_password_hash(user['password_hash'], password):
+    if not check_password_hash(row['password_hash'], password):
         return jsonify({'error': 'Incorrect password'}), 401
-
-    user_id = user['id']
-    db = get_db()
 
     # Delete all user data
     db.execute('DELETE FROM encrypted_locations WHERE user_id = ?', (user_id,))

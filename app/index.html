@@ -340,6 +340,42 @@
         </section>
         <!-- End Settings View -->
 
+        <!-- Delete Account View -->
+        <section class="view hidden" data-view="delete-account" id="view-delete-account">
+            <header class="screen-header">
+                <button id="delete-account-back-btn" class="back-btn" aria-label="Back">
+                    <span class="back-icon">←</span>
+                </button>
+                <h1>Delete Account</h1>
+            </header>
+            <div class="settings-content">
+                <div class="delete-account-warning">
+                    <h2>This action cannot be undone</h2>
+                    <p>Deleting your account will permanently remove:</p>
+                    <ul>
+                        <li>Your account and login credentials</li>
+                        <li>All your contacts and location sharing settings</li>
+                        <li>All named locations you've saved</li>
+                        <li>Your encryption identity on this device</li>
+                    </ul>
+                </div>
+                <form id="delete-account-form" class="delete-account-form">
+                    <div class="form-group">
+                        <label for="delete-account-password">Enter your password to confirm</label>
+                        <input type="password" id="delete-account-password" name="password" required autocomplete="current-password">
+                    </div>
+                    <div id="delete-account-error" class="form-error hidden"></div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-danger btn-full-width">Permanently Delete My Account</button>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" id="delete-account-cancel-btn" class="btn btn-secondary btn-full-width">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+        <!-- End Delete Account View -->
+
         <!-- Tab Bar (only visible when logged in) -->
         <nav class="tab-bar hidden" id="tab-bar" role="tablist" aria-label="Main navigation">
             <button class="tab-item active" data-tab="main" role="tab" aria-selected="true" aria-controls="view-main">
