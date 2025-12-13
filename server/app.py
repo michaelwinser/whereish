@@ -604,6 +604,15 @@ def get_pending_requests():
         (user['id'],),
     ).fetchall()
 
+    def format_timestamp(ts):
+        """Format timestamp for JSON - handles both datetime objects and strings."""
+        if ts is None:
+            return None
+        if hasattr(ts, 'isoformat'):
+            return ts.isoformat()
+        # Already a string (SQLite sometimes returns strings for TIMESTAMP)
+        return str(ts)
+
     return jsonify(
         {
             'incoming': [
@@ -612,7 +621,7 @@ def get_pending_requests():
                     'userId': row['requester_id'],
                     'name': row['name'],
                     'email': row['email'],
-                    'createdAt': row['created_at'].isoformat() if row['created_at'] else None,
+                    'createdAt': format_timestamp(row['created_at']),
                 }
                 for row in incoming
             ],
@@ -622,7 +631,7 @@ def get_pending_requests():
                     'userId': row['recipient_id'],
                     'name': row['name'],
                     'email': row['email'],
-                    'createdAt': row['created_at'].isoformat() if row['created_at'] else None,
+                    'createdAt': format_timestamp(row['created_at']),
                 }
                 for row in outgoing
             ],
