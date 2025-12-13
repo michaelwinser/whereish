@@ -1,7 +1,7 @@
 # Whereish Makefile
 # Run 'make help' to see available targets
 
-.PHONY: help test test-smoke test-unit run run-server run-client build docker-run clean clean-all lint lint-python lint-js venv install install-dev install-hooks pre-commit
+.PHONY: help test test-smoke test-unit run run-server run-client build docker-run clean clean-all lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
 
 # Default target
 .DEFAULT_GOAL := help
@@ -109,7 +109,7 @@ test-integration: ## Run integration tests (not yet implemented - Issue #5)
 # Linting
 # =============================================================================
 
-lint: lint-python lint-js ## Run all linters
+lint: lint-python lint-js lint-md ## Run all linters
 
 lint-python: ## Lint Python code with ruff
 	@echo "Linting Python..."
@@ -121,6 +121,11 @@ lint-js: ## Lint JavaScript code with eslint
 	@echo "Linting JavaScript..."
 	@npx eslint app/*.js --no-error-on-unmatched-pattern
 	@echo "✓ JavaScript lint OK"
+
+lint-md: ## Lint Markdown files
+	@echo "Linting Markdown..."
+	@npx markdownlint-cli@0.41.0 '**/*.md' --ignore node_modules --ignore .venv
+	@echo "✓ Markdown lint OK"
 
 # =============================================================================
 # Docker (Issue #9)

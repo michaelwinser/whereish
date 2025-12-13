@@ -82,7 +82,8 @@ python3 some_script.py
 ├── smoke_test.py        # Server smoke tests
 ├── Makefile
 ├── pyproject.toml       # Ruff (Python linter) config
-└── eslint.config.mjs    # ESLint config
+├── eslint.config.mjs    # ESLint config
+└── .markdownlint.json   # Markdownlint config
 ```
 
 ## Testing
@@ -124,6 +125,15 @@ make lint-js
 
 - Checks: eslint recommended rules
 - Config: `eslint.config.mjs`
+
+### Markdown (markdownlint)
+
+```bash
+make lint-md
+```
+
+- Checks: markdownlint rules (relaxed for existing docs)
+- Config: `.markdownlint.json`
 
 ### Fix Python Formatting
 
