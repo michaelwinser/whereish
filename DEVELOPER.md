@@ -152,6 +152,14 @@ make run
 # Press Ctrl+C to stop both
 ```
 
+**Important:** When running with separate servers, set the API URL in your browser console:
+
+```javascript
+localStorage.setItem('whereish_api_url', 'http://localhost:8500')
+```
+
+Then refresh the page. This tells the client where to find the API.
+
 ### Separately
 
 ```bash
