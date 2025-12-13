@@ -497,7 +497,10 @@ def delete_account():
         return jsonify({'error': 'Incorrect password'}), 401
 
     # Delete all user data
-    db.execute('DELETE FROM encrypted_locations WHERE user_id = ?', (user_id,))
+    db.execute(
+        'DELETE FROM encrypted_locations WHERE from_user_id = ? OR to_user_id = ?',
+        (user_id, user_id),
+    )
     db.execute('DELETE FROM named_locations WHERE user_id = ?', (user_id,))
     db.execute('DELETE FROM contacts WHERE user_id = ? OR contact_user_id = ?', (user_id, user_id))
     db.execute('DELETE FROM users WHERE id = ?', (user_id,))
