@@ -1,7 +1,7 @@
 # Whereish Makefile
 # Run 'make help' to see available targets
 
-.PHONY: help test test-smoke test-unit run run-server run-client build docker-run clean clean-all lint lint-python lint-js venv install install-dev
+.PHONY: help test test-smoke test-unit run run-server run-client build docker-run clean clean-all lint lint-python lint-js venv install install-dev install-hooks pre-commit
 
 # Default target
 .DEFAULT_GOAL := help
@@ -43,10 +43,16 @@ install: venv ## Install production dependencies
 	$(VENV_PIP) install -r server/requirements.txt
 	@echo "✓ Dependencies installed"
 
-install-dev: install ## Install development dependencies
+install-dev: install install-hooks ## Install development dependencies
 	@echo "Installing dev dependencies..."
 	$(VENV_PIP) install -r server/requirements-dev.txt
 	@echo "✓ Dev dependencies installed"
+
+install-hooks: ## Install git hooks
+	@echo "Installing git hooks..."
+	@cp scripts/hooks/pre-commit .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "✓ Git hooks installed"
 
 # =============================================================================
 # Development
@@ -71,6 +77,8 @@ run-client: ## Serve PWA on port 8080
 # =============================================================================
 
 test: test-smoke lint ## Run all tests (smoke + lint)
+
+pre-commit: test ## Run pre-commit checks (currently same as test)
 
 test-smoke: ## Run fast smoke tests (~7 seconds)
 	@echo "Running smoke tests..."

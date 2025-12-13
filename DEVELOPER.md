@@ -14,12 +14,31 @@ This creates a Python virtual environment (`.venv/`) and installs all dependenci
 ## Common Commands
 
 ```bash
+make pre-commit    # Run before committing (smoke + lint)
 make test          # Run all tests (smoke + lint)
 make test-smoke    # Fast smoke tests only (~7 sec)
 make run           # Run server (:8500) and client (:8080)
 make lint          # Run all linters
 make help          # Show all available targets
 ```
+
+## Pre-commit Hook
+
+A git pre-commit hook runs `make pre-commit` before each commit. If tests fail, the commit is aborted.
+
+The hook is automatically installed by `make install-dev`. For new clones:
+```bash
+make install-dev    # Installs deps + hooks
+# or just hooks:
+make install-hooks
+```
+
+To bypass (use sparingly):
+```bash
+git commit --no-verify
+```
+
+The hook source is tracked in `scripts/hooks/pre-commit`.
 
 ## How the Makefile Works
 
