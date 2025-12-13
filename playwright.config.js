@@ -33,6 +33,9 @@ module.exports = defineConfig({
 
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
+
+    /* Block service workers to ensure route mocking works */
+    serviceWorkers: 'block',
   },
 
   /* Configure projects for major browsers */

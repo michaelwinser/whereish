@@ -54,6 +54,14 @@ test.describe('API Module', () => {
                 body: JSON.stringify({ contacts: [] })
             });
         });
+        // Mock /api/me to prevent 401/404 clearing auth state during page load
+        await page.route('**/api/me', route => {
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ id: 'test-user', email: 'test@example.com', name: 'Test User' })
+            });
+        });
 
         await page.goto('/');
         await page.evaluate(() => {
@@ -184,6 +192,8 @@ test.describe('API Module', () => {
             await page.waitForFunction(() => typeof API !== 'undefined');
 
             let capturedHeaders = null;
+            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
+            await page.unroute('**/api/contacts');
             await page.route('**/api/contacts', route => {
                 capturedHeaders = route.request().headers();
                 route.fulfill({
@@ -202,6 +212,8 @@ test.describe('API Module', () => {
 
         test('requests without token for public endpoints', async ({ page }) => {
             let capturedHeaders = null;
+            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
+            await page.unroute('**/api/health');
             await page.route('**/api/health', route => {
                 capturedHeaders = route.request().headers();
                 route.fulfill({
@@ -224,6 +236,8 @@ test.describe('API Module', () => {
     test.describe('Error Handling', () => {
 
         test('API errors throw with message', async ({ page }) => {
+            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
+            await page.unroute('**/api/contacts');
             await page.route('**/api/contacts', route => {
                 route.fulfill({
                     status: 400,
@@ -251,6 +265,8 @@ test.describe('API Module', () => {
             await page.reload();
             await page.waitForFunction(() => typeof API !== 'undefined');
 
+            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
+            await page.unroute('**/api/me');
             await page.route('**/api/me', route => {
                 route.fulfill({
                     status: 401,
@@ -278,6 +294,8 @@ test.describe('API Module', () => {
     test.describe('Contacts API', () => {
 
         test('getContacts returns array', async ({ page }) => {
+            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
+            await page.unroute('**/api/contacts');
             await page.route('**/api/contacts', route => {
                 route.fulfill({
                     status: 200,
@@ -362,6 +380,8 @@ test.describe('API Module', () => {
         });
 
         test('getContactsWithLocations returns array', async ({ page }) => {
+            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
+            await page.unroute('**/api/contacts/locations');
             await page.route('**/api/contacts/locations', route => {
                 route.fulfill({
                     status: 200,
@@ -412,6 +432,8 @@ test.describe('API Module', () => {
         });
 
         test('getPermissionLevels returns levels array', async ({ page }) => {
+            // Unroute the beforeEach handler first (Playwright uses first-match-wins)
+            await page.unroute('**/api/permission-levels');
             await page.route('**/api/permission-levels', route => {
                 route.fulfill({
                     status: 200,
@@ -437,14 +459,8 @@ test.describe('API Module', () => {
     test.describe('Health Check', () => {
 
         test('checkHealth returns true when server healthy', async ({ page }) => {
-            await page.route('**/api/health', route => {
-                route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({ status: 'ok' })
-                });
-            });
-
+            // The beforeEach already mocks /api/health to return ok
+            // Just verify that API.checkHealth() works correctly
             const healthy = await page.evaluate(async () => {
                 return await API.checkHealth();
             });
@@ -453,6 +469,8 @@ test.describe('API Module', () => {
         });
 
         test('checkHealth returns false when server down', async ({ page }) => {
+            // Unroute beforeEach handler and add failing handler
+            await page.unroute('**/api/health');
             await page.route('**/api/health', route => {
                 route.abort('connectionrefused');
             });

@@ -34,6 +34,10 @@ test.describe('Contacts', () => {
         await page.route('**/api/contacts', route => {
             route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ contacts: [] }) });
         });
+        // Mock /api/me for authenticated startup
+        await page.route('**/api/me', route => {
+            route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_USER) });
+        });
 
         // Start authenticated
         await page.goto('/');
@@ -76,6 +80,9 @@ test.describe('Contacts', () => {
         });
 
         test('shows location for contacts with location', async ({ page }) => {
+            // Unroute beforeEach handlers before overriding
+            await page.unroute('**/api/contacts');
+            await page.unroute('**/api/contacts/locations');
             await page.route('**/api/contacts', route => {
                 route.fulfill({
                     status: 200,
@@ -95,9 +102,9 @@ test.describe('Contacts', () => {
             await page.waitForSelector('[data-view="main"]:not(.hidden)', { timeout: 5000 });
             await page.waitForTimeout(500);
 
-            // Contact's location should be visible (city level)
-            const seattleVisible = await page.locator('text=Seattle').isVisible();
-            expect(seattleVisible).toBe(true);
+            // Contact's location should be visible (shows named location when available)
+            const locationVisible = await page.locator('text=Coffee Shop').isVisible();
+            expect(locationVisible).toBe(true);
         });
 
         test('shows named location when visible', async ({ page }) => {

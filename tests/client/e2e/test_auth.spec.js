@@ -73,6 +73,14 @@ test.describe('Authentication Flow', () => {
                     body: JSON.stringify({ user: MOCK_USER, token: 'test-token' })
                 });
             });
+            // Mock /api/me for post-login user fetch
+            await page.route('**/api/me', route => {
+                route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(MOCK_USER)
+                });
+            });
 
             await page.waitForSelector('[data-view="welcome"]:not(.hidden)', { timeout: 5000 });
             await page.click('#welcome-login-btn');
@@ -140,6 +148,14 @@ test.describe('Authentication Flow', () => {
                     })
                 });
             });
+            // Mock /api/me for post-registration user fetch
+            await page.route('**/api/me', route => {
+                route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ ...MOCK_USER, name: 'New User' })
+                });
+            });
 
             await page.waitForSelector('[data-view="welcome"]:not(.hidden)', { timeout: 5000 });
             await page.click('#welcome-signup-btn');
@@ -161,6 +177,15 @@ test.describe('Authentication Flow', () => {
     test.describe('Logout', () => {
 
         test('logout returns to welcome screen', async ({ page }) => {
+            // Mock /api/me for authenticated startup
+            await page.route('**/api/me', route => {
+                route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(MOCK_USER)
+                });
+            });
+
             // Start authenticated
             await setAuthToken(page, 'test-token');
             await page.reload();
