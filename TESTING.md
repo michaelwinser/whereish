@@ -4,12 +4,13 @@ This document describes the testing approach for the Whereish application, inclu
 
 ## Overview
 
-Whereish uses a two-tier testing strategy:
+Whereish uses a three-tier testing strategy:
 
 | Component | Framework | Tests | Coverage |
 |-----------|-----------|-------|----------|
 | Server (Python/Flask) | pytest | 99 tests | Integration + Unit |
-| Client (Vanilla JS PWA) | Playwright | 106 tests | Unit + E2E |
+| Client (Vanilla JS PWA) | Playwright | 181 tests | Model Unit + Module Integration + E2E |
+| Client (Dev Mode) | In-Client Testing | ~20 tests | Model + Event System |
 
 ## Server Tests
 
@@ -62,6 +63,7 @@ tests/client/
 ├── fixtures/
 │   └── test-helpers.js   # Shared utilities, mocks, test data
 ├── unit/
+│   ├── test_model.spec.js      # Model layer (76 tests) - pure functions, state, events
 │   ├── test_storage.spec.js    # IndexedDB operations
 │   ├── test_geofence.spec.js   # Distance calculations
 │   ├── test_views.spec.js      # ViewManager navigation
@@ -70,6 +72,14 @@ tests/client/
     ├── test_auth.spec.js       # Login/register/logout flows
     └── test_contacts.spec.js   # Contact management UI
 ```
+
+### Test Tiers
+
+| Tier | File(s) | Tests | Purpose |
+|------|---------|-------|---------|
+| Model Unit | test_model.spec.js | 76 | Pure functions, state management, event system |
+| Module Integration | test_api, test_storage, test_geofence, test_views | ~84 | Individual module behavior |
+| E2E Integration | test_auth, test_contacts | ~21 | Full user workflow validation |
 
 ### Running Client Tests
 ```bash
@@ -143,12 +153,18 @@ await page.route('**/api/health', route => { ... });
 
 ### 4. Service Worker Interference
 
-**Problem**: Service workers can cache responses and interfere with API mocking.
+**Problem**: Service workers intercept API requests before Playwright's route handlers can mock them.
 
-**Consideration**: For reliable testing, consider:
-- Using `reuseExistingServer: false` in CI
-- Clearing service worker registration between tests
-- Using unique cache versions for test builds
+**Solution**: Block service workers in Playwright configuration:
+
+```javascript
+// playwright.config.js
+use: {
+    serviceWorkers: 'block',  // Prevent SW from intercepting requests
+}
+```
+
+**Why**: Service workers run in a separate context and can fulfill network requests before Playwright's route handlers see them. Blocking service workers ensures all requests flow through Playwright's route mocking.
 
 ### 5. Authentication State Persistence
 
@@ -286,23 +302,11 @@ Add client-side coverage with Istanbul/NYC:
 npx nyc --reporter=html npx playwright test
 ```
 
-### 8. Model-View Separation (Issue #45)
+### 8. Model-View Separation (Issue #45) ✅ COMPLETED
 
-The most impactful improvement would be separating Model (business logic) from View (DOM). Currently `app.js` (1856 lines) mixes both concerns, requiring all tests to run in Playwright.
+The Model-View separation has been implemented, enabling faster and more focused testing.
 
-**Current Architecture:**
-```
-┌─────────────────────────────────────────┐
-│  app.js (mixed Model + View)            │
-│  - State management                     │
-│  - Business logic (hierarchy, filters)  │
-│  - DOM manipulation                     │
-│  - Event handlers                       │
-└─────────────────────────────────────────┘
-        ↓ All tests require browser
-```
-
-**Proposed Architecture:**
+**Implemented Architecture:**
 ```
 ┌─────────────────┐      events      ┌─────────────────┐
 │    model.js     │ ───────────────▶ │    app.js       │
@@ -312,20 +316,90 @@ The most impactful improvement would be separating Model (business logic) from V
 │  - API calls    │                  │  - Rendering    │
 └─────────────────┘                  └─────────────────┘
         ↓                                    ↓
-   Node.js tests                      Playwright tests
-   (~1ms/test)                        (~100ms/test)
+  Playwright tests                    Playwright tests
+  (76 pure function tests)           (E2E integration)
 ```
 
-**Testing Benefits:**
+**Testing Benefits Achieved:**
 
-| Test Type | Target | Framework | Speed |
-|-----------|--------|-----------|-------|
-| Model Unit | Business logic | Node.js + mocks | ~1ms |
-| Model Integration | API + Model | Node.js + server | ~10ms |
-| View Unit | DOM rendering | Playwright + mocked Model | ~100ms |
-| E2E | Full flows | Playwright + server | ~500ms |
+| Test Type | Target | Tests | Speed |
+|-----------|--------|-------|-------|
+| Model Unit | Pure functions, state, events | 76 | ~50ms total |
+| Module Integration | API, Storage, Geofence, Views | ~84 | ~6s total |
+| E2E Integration | Auth, Contacts workflows | ~21 | ~4s total |
+| **Total** | **181 tests** | | **~10s** |
 
-This refactoring would allow ~80% of client logic to be tested without browser automation, dramatically improving test speed and reliability.
+**Key Model Functions Tested:**
+- `buildHierarchy()` - Nominatim response processing
+- `findMostSpecificLevel()` - Hierarchy level selection
+- `formatTimeAgo()` - Time formatting
+- `escapeHtml()` - XSS prevention
+- `getFilteredHierarchy()` - Permission-based filtering
+- State management (location, places, contacts, auth)
+- Event emission and subscription
+
+---
+
+## In-Client Testing Module
+
+For rapid development feedback, Whereish includes an in-client testing module that runs directly in the browser console.
+
+### Usage
+
+The testing module is automatically loaded in development mode (localhost/127.0.0.1).
+
+```javascript
+// Run all test suites
+Testing.runAll()
+
+// Run a specific suite
+Testing.runSuite('Model Pure Functions')
+
+// List available suites
+Testing.getSuites()
+
+// View results
+Testing.getResults()
+```
+
+### Available Test Suites
+
+| Suite | Tests | Description |
+|-------|-------|-------------|
+| Model Pure Functions | 8 | buildHierarchy, formatTimeAgo, escapeHtml, etc. |
+| Model State Management | 2 | setLocation/getLocation, server connection state |
+| Model Constants | 3 | HIERARCHY_LEVELS, COUNTRY_TO_CONTINENT, CONFIG |
+| Event System | 3 | on/off/emit, data passing |
+| UI State | 2 | ViewManager existence and state |
+
+### Benefits
+
+- **Instant feedback** - No build/test cycle
+- **No external dependencies** - Runs in browser
+- **Easy debugging** - Same console as application
+- **Live testing** - Works with hot reload
+
+### Limitations
+
+- Can't test page load scenarios
+- Requires manual trigger
+- Tests share application state
+- Not suitable for CI/CD
+
+### Custom Tests
+
+Add custom tests for development:
+
+```javascript
+Testing.describe('My Feature', async () => {
+    await Testing.test('works correctly', () => {
+        const result = myFunction();
+        Testing.expect(result).toBe(expected);
+    });
+});
+
+// Then run: Testing.runSuite('My Feature')
+```
 
 ---
 
@@ -408,5 +482,5 @@ npx playwright show-report
 ## Related Issues
 - Issue #39: Unit Tests (browser client)
 - Issue #40: Integration Tests
-- Issue #43: Fix remaining browser client test failures
-- Issue #45: Model-View architecture refactoring
+- Issue #43: Fix remaining browser client test failures ✅ Fixed
+- Issue #45: Model-View architecture refactoring ✅ Completed
