@@ -1960,6 +1960,9 @@
                 // If already have a token, validate and load data
                 if (API.isAuthenticated()) {
                     try {
+                        // Load identity from IndexedDB first (needed for encryption)
+                        await Identity.load();
+
                         const user = await API.getCurrentUser();
                         currentUserId = user.id;
                         Model.setCurrentUserId(user.id);
