@@ -3,7 +3,7 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v50';
+const CACHE_NAME = 'whereish-v51';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -15,6 +15,7 @@ const STATIC_ASSETS = [
     '/geofence.js',
     '/api.js',
     '/views.js',
+    '/testing.js',
     '/manifest.json',
     '/icon.svg'
 ];

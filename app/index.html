@@ -477,5 +477,14 @@
     <script src="model.js"></script>
     <script src="views.js"></script>
     <script src="app.js"></script>
+
+    <!-- Development-only testing module -->
+    <script>
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            const script = document.createElement('script');
+            script.src = 'testing.js';
+            document.body.appendChild(script);
+        }
+    </script>
 </body>
 </html>
