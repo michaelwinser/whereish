@@ -20,6 +20,7 @@ from functools import wraps
 from pathlib import Path
 
 from flask import Flask, g, jsonify, request, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 # ===================
@@ -34,6 +35,14 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-i
 # In development, use separate http.server on :8080
 STATIC_DIR = Path(__file__).parent.parent / 'app'
 SERVE_STATIC = os.environ.get('SERVE_STATIC', 'false').lower() == 'true'
+
+# Reverse proxy support
+# Set BEHIND_PROXY=true when running behind nginx, traefik, etc.
+# This trusts X-Forwarded-* headers for correct client IP and protocol detection
+BEHIND_PROXY = os.environ.get('BEHIND_PROXY', 'false').lower() == 'true'
+if BEHIND_PROXY:
+    # Trust 1 proxy by default. For multiple proxies, adjust x_for accordingly.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Location expiry (how long before a location is considered stale)
 LOCATION_EXPIRY_MINUTES = 30

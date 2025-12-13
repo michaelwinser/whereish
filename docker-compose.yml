@@ -12,6 +12,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - DATABASE_PATH=/app/data/whereish.db
       - SERVE_STATIC=true
+      # Set BEHIND_PROXY=true if using nginx/traefik reverse proxy
+      - BEHIND_PROXY=${BEHIND_PROXY:-false}
     volumes:
       - whereish-data:/app/data
     healthcheck:
