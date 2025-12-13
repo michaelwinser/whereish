@@ -3,7 +3,7 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v36';
+const CACHE_NAME = 'whereish-v37';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -60,6 +60,11 @@ self.addEventListener('fetch', (event) => {
                     );
                 })
         );
+        return;
+    }
+
+    // Only cache GET requests (Cache API doesn't support POST, PUT, etc.)
+    if (event.request.method !== 'GET') {
         return;
     }
 
