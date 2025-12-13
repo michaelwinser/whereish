@@ -501,8 +501,14 @@ def delete_account():
         'DELETE FROM encrypted_locations WHERE from_user_id = ? OR to_user_id = ?',
         (user_id, user_id),
     )
-    db.execute('DELETE FROM named_locations WHERE user_id = ?', (user_id,))
-    db.execute('DELETE FROM contacts WHERE user_id = ? OR contact_user_id = ?', (user_id, user_id))
+    db.execute(
+        'DELETE FROM permissions WHERE granter_id = ? OR grantee_id = ?',
+        (user_id, user_id),
+    )
+    db.execute(
+        'DELETE FROM contacts WHERE requester_id = ? OR recipient_id = ?',
+        (user_id, user_id),
+    )
     db.execute('DELETE FROM users WHERE id = ?', (user_id,))
     db.commit()
 
