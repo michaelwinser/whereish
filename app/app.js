@@ -760,10 +760,20 @@
             } else {
                 lastUpdatedEl.textContent = '';
             }
+
+            // Show "Open in Maps" link when coordinates are available
+            const openMapsLink = document.getElementById('open-in-maps-link');
+            if (contact.latitude && contact.longitude) {
+                openMapsLink.href = `https://www.google.com/maps?q=${contact.latitude},${contact.longitude}`;
+                openMapsLink.classList.remove('hidden');
+            } else {
+                openMapsLink.classList.add('hidden');
+            }
         } else {
             locationDisplay.innerHTML = '<span class="location-text">Location not shared</span>';
             distanceEl.textContent = '';
             lastUpdatedEl.textContent = '';
+            document.getElementById('open-in-maps-link').classList.add('hidden');
         }
 
         // Update permission dropdown
