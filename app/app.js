@@ -21,7 +21,7 @@
         geocodeUrl: 'https://nominatim.openstreetmap.org/reverse',
         geolocation: {
             enableHighAccuracy: false,
-            timeout: 10000,
+            timeout: 30000,
             maximumAge: 300000
         },
         userAgent: 'Whereish/1.0 (semantic-location-prototype)',
