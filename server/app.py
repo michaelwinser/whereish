@@ -984,7 +984,7 @@ def server_error(e):
 
 @app.after_request
 def after_request(response):
-    """Add CORS headers and version header."""
+    """Add CORS headers, version header, and cache control for API routes."""
     origin = request.headers.get('Origin', '*')
     response.headers['Access-Control-Allow-Origin'] = origin
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -993,6 +993,14 @@ def after_request(response):
     response.headers['Access-Control-Expose-Headers'] = 'X-App-Version, X-Min-App-Version'
     response.headers['X-App-Version'] = APP_VERSION
     response.headers['X-Min-App-Version'] = MIN_APP_VERSION
+
+    # Prevent browser caching of API responses to avoid stale data issues
+    # (e.g., showing already-accepted invitations that fail when clicked)
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
     return response
 
 

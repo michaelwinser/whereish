@@ -1004,6 +1004,8 @@
             await API.sendContactRequest(email);
             closeAddContactModal();
             alert('Contact request sent!');
+            // Refresh the requests list so the outgoing request appears immediately
+            await loadContactRequests();
         } catch (error) {
             elements.addContactError.textContent = error.message;
             elements.addContactError.classList.remove('hidden');

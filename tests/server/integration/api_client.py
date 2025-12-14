@@ -163,6 +163,10 @@ class APIClient:
         response = self._get('/api/contacts/requests', expected_status=200)
         return response.json()
 
+    def get_pending_requests_raw(self):
+        """Get pending requests with full response (for header testing)."""
+        return self._get('/api/contacts/requests')
+
     def accept_request(self, request_id: int) -> dict:
         """Accept a contact request."""
         response = self._post(f'/api/contacts/requests/{request_id}/accept', expected_status=200)

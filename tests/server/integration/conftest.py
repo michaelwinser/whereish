@@ -89,6 +89,12 @@ def client(server) -> APIClient:
 
 
 @pytest.fixture
+def api_client(server) -> APIClient:
+    """Unauthenticated API client for testing public endpoints."""
+    return APIClient(server)
+
+
+@pytest.fixture
 def unique_email():
     """Generate unique email for test isolation."""
     counter = [0]
