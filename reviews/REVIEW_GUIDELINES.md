@@ -34,6 +34,7 @@ Triggered by specific events or concerns. Short, focused, and actionable.
 | **API** | API changes | Endpoints affected | Breaking changes, documentation gaps |
 | **UX/UI** | UI changes | Affected screens | Usability issues, accessibility |
 | **Bug Investigation** | Bug reported | Related code | Root cause, fix recommendation |
+| **Architecture** | Before/after multi-phase efforts | Module relationships | Dependencies, abstractions, coupling |
 
 ### 2. Periodic Reviews
 
@@ -404,6 +405,232 @@ Periodically review exported conversation logs and other artifacts to extract pa
 
 ---
 
+## Architecture Review: Evaluating Module Structure and Dependencies
+
+Architecture reviews examine how well the codebase is organized as a system of modules with clear boundaries, responsibilities, and appropriate abstraction levels. Unlike code quality reviews (which focus on implementation details) or PRD compliance reviews (which focus on features), architecture reviews focus on **structural health**.
+
+### When to Conduct
+
+**Before multi-phase efforts:**
+- What existing coupling will this effort stress?
+- Which modules will be touched, and what depends on them?
+- Are there fragile assumptions that will break?
+- What abstractions should we introduce *before* starting?
+
+**After multi-phase efforts:**
+- Did we introduce new coupling or implicit dependencies?
+- Did we honor existing module boundaries or blur them?
+- Are there new abstraction opportunities from patterns that emerged?
+- Did the effort reveal architectural debt we should address?
+
+### Explicit vs Implicit Dependencies
+
+A key concern is identifying not just explicit dependencies (imports/requires) but **implicit dependencies** - assumptions a module makes about things it doesn't formally depend on:
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **Explicit** | Import/require statements | `import { Model } from './model.js'` |
+| **Implicit: DOM** | Assumes specific elements exist | API module directly manipulating error display |
+| **Implicit: Global state** | Reads/writes undeclared globals | Module accessing `window.currentUser` |
+| **Implicit: Event contracts** | Assumes event shapes/names | View assumes Model emits `LOCATION_CHANGED` |
+| **Implicit: Timing** | Assumes initialization order | Code assumes another module ran first |
+| **Implicit: External services** | Assumes API response shapes | Hardcoded field names from external API |
+
+Implicit dependencies are invisible in import graphs but create real coupling that complicates testing, refactoring, and reasoning about the code.
+
+### Architectural Dimensions
+
+| Dimension | Questions to Evaluate |
+|-----------|----------------------|
+| **Module Boundaries** | Does each module have a single, clear responsibility? Are boundaries at natural seams? Would a new developer know where to add new code? |
+| **Coupling** | Can one module change without affecting others? Are modules connected through stable interfaces or implementation details? |
+| **Cohesion** | Does each module do one thing well? Are related functions grouped together? Would splitting improve clarity? |
+| **Abstraction Levels** | Do abstractions hide appropriate details? Are we over-abstracting simple things? Are abstractions leaking implementation? |
+| **Dependency Direction** | Do dependencies flow from high-level to low-level? Are there circular dependencies? Do stable modules depend on volatile ones? |
+| **Abstraction Opportunities** | Are there repeated patterns indicating a missing concept? Would an abstraction enable testing or clarity? Are we intentionally deferring? |
+| **Interface Design** | Are public APIs minimal and stable? Are internals properly hidden? Would API changes ripple through the codebase? |
+| **Extension Points** | Can behavior be extended without modifying core code? Is the system data-driven where appropriate? |
+
+### Priority Levels for Findings
+
+| Level | Definition | Action |
+|-------|------------|--------|
+| **P0** | Causing problems now - bugs, blocking testing, preventing changes | Fix immediately |
+| **P1** | Clear architectural violation - pattern is established, abstraction would help | Create issue, fix soon |
+| **P2** | Emerging pattern - note for future, watch for one more instance | Add comment in code for next refactor |
+| **Deferred** | Intentionally waiting due to expected changes | Document the reasoning |
+| **Not warranted** | Considered and rejected | Document why to prevent re-discussion |
+
+### Architecture Review Template
+
+```markdown
+# Architecture Review: [Scope]
+
+**Date:** YYYY-MM-DD
+**Reviewer:** [Name/Model]
+**Mode:** [Pre-Effort | Post-Effort]
+**Effort:** [Description of the multi-phase effort]
+**Scope:** [Full codebase | Specific modules]
+**Commit:** [Git commit hash]
+
+## Executive Summary
+
+[2-3 sentences: Overall architectural health, key concerns, recommended actions]
+
+## Review Focus
+
+### Pre-Effort Questions (if applicable)
+- What existing coupling will this effort stress?
+- Which modules will be touched, and what depends on them?
+- Are there fragile assumptions that will break?
+- What abstractions should we introduce before starting?
+
+### Post-Effort Questions (if applicable)
+- Did we introduce new coupling or implicit dependencies?
+- Did we honor existing module boundaries or blur them?
+- Are there new abstraction opportunities from patterns that emerged?
+- Did the effort reveal architectural debt we should address?
+
+## Module Inventory
+
+| Module | Responsibility | Key Dependencies |
+|--------|----------------|------------------|
+| `module.js` | [Single-sentence purpose] | [Explicit deps] |
+
+## Dependency Analysis
+
+### Explicit Dependencies
+
+[Dependency graph between our modules]
+
+```
+┌─────────┐     ┌─────────┐
+│ module1 │────▶│ module2 │
+└─────────┘     └─────────┘
+```
+
+### Implicit Dependencies
+
+| Module | Assumes | Type | Priority |
+|--------|---------|------|----------|
+| `api.js` | DOM elements exist for error display | DOM structure | P1 |
+
+### Third-Party Call Graph
+
+| Module | External Calls | Notes |
+|--------|----------------|-------|
+| `api.js` | `fetch` | Standard API |
+
+## Architectural Dimensions
+
+### 1. Module Boundaries
+
+| Finding | Location | Assessment |
+|---------|----------|------------|
+| [Observation] | file:line | Good / Concern / Violation |
+
+### 2. Coupling
+
+| Modules | Coupling Type | Priority |
+|---------|---------------|----------|
+| module1 ↔ module2 | [Explicit/Implicit: type] | P0/P1/P2 |
+
+### 3. Cohesion
+
+| Module | Assessment | Notes |
+|--------|------------|-------|
+| `module.js` | High / Medium / Low | [Observation] |
+
+### 4. Abstraction Levels
+
+| Abstraction | Assessment | Notes |
+|-------------|------------|-------|
+| [Name] | Right level / Too high / Too low / Leaky | [Details] |
+
+### 5. Dependency Direction
+
+[Diagram showing actual vs. ideal dependency flow if issues exist]
+
+### 6. Abstraction Opportunities
+
+| Opportunity | Evidence | Priority | Notes |
+|-------------|----------|----------|-------|
+| [Concept name] | [Where pattern appears] | P1/P2/Deferred | [Reasoning] |
+
+**Priority meanings:**
+- P1: Pattern is clear, abstraction would solve real problems now
+- P2: Pattern emerging, watch for one more instance
+- Deferred: Intentionally waiting due to expected changes
+- Not warranted: Considered and rejected (document why)
+
+### 7. Interface Design
+
+| Module | Public API Size | Assessment |
+|--------|-----------------|------------|
+| `module.js` | X functions | Minimal / Acceptable / Too large |
+
+### 8. Extension Points
+
+| Capability | Current Extensibility | Notes |
+|------------|----------------------|-------|
+| [Feature] | Good / Poor | [How to extend currently] |
+
+## Architectural Questions Raised
+
+[Questions requiring human decision]
+
+1. [Question]
+   - **Evidence for:** [Points supporting one direction]
+   - **Evidence against:** [Points supporting another direction]
+   - **Recommendation:** [Reviewer's opinion]
+
+## Comparison to Design Docs
+
+| Design Doc Claim | Reality | Drift Type |
+|------------------|---------|------------|
+| [What doc says] | [What code does] | [Implementation drift / Intentional] |
+
+## Recommendations
+
+### P0 - Fix Now
+
+| Finding | Impact | Recommended Fix |
+|---------|--------|-----------------|
+| [Issue] | [What breaks] | [Specific action] |
+
+### P1 - Create Issue
+
+| Finding | Impact | Suggested Issue Title |
+|---------|--------|----------------------|
+| [Issue] | [Why it matters] | "[Title]" |
+
+### P2 - Comment for Future
+
+| Finding | Location | Comment to Add |
+|---------|----------|----------------|
+| [Issue] | file:line | `// ARCH: [note]` |
+
+### Deferred (Intentionally)
+
+| Finding | Reason for Deferral | Revisit When |
+|---------|--------------------| -------------|
+| [Issue] | [Why we're waiting] | [Trigger condition] |
+
+## Action Items
+
+- [ ] P0: [Immediate fix]
+- [ ] P1: Create issue "[title]"
+- [ ] P2: Add comment at [location]
+- [ ] Decision needed: [Question for human]
+
+---
+
+*Review conducted [before/after] [effort name]*
+*Next architecture review recommended: [trigger condition]*
+```
+
+---
+
 ## Review Process
 
 ### For LLM Reviewers
@@ -444,6 +671,7 @@ reviews/
 ├── REVIEW_GUIDELINES.md          # This file
 ├── CLAUDE_REVIEW.md              # Major codebase reviews (append date in content)
 ├── TESTING_REVIEW.md             # Testing architecture reviews
+├── ARCHITECTURE_REVIEW.md        # Module structure, dependencies, abstractions
 ├── SECURITY_REVIEW_YYYY-MM.md    # Monthly security reviews
 ├── RELEASE_REVIEW_vX.Y.md        # Release reviews
 └── [TOPIC]_REVIEW.md             # Topic-specific reviews
@@ -457,6 +685,7 @@ reviews/
 |--------|--------------|---------|
 | [CLAUDE_REVIEW.md](CLAUDE_REVIEW.md) | 2025-12-13 | Full codebase review against PRDs |
 | [TESTING_REVIEW.md](TESTING_REVIEW.md) | 2025-12-13 | Testing architecture evaluation |
+| [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) | 2025-12-13 | Module structure, dependencies, abstractions |
 
 ---
 
