@@ -165,13 +165,6 @@ test.describe('Invitation Acceptance Flow', () => {
                 });
             });
 
-            // Capture alerts
-            let alertMessage = '';
-            page.on('dialog', async dialog => {
-                alertMessage = dialog.message();
-                await dialog.accept();
-            });
-
             // Load app
             await page.goto('/');
             await setAuthToken(page, 'test-token');
@@ -186,11 +179,13 @@ test.describe('Invitation Acceptance Flow', () => {
             const acceptButton = page.locator('button:has-text("Accept")');
             await acceptButton.click();
 
-            // Wait for error handling
-            await page.waitForTimeout(500);
+            // Wait for toast to appear
+            const toast = page.locator('.toast-error');
+            await expect(toast).toBeVisible({ timeout: 2000 });
 
-            // Should show error message
-            expect(alertMessage).toContain('Failed to accept');
+            // Should show error message in toast
+            const toastMessage = await toast.locator('.toast-message').textContent();
+            expect(toastMessage).toContain('Failed to accept');
 
             // Button should be re-enabled after failure
             const buttonDisabled = await acceptButton.isDisabled();

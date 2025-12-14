@@ -36,6 +36,7 @@ export default [
         Event: "readonly",
         HTMLElement: "readonly",
         Blob: "readonly",
+        requestAnimationFrame: "readonly",
 
         // External libraries (CDN)
         nacl: "readonly",
@@ -49,13 +50,16 @@ export default [
         API: "writable",
         Storage: "writable",
         Geofence: "writable",
+        Toast: "writable",
+        ConfirmModal: "writable",
+        InputModal: "writable",
         BUILD_INFO: "readonly",
       }
     },
     rules: {
       "no-unused-vars": ["error", {
         "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^(Crypto|Identity|Events|Model|ViewManager|API|Storage|Geofence)$"
+        "varsIgnorePattern": "^(Crypto|Identity|Events|Model|ViewManager|API|Storage|Geofence|Toast|ConfirmModal|InputModal)$"
       }],
       "no-console": "off",
       "no-undef": "error",

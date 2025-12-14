@@ -538,28 +538,39 @@
     async function handleDeleteIdentity() {
         const identityExported = localStorage.getItem('whereish_identity_exported');
 
-        let message = 'WARNING: This will permanently delete your cryptographic identity from this device.\n\n';
+        let message = 'This will permanently delete your cryptographic identity from this device.\n\n';
         if (!identityExported) {
-            message += '⚠️ You have NOT exported your identity backup!\n\n';
+            message += 'You have NOT exported your identity backup!\n\n';
         }
         message += 'Without your identity:\n' +
             '• You cannot decrypt location data from contacts\n' +
             '• You cannot log in to this account on any device\n' +
             '• Your contacts will not be able to see your location\n\n' +
-            'This cannot be undone. Are you sure?';
+            'This cannot be undone.';
 
-        if (!confirm(message)) {
+        const confirmed = await ConfirmModal.show({
+            title: 'Clear Local Identity',
+            message: message,
+            confirmText: 'Continue',
+            cancelText: 'Cancel',
+            danger: true
+        });
+
+        if (!confirmed) {
             return;
         }
 
-        // Double-confirm for safety
-        if (!confirm('Are you absolutely sure? Type "delete" in the next prompt to confirm.')) {
-            return;
-        }
+        // Final confirmation with typed input
+        const typed = await InputModal.show({
+            title: 'Final Confirmation',
+            message: 'Type "delete" to confirm identity deletion:',
+            placeholder: 'delete',
+            confirmText: 'Delete Identity',
+            cancelText: 'Cancel'
+        });
 
-        const typed = window.prompt('Type "delete" to confirm identity deletion:');
         if (typed?.toLowerCase() !== 'delete') {
-            alert('Identity deletion cancelled.');
+            Toast.info('Identity deletion cancelled.');
             return;
         }
 
@@ -568,8 +579,8 @@
         localStorage.removeItem('whereish_identity_exported');
         API.logout();
 
-        alert('Local identity cleared. You will now be logged out.');
-        forceRefresh();
+        Toast.success('Local identity cleared. You will now be logged out.');
+        setTimeout(() => forceRefresh(), 1500);
     }
 
     /**
@@ -609,8 +620,8 @@
             localStorage.removeItem('whereish_identity_exported');
 
             // Show success and refresh
-            alert('Your account has been deleted.');
-            forceRefresh();
+            Toast.success('Your account has been deleted.');
+            setTimeout(() => forceRefresh(), 1500);
         } catch (error) {
             errorDiv.textContent = error.message || 'Failed to delete account';
             errorDiv.classList.remove('hidden');
@@ -625,7 +636,7 @@
     function handleExportIdentity() {
         try {
             if (!Identity.hasIdentity()) {
-                alert('No identity to export. Please log in first.');
+                Toast.warning('No identity to export. Please log in first.');
                 return;
             }
 
@@ -647,10 +658,10 @@
             localStorage.setItem('whereish_identity_exported', 'true');
 
             console.log('Identity exported successfully');
-            alert('Identity backup saved. Keep this file secure!');
+            Toast.success('Identity backup saved. Keep this file secure!');
         } catch (error) {
             console.error('Failed to export identity:', error);
-            alert('Failed to export identity: ' + error.message);
+            Toast.error('Failed to export identity: ' + error.message);
         }
     }
 
@@ -665,7 +676,7 @@
             const json = await file.text();
             const account = await Identity.importPrivate(json);
 
-            alert(`Identity loaded for ${account.email || 'unknown account'}. Please log in to continue.`);
+            Toast.success(`Identity loaded for ${account.email || 'unknown account'}. Please log in to continue.`);
 
             // Pre-fill email if available
             if (account.email) {
@@ -677,7 +688,7 @@
 
         } catch (error) {
             console.error('Failed to import identity:', error);
-            alert('Failed to import identity: ' + error.message);
+            Toast.error('Failed to import identity: ' + error.message);
         } finally {
             // Clear file input so same file can be selected again
             event.target.value = '';
@@ -704,11 +715,11 @@
                 elements.authEmailInput.value = account.email;
             }
 
-            alert('Identity imported successfully! Please enter your password and try again.');
+            Toast.success('Identity imported successfully! Please enter your password and try again.');
 
         } catch (error) {
             console.error('Failed to import identity:', error);
-            alert('Failed to import identity: ' + error.message);
+            Toast.error('Failed to import identity: ' + error.message);
         } finally {
             // Clear file input so same file can be selected again
             event.target.value = '';
@@ -854,24 +865,29 @@
     // ===================
 
     async function loadContactRequests() {
+        console.log('[loadContactRequests] Called, authenticated:', API.isAuthenticated());
         if (!API.isAuthenticated()) return;
 
         try {
+            console.log('[loadContactRequests] Fetching requests from API');
             const requests = await API.getContactRequests();
             const incoming = requests.incoming || [];
             const outgoing = requests.outgoing || [];
+            console.log('[loadContactRequests] Got requests - incoming:', incoming.length, 'outgoing:', outgoing.length);
 
             // Sync with Model
             Model.setContactRequests({ incoming: incoming, outgoing: outgoing });
 
             renderIncomingRequests(incoming);
             renderOutgoingRequests(outgoing);
+            console.log('[loadContactRequests] Rendered requests');
 
             // Show/hide container based on whether any requests exist
             const hasRequests = incoming.length > 0 || outgoing.length > 0;
             elements.pendingRequests.classList.toggle('hidden', !hasRequests);
+            console.log('[loadContactRequests] Done, hasRequests:', hasRequests);
         } catch (error) {
-            console.error('Failed to load contact requests:', error);
+            console.error('[loadContactRequests] Error:', error);
         }
     }
 
@@ -948,7 +964,7 @@
             await loadContactRequests();
         } catch (error) {
             console.error('Failed to accept request:', error);
-            alert('Failed to accept request. Please try again.');
+            Toast.error('Failed to accept request. Please try again.');
             event.target.disabled = false;
         }
     }
@@ -962,7 +978,7 @@
             await loadContactRequests();
         } catch (error) {
             console.error('Failed to decline request:', error);
-            alert('Failed to decline request. Please try again.');
+            Toast.error('Failed to decline request. Please try again.');
             event.target.disabled = false;
         }
     }
@@ -976,7 +992,7 @@
             await loadContactRequests();
         } catch (error) {
             console.error('Failed to cancel request:', error);
-            alert('Failed to cancel request. Please try again.');
+            Toast.error('Failed to cancel request. Please try again.');
             event.target.disabled = false;
         }
     }
@@ -1001,12 +1017,18 @@
         const email = elements.contactEmailInput.value.trim();
 
         try {
+            console.log('[handleAddContact] Sending request to:', email);
             await API.sendContactRequest(email);
+            console.log('[handleAddContact] Request sent, closing modal');
             closeAddContactModal();
-            alert('Contact request sent!');
+            console.log('[handleAddContact] Modal closed, showing toast');
+            Toast.success('Contact request sent!');
+            console.log('[handleAddContact] Toast shown, refreshing requests');
             // Refresh the requests list so the outgoing request appears immediately
             await loadContactRequests();
+            console.log('[handleAddContact] Requests refreshed');
         } catch (error) {
+            console.error('[handleAddContact] Error:', error);
             elements.addContactError.textContent = error.message;
             elements.addContactError.classList.remove('hidden');
         }
@@ -1156,7 +1178,7 @@
             setTimeout(() => select.classList.remove('updated'), 1000);
         } catch (error) {
             console.error('Failed to update permission:', error);
-            alert('Failed to update permission. Please try again.');
+            Toast.error('Failed to update permission. Please try again.');
             // Revert selection
             select.value = selectedContact.permissionGranted;
         }
@@ -1166,7 +1188,15 @@
     async function handleRemoveContact() {
         if (!selectedContact) return;
 
-        if (confirm(`Remove ${selectedContact.name} from your contacts?`)) {
+        const confirmed = await ConfirmModal.show({
+            title: 'Remove Contact',
+            message: `Remove ${selectedContact.name} from your contacts?`,
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            danger: true
+        });
+
+        if (confirmed) {
             try {
                 await API.removeContact(selectedContact.contactId);
                 contacts = contacts.filter(c => c.contactId !== selectedContact.contactId);
@@ -1177,7 +1207,7 @@
                 renderContactsList();
             } catch (error) {
                 console.error('Failed to remove contact:', error);
-                alert('Failed to remove contact. Please try again.');
+                Toast.error('Failed to remove contact. Please try again.');
             }
         }
     }
@@ -1258,7 +1288,17 @@
         const id = event.currentTarget.dataset.id;
         const location = namedLocations.find(loc => loc.id === id);
 
-        if (location && confirm(`Delete "${location.label}"?`)) {
+        if (!location) return;
+
+        const confirmed = await ConfirmModal.show({
+            title: 'Delete Place',
+            message: `Delete "${location.label}"?`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            danger: true
+        });
+
+        if (confirmed) {
             try {
                 await Storage.deleteNamedLocation(id);
                 namedLocations = namedLocations.filter(loc => loc.id !== id);
@@ -1279,7 +1319,7 @@
                 displayLocation(currentHierarchy, currentMatch);
             } catch (error) {
                 console.error('Failed to delete location:', error);
-                alert('Failed to delete location. Please try again.');
+                Toast.error('Failed to delete location. Please try again.');
             }
         }
     }
@@ -1441,12 +1481,12 @@
         event.preventDefault();
 
         if (!currentCoordinates) {
-            alert('No location available. Please refresh your location first.');
+            Toast.warning('No location available. Please refresh your location first.');
             return;
         }
 
         if (!currentUserId) {
-            alert('Please log in to save locations.');
+            Toast.warning('Please log in to save locations.');
             return;
         }
 
@@ -1454,7 +1494,7 @@
         const radius = parseInt(elements.locationRadiusSelect.value, 10);
 
         if (!label) {
-            alert('Please enter a name for this location.');
+            Toast.warning('Please enter a name for this location.');
             return;
         }
 
@@ -1488,7 +1528,7 @@
 
         } catch (error) {
             console.error('Failed to save location:', error);
-            alert('Failed to save location. Please try again.');
+            Toast.error('Failed to save location. Please try again.');
         }
     }
 

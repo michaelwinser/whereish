@@ -3,8 +3,8 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v106';
-const APP_VERSION = 100;  // Must match CACHE_NAME version number - v100 for E2E encryption breaking change
+const CACHE_NAME = 'whereish-v112';
+const APP_VERSION = 112;  // Must match CACHE_NAME version number
 
 const STATIC_ASSETS = [
     '/',
@@ -22,6 +22,7 @@ const STATIC_ASSETS = [
     '/geofence.js',
     '/api.js',
     '/views.js',
+    '/ui.js',
     '/testing.js',
     '/manifest.json',
     '/icon.svg'

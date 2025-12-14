@@ -14,8 +14,8 @@ VERSION_FILES=(
     "server/app.py"
 )
 
-# Get current version from sw.js
-CURRENT_VERSION=$(grep -oP "CACHE_NAME = 'whereish-v\K[0-9]+" app/sw.js)
+# Get current version from sw.js (portable - works on macOS and Linux)
+CURRENT_VERSION=$(grep -o "whereish-v[0-9]*" app/sw.js | head -1 | grep -o "[0-9]*")
 NEW_VERSION=$((CURRENT_VERSION + 1))
 
 echo "Bumping version: $CURRENT_VERSION -> $NEW_VERSION"
@@ -23,6 +23,8 @@ echo "Bumping version: $CURRENT_VERSION -> $NEW_VERSION"
 # Update sw.js
 sed -i '' "s/CACHE_NAME = 'whereish-v$CURRENT_VERSION'/CACHE_NAME = 'whereish-v$NEW_VERSION'/" app/sw.js
 sed -i '' "s/const APP_VERSION = $CURRENT_VERSION;/const APP_VERSION = $NEW_VERSION;/" app/sw.js
+# Also handle APP_VERSION with trailing comment
+sed -i '' "s/const APP_VERSION = $CURRENT_VERSION;  \/\//const APP_VERSION = $NEW_VERSION;  \/\//" app/sw.js
 
 # Update api.js
 sed -i '' "s/const APP_VERSION = $CURRENT_VERSION;/const APP_VERSION = $NEW_VERSION;/" app/api.js
