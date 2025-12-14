@@ -104,7 +104,7 @@ test-all: test-server test-client ## Run all tests (server + client)
 # Linting
 # =============================================================================
 
-lint: lint-python lint-js lint-md ## Run all linters
+lint: lint-python lint-js lint-md lint-ui-sync ## Run all linters
 
 lint-python: ## Lint Python code with ruff
 	@echo "Linting Python..."
@@ -121,6 +121,11 @@ lint-md: ## Lint Markdown files
 	@echo "Linting Markdown..."
 	@npx markdownlint-cli@0.41.0 '**/*.md' --ignore node_modules --ignore .venv --ignore test-results
 	@echo "✓ Markdown lint OK"
+
+lint-ui-sync: ## Check UI sync pattern violations
+	@echo "Checking UI sync patterns..."
+	@./scripts/lint-ui-sync.sh || true
+	@echo "✓ UI sync check complete"
 
 # =============================================================================
 # Docker
