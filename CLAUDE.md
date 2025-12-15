@@ -91,3 +91,4 @@ Current bundled dependencies:
 ## Current State
 
 See `reviews/CLAUDE_REVIEW.md` for the most recent comprehensive review.
+- Commits should reference the issue they are resolve (or working on) and the issue should not be closed before the commit.
