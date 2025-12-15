@@ -363,6 +363,56 @@ class APIClient:
         response = self._get('/api/contacts/encrypted', expected_status=200)
         return response.json()['contacts']
 
+    # ===================
+    # Devices
+    # ===================
+
+    def get_devices(self) -> list:
+        """Get list of user's devices."""
+        response = self._get('/api/devices', expected_status=200)
+        return response.json()['devices']
+
+    def get_devices_raw(self):
+        """Get devices without status check."""
+        return self._get('/api/devices')
+
+    def add_device(self, name: str, platform: str = None) -> dict:
+        """Register a new device."""
+        data = {'name': name}
+        if platform:
+            data['platform'] = platform
+        response = self._post('/api/devices', data, expected_status=201)
+        return response.json()['device']
+
+    def add_device_raw(self, name: str = None, platform: str = None, body: dict = None):
+        """Add device without status check."""
+        if body is not None:
+            return self._post('/api/devices', body)
+        data = {}
+        if name:
+            data['name'] = name
+        if platform:
+            data['platform'] = platform
+        return self._post('/api/devices', data)
+
+    def activate_device(self, device_id: str) -> dict:
+        """Set a device as active."""
+        response = self._post(f'/api/devices/{device_id}/activate', expected_status=200)
+        return response.json()
+
+    def activate_device_raw(self, device_id: str):
+        """Activate device without status check."""
+        return self._post(f'/api/devices/{device_id}/activate')
+
+    def delete_device(self, device_id: str) -> dict:
+        """Remove a device."""
+        response = self._delete(f'/api/devices/{device_id}', expected_status=200)
+        return response.json()
+
+    def delete_device_raw(self, device_id: str):
+        """Delete device without status check."""
+        return self._delete(f'/api/devices/{device_id}')
+
 
 # ===================
 # Test Data Helpers

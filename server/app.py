@@ -233,6 +233,20 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_encrypted_locations_to_user
         ON encrypted_locations(to_user_id);
+
+        CREATE TABLE IF NOT EXISTS devices (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            platform TEXT,
+            is_active BOOLEAN DEFAULT FALSE,
+            last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_devices_user_id
+        ON devices(user_id);
     """)
     db.commit()
 
@@ -298,6 +312,116 @@ def set_permission_level(granter_id, grantee_id, level):
     """,
         (granter_id, grantee_id, level, datetime.utcnow()),
     )
+    db.commit()
+
+
+# ===================
+# Device Helpers
+# ===================
+
+
+def generate_device_id():
+    """Generate a unique device ID."""
+    return secrets.token_hex(16)
+
+
+def register_device(user_id, device_name, platform=None, device_id=None):
+    """Register a new device for a user.
+
+    Returns the device record. First device for a user becomes active by default.
+    """
+    db = get_db()
+
+    # Generate device ID if not provided
+    if not device_id:
+        device_id = generate_device_id()
+
+    # Check if user has any devices already
+    existing = db.execute(
+        'SELECT COUNT(*) as count FROM devices WHERE user_id = ?', (user_id,)
+    ).fetchone()
+    is_first_device = existing['count'] == 0
+
+    # Insert device (first device is active by default)
+    db.execute(
+        """INSERT INTO devices (id, user_id, name, platform, is_active, last_seen)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (device_id, user_id, device_name, platform, is_first_device, datetime.utcnow()),
+    )
+    db.commit()
+
+    return {
+        'id': device_id,
+        'name': device_name,
+        'platform': platform,
+        'isActive': is_first_device,
+    }
+
+
+def get_user_devices(user_id):
+    """Get all devices for a user."""
+    db = get_db()
+    rows = db.execute(
+        """SELECT id, name, platform, is_active, last_seen, created_at
+           FROM devices WHERE user_id = ? ORDER BY created_at DESC""",
+        (user_id,),
+    ).fetchall()
+
+    return [
+        {
+            'id': row['id'],
+            'name': row['name'],
+            'platform': row['platform'],
+            'isActive': bool(row['is_active']),
+            'lastSeen': format_timestamp(row['last_seen']),
+            'createdAt': format_timestamp(row['created_at']),
+        }
+        for row in rows
+    ]
+
+
+def set_active_device(user_id, device_id):
+    """Set a device as the active device for location sharing.
+
+    Only one device can be active at a time.
+    """
+    db = get_db()
+
+    # Verify device belongs to user
+    row = db.execute(
+        'SELECT id FROM devices WHERE id = ? AND user_id = ?', (device_id, user_id)
+    ).fetchone()
+    if not row:
+        return False
+
+    # Deactivate all devices for this user
+    db.execute('UPDATE devices SET is_active = FALSE WHERE user_id = ?', (user_id,))
+
+    # Activate the specified device
+    db.execute(
+        'UPDATE devices SET is_active = TRUE, last_seen = ? WHERE id = ?',
+        (datetime.utcnow(), device_id),
+    )
+    db.commit()
+    return True
+
+
+def delete_device(user_id, device_id):
+    """Delete a device from user's device list.
+
+    Returns True if deleted, False if not found.
+    """
+    db = get_db()
+
+    result = db.execute('DELETE FROM devices WHERE id = ? AND user_id = ?', (device_id, user_id))
+    db.commit()
+    return result.rowcount > 0
+
+
+def update_device_last_seen(device_id):
+    """Update the last_seen timestamp for a device."""
+    db = get_db()
+    db.execute('UPDATE devices SET last_seen = ? WHERE id = ?', (datetime.utcnow(), device_id))
     db.commit()
 
 
@@ -496,7 +620,10 @@ def auth_google():
     or links Google ID to existing account if email matches.
 
     Request:
-        { "id_token": "eyJ..." }
+        {
+            "id_token": "eyJ...",
+            "device": { "name": "My iPhone", "platform": "ios" }  // optional
+        }
 
     Response:
         {
@@ -504,7 +631,8 @@ def auth_google():
             "token": "session_token",
             "isNew": true/false,
             "hasPublicKey": true/false,
-            "hasServerBackup": true/false
+            "hasServerBackup": true/false,
+            "device": { "id", "name", "platform", "isActive" }  // if device provided
         }
     """
     if not GOOGLE_CLIENT_ID and not TESTING_MODE:
@@ -587,15 +715,26 @@ def auth_google():
     # Generate session token
     session_token = generate_token(user['id'])
 
-    return jsonify(
-        {
-            'user': {'id': user['id'], 'email': user['email'], 'name': user['name']},
-            'token': session_token,
-            'isNew': is_new,
-            'hasPublicKey': has_public_key,
-            'hasServerBackup': has_server_backup,
-        }
-    )
+    # Build response
+    response_data = {
+        'user': {'id': user['id'], 'email': user['email'], 'name': user['name']},
+        'token': session_token,
+        'isNew': is_new,
+        'hasPublicKey': has_public_key,
+        'hasServerBackup': has_server_backup,
+    }
+
+    # Register device if provided
+    device_data = data.get('device')
+    if device_data and isinstance(device_data, dict):
+        device_name = device_data.get('name', '').strip()
+        device_platform = device_data.get('platform', '').strip() or None
+
+        if device_name:
+            device = register_device(user['id'], device_name, device_platform)
+            response_data['device'] = device
+
+    return jsonify(response_data)
 
 
 @app.route('/api/me', methods=['GET'])
@@ -1160,6 +1299,78 @@ def update_contact_permission(contact_id):
     set_permission_level(user['id'], contact_id, level)
 
     return jsonify({'success': True, 'contactId': contact_id, 'permissionGranted': level})
+
+
+# ===================
+# API Routes - Devices
+# ===================
+
+
+@app.route('/api/devices', methods=['GET'])
+@require_auth
+def list_devices():
+    """Get list of user's devices."""
+    user = g.current_user
+    devices = get_user_devices(user['id'])
+    return jsonify({'devices': devices})
+
+
+@app.route('/api/devices', methods=['POST'])
+@require_auth
+def add_device():
+    """Register a new device.
+
+    Request:
+        { "name": "My iPhone", "platform": "ios" }
+
+    Response:
+        { "device": { "id", "name", "platform", "isActive" } }
+    """
+    user = g.current_user
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Missing request body'}), 400
+
+    name = data.get('name', '').strip()
+    platform = data.get('platform', '').strip() or None
+
+    if not name:
+        return jsonify({'error': 'Device name is required'}), 400
+
+    if len(name) > 50:
+        return jsonify({'error': 'Device name too long (max 50 chars)'}), 400
+
+    device = register_device(user['id'], name, platform)
+    return jsonify({'device': device}), 201
+
+
+@app.route('/api/devices/<device_id>/activate', methods=['POST'])
+@require_auth
+def activate_device(device_id):
+    """Set a device as the active location-sharing device.
+
+    Only one device can be active at a time. The active device is the one
+    that reports location to contacts.
+    """
+    user = g.current_user
+
+    if not set_active_device(user['id'], device_id):
+        return jsonify({'error': 'Device not found'}), 404
+
+    return jsonify({'success': True, 'deviceId': device_id})
+
+
+@app.route('/api/devices/<device_id>', methods=['DELETE'])
+@require_auth
+def remove_device(device_id):
+    """Remove a device from user's device list."""
+    user = g.current_user
+
+    if not delete_device(user['id'], device_id):
+        return jsonify({'error': 'Device not found'}), 404
+
+    return jsonify({'success': True})
 
 
 # ===================
