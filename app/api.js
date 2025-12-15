@@ -17,7 +17,7 @@ const API = (function() {
 
     // App version - must match server's APP_VERSION for compatibility
     // This should match the service worker CACHE_NAME version number
-    const APP_VERSION = 115;
+    const APP_VERSION = 116;
 
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;
@@ -434,6 +434,55 @@ const API = (function() {
     }
 
     // ===================
+    // Devices
+    // ===================
+
+    /**
+     * Get list of user's devices
+     * @returns {Promise<Array>} List of devices
+     */
+    async function getDevices() {
+        const data = await request('/api/devices');
+        return data.devices || [];
+    }
+
+    /**
+     * Register a new device
+     * @param {string} name - Device name (e.g., "My iPhone")
+     * @param {string} platform - Platform (e.g., "ios", "android", "web")
+     * @returns {Promise<Object>} { id, name, platform, isActive }
+     */
+    async function addDevice(name, platform = null) {
+        const data = await request('/api/devices', {
+            method: 'POST',
+            body: JSON.stringify({ name, platform })
+        });
+        return data.device;
+    }
+
+    /**
+     * Set a device as active (for location sharing)
+     * @param {string} deviceId
+     * @returns {Promise<Object>}
+     */
+    async function activateDevice(deviceId) {
+        return request(`/api/devices/${deviceId}/activate`, {
+            method: 'POST'
+        });
+    }
+
+    /**
+     * Remove a device
+     * @param {string} deviceId
+     * @returns {Promise<Object>}
+     */
+    async function deleteDevice(deviceId) {
+        return request(`/api/devices/${deviceId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    // ===================
     // Server Health
     // ===================
 
@@ -517,6 +566,12 @@ const API = (function() {
         getPermissionLevels,
         getContactPermission,
         updateContactPermission,
+
+        // Devices
+        getDevices,
+        addDevice,
+        activateDevice,
+        deleteDevice,
 
         // Utility
         checkHealth

@@ -664,6 +664,10 @@
 
         ViewManager.navigate('main');
 
+        // Register this device if needed
+        await loadDevices();
+        await registerCurrentDevice();
+
         // Load user's data
         await loadNamedLocations();
         renderNamedLocationsList();
@@ -1057,6 +1061,255 @@
         } finally {
             // Clear file input so same file can be selected again
             event.target.value = '';
+        }
+    }
+
+    // ===================
+    // Device Management
+    // ===================
+
+    const DEVICE_ID_KEY = 'whereish_device_id';
+
+    /**
+     * Get device name from user agent
+     */
+    function getDeviceName() {
+        const ua = navigator.userAgent;
+
+        // Try to detect device type and browser
+        if (/iPhone/.test(ua)) return 'iPhone';
+        if (/iPad/.test(ua)) return 'iPad';
+        if (/Android/.test(ua)) {
+            if (/Mobile/.test(ua)) return 'Android Phone';
+            return 'Android Tablet';
+        }
+        if (/Macintosh/.test(ua)) return 'Mac';
+        if (/Windows/.test(ua)) return 'Windows PC';
+        if (/Linux/.test(ua)) return 'Linux PC';
+
+        return 'Web Browser';
+    }
+
+    /**
+     * Get device platform from user agent
+     */
+    function getDevicePlatform() {
+        const ua = navigator.userAgent;
+
+        if (/iPhone|iPad/.test(ua)) return 'ios';
+        if (/Android/.test(ua)) return 'android';
+        if (/Macintosh/.test(ua)) return 'macos';
+        if (/Windows/.test(ua)) return 'windows';
+        if (/Linux/.test(ua)) return 'linux';
+
+        return 'web';
+    }
+
+    /**
+     * Get stored device ID
+     */
+    function getStoredDeviceId() {
+        return localStorage.getItem(DEVICE_ID_KEY);
+    }
+
+    /**
+     * Store device ID
+     */
+    function setStoredDeviceId(deviceId) {
+        if (deviceId) {
+            localStorage.setItem(DEVICE_ID_KEY, deviceId);
+            Model.setCurrentDeviceId(deviceId);
+        } else {
+            localStorage.removeItem(DEVICE_ID_KEY);
+            Model.setCurrentDeviceId(null);
+        }
+    }
+
+    /**
+     * Load devices from server
+     */
+    async function loadDevices() {
+        if (!API.isAuthenticated()) {
+            Model.setDevices([]);
+            return;
+        }
+
+        try {
+            const devices = await API.getDevices();
+            Model.setDevices(devices);
+
+            // Check if our stored device ID is in the list
+            const storedId = getStoredDeviceId();
+            if (storedId) {
+                const found = devices.find(d => d.id === storedId);
+                if (!found) {
+                    // Our device ID is no longer valid
+                    setStoredDeviceId(null);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load devices:', error);
+        }
+    }
+
+    /**
+     * Register this device with the server
+     */
+    async function registerCurrentDevice() {
+        if (!API.isAuthenticated()) return;
+
+        // Check if we already have a device ID
+        const existingId = getStoredDeviceId();
+        if (existingId) {
+            // Verify it still exists on server
+            const devices = Model.getDevices();
+            if (devices.find(d => d.id === existingId)) {
+                return; // Already registered
+            }
+        }
+
+        try {
+            const name = getDeviceName();
+            const platform = getDevicePlatform();
+            const device = await API.addDevice(name, platform);
+            setStoredDeviceId(device.id);
+            await loadDevices(); // Refresh device list
+            console.log('Device registered:', device.name);
+        } catch (error) {
+            console.error('Failed to register device:', error);
+        }
+    }
+
+    /**
+     * Render devices list in settings
+     */
+    function renderDevicesList() {
+        const listEl = document.getElementById('devices-list');
+        const loadingEl = document.getElementById('devices-loading');
+        const emptyEl = document.getElementById('devices-empty');
+
+        if (!listEl) return;
+
+        const devices = Model.getDevices();
+        const currentDeviceId = getStoredDeviceId();
+
+        // Hide loading
+        if (loadingEl) loadingEl.classList.add('hidden');
+
+        // Show empty state or list
+        if (devices.length === 0) {
+            listEl.innerHTML = '';
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        listEl.innerHTML = devices.map(device => {
+            const isCurrent = device.id === currentDeviceId;
+            const isActive = device.isActive;
+            const classes = ['device-item'];
+            if (isCurrent) classes.push('current-device');
+            if (isActive) classes.push('active-device');
+
+            // Format last seen
+            const lastSeen = device.lastSeen ? Model.formatTimeAgo(device.lastSeen) : '';
+
+            // Build badges
+            let badges = '';
+            if (isActive) badges += '<span class="device-badge device-badge-active">Active</span>';
+            if (isCurrent) badges += '<span class="device-badge device-badge-current">This device</span>';
+
+            // Build actions
+            let actions = '';
+            if (!isActive) {
+                actions += `<button class="device-btn device-btn-activate" data-device-id="${device.id}">Activate</button>`;
+            }
+            if (!isCurrent) {
+                actions += `<button class="device-btn device-btn-delete" data-device-id="${device.id}">Remove</button>`;
+            }
+
+            return `
+                <div class="${classes.join(' ')}" data-device-id="${device.id}">
+                    <div class="device-info">
+                        <div class="device-name">
+                            ${Model.escapeHtml(device.name)}
+                            ${badges}
+                        </div>
+                        <div class="device-meta">
+                            ${device.platform ? Model.escapeHtml(device.platform) : 'Unknown platform'}
+                            ${lastSeen ? ` · ${lastSeen}` : ''}
+                        </div>
+                    </div>
+                    <div class="device-actions">
+                        ${actions}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach event handlers
+        listEl.querySelectorAll('.device-btn-activate').forEach(btn => {
+            btn.addEventListener('click', handleActivateDevice);
+        });
+        listEl.querySelectorAll('.device-btn-delete').forEach(btn => {
+            btn.addEventListener('click', handleDeleteDevice);
+        });
+    }
+
+    /**
+     * Handle activate device button click
+     */
+    async function handleActivateDevice(event) {
+        const deviceId = event.target.dataset.deviceId;
+        if (!deviceId) return;
+
+        event.target.disabled = true;
+        event.target.textContent = 'Activating...';
+
+        try {
+            await API.activateDevice(deviceId);
+            await loadDevices();
+            renderDevicesList();
+            Toast.success('Device activated');
+        } catch (error) {
+            console.error('Failed to activate device:', error);
+            Toast.error('Failed to activate device');
+            event.target.disabled = false;
+            event.target.textContent = 'Activate';
+        }
+    }
+
+    /**
+     * Handle delete device button click
+     */
+    async function handleDeleteDevice(event) {
+        const deviceId = event.target.dataset.deviceId;
+        if (!deviceId) return;
+
+        const confirmed = await ConfirmModal.show({
+            title: 'Remove Device',
+            message: 'Remove this device from your account? You can re-add it later by signing in on that device.',
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            danger: true
+        });
+
+        if (!confirmed) return;
+
+        event.target.disabled = true;
+        event.target.textContent = 'Removing...';
+
+        try {
+            await API.deleteDevice(deviceId);
+            await loadDevices();
+            renderDevicesList();
+            Toast.success('Device removed');
+        } catch (error) {
+            console.error('Failed to remove device:', error);
+            Toast.error('Failed to remove device');
+            event.target.disabled = false;
+            event.target.textContent = 'Remove';
         }
     }
 
@@ -2494,7 +2747,7 @@
         });
 
         ViewManager.register('settings', {
-            onEnter: () => {
+            onEnter: async () => {
                 // Update settings email on enter
                 const userEmail = API.getUserEmail?.() || '--';
                 if (elements.settingsUserEmail) {
@@ -2511,6 +2764,9 @@
                         buildEl.textContent = `${BUILD_INFO.gitCommit} (${dateStr})`;
                     }
                 }
+                // Load and render devices
+                await loadDevices();
+                renderDevicesList();
             },
             onExit: () => {}
         });
@@ -2531,6 +2787,12 @@
 
         // Initialize Google Sign-In when available
         initGoogleSignIn();
+
+        // Initialize current device ID from localStorage
+        const storedDeviceId = getStoredDeviceId();
+        if (storedDeviceId) {
+            Model.setCurrentDeviceId(storedDeviceId);
+        }
 
         // Check server connection (this will load user data if authenticated)
         await checkServerConnection();

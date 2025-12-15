@@ -36,7 +36,10 @@ const Model = (function() {
         SERVER_STATUS_CHANGED: 'server:status:changed',
 
         // Config events
-        PERMISSION_LEVELS_LOADED: 'permissions:loaded'
+        PERMISSION_LEVELS_LOADED: 'permissions:loaded',
+
+        // Device events
+        DEVICES_CHANGED: 'devices:changed'
     };
 
     // ===================
@@ -140,7 +143,11 @@ const Model = (function() {
         serverConnected: false,
 
         // Config state
-        permissionLevels: []
+        permissionLevels: [],
+
+        // Device state
+        devices: [],
+        currentDeviceId: null
     };
 
     // ===================
@@ -535,6 +542,62 @@ const Model = (function() {
     }
 
     // ===================
+    // Device State Management
+    // ===================
+
+    /**
+     * Get all devices
+     * @returns {Array} Devices array
+     */
+    function getDevices() {
+        return state.devices;
+    }
+
+    /**
+     * Set devices
+     * @param {Array} devices - Array of device objects
+     */
+    function setDevices(devices) {
+        state.devices = devices || [];
+        Events.emit(EVENTS.DEVICES_CHANGED, { devices: state.devices });
+    }
+
+    /**
+     * Get current device ID
+     * @returns {string|null} Current device ID or null
+     */
+    function getCurrentDeviceId() {
+        return state.currentDeviceId;
+    }
+
+    /**
+     * Set current device ID
+     * @param {string|null} deviceId - Device ID or null
+     */
+    function setCurrentDeviceId(deviceId) {
+        state.currentDeviceId = deviceId;
+        // Don't emit separate event - devices event covers this
+    }
+
+    /**
+     * Get the active device
+     * @returns {Object|null} Active device or null
+     */
+    function getActiveDevice() {
+        return state.devices.find(d => d.isActive) || null;
+    }
+
+    /**
+     * Check if current device is the active device
+     * @returns {boolean} True if this device is active
+     */
+    function isCurrentDeviceActive() {
+        if (!state.currentDeviceId) return false;
+        const device = state.devices.find(d => d.id === state.currentDeviceId);
+        return device ? device.isActive : false;
+    }
+
+    // ===================
     // Event Helpers
     // ===================
 
@@ -605,6 +668,14 @@ const Model = (function() {
         isServerConnected: isServerConnected,
         setServerConnected: setServerConnected,
         getPermissionLevels: getPermissionLevels,
-        setPermissionLevels: setPermissionLevels
+        setPermissionLevels: setPermissionLevels,
+
+        // Device state
+        getDevices: getDevices,
+        setDevices: setDevices,
+        getCurrentDeviceId: getCurrentDeviceId,
+        setCurrentDeviceId: setCurrentDeviceId,
+        getActiveDevice: getActiveDevice,
+        isCurrentDeviceActive: isCurrentDeviceActive
     };
 })();
