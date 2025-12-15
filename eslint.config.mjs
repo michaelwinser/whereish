@@ -40,9 +40,11 @@ export default [
 
         // External libraries (CDN)
         nacl: "readonly",
+        google: "readonly",  // Google Identity Services
 
         // App globals (IIFE modules)
         Crypto: "writable",
+        PinCrypto: "writable",
         Identity: "writable",
         Events: "writable",
         Model: "writable",
@@ -59,7 +61,7 @@ export default [
     rules: {
       "no-unused-vars": ["error", {
         "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^(Crypto|Identity|Events|Model|ViewManager|API|Storage|Geofence|Toast|ConfirmModal|InputModal)$"
+        "varsIgnorePattern": "^(Crypto|PinCrypto|Identity|Events|Model|ViewManager|API|Storage|Geofence|Toast|ConfirmModal|InputModal)$"
       }],
       "no-console": "off",
       "no-undef": "error",

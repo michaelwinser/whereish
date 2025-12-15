@@ -369,6 +369,67 @@ body {
     background: #fff5f5;
 }
 
+/* Google Sign-In button */
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: white;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+}
+
+.btn-google:hover:not(:disabled) {
+    background: #f8f9fa;
+    border-color: #c4c7c9;
+}
+
+.btn-google .google-icon {
+    flex-shrink: 0;
+}
+
+/* Welcome screen legacy login */
+.welcome-legacy {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.welcome-legacy-text {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.25rem;
+}
+
+/* PIN setup styles */
+.pin-setup-intro,
+.pin-entry-intro {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.pin-backup-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.pin-backup-section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.pin-backup-text {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+}
+
 /* Actions with two buttons */
 .actions {
     display: flex;

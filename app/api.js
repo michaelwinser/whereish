@@ -160,6 +160,23 @@ const API = (function() {
     }
 
     /**
+     * Authenticate with Google OAuth
+     * @param {string} idToken - Google ID token from GIS
+     * @returns {Promise<Object>} { user, token, isNew, hasPublicKey, hasServerBackup }
+     */
+    async function authGoogle(idToken) {
+        const data = await request('/api/auth/google', {
+            method: 'POST',
+            body: JSON.stringify({ id_token: idToken })
+        });
+        if (data.token) {
+            setAuthToken(data.token);
+            currentUser = data.user;
+        }
+        return data;
+    }
+
+    /**
      * Set the current auth token
      * @param {string} token
      */
@@ -438,6 +455,7 @@ const API = (function() {
         // Auth
         register,
         login,
+        authGoogle,
         setAuthToken,
         getAuthToken,
         isAuthenticated,

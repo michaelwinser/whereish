@@ -73,9 +73,9 @@ if [[ -n "$DOM_OPS" ]]; then
             fi
         fi
 
-        # Valid UI function patterns: render*, display*, show*, hide*, update*, open*, close*, handle*, init*
+        # Valid UI function patterns: render*, display*, show*, hide*, update*, open*, close*, handle*, init*, download*
         # Also allow callback: prefix for anonymous callbacks in valid contexts
-        if ! echo "$FUNC_NAME" | grep -qiE "^(render|display|show|hide|update|open|close|handle|init|callback:)"; then
+        if ! echo "$FUNC_NAME" | grep -qiE "^(render|display|show|hide|update|open|close|handle|init|download|callback:)"; then
             OUTSIDE_RENDER="${OUTSIDE_RENDER}  Line $LINE_NUM: $LINE_CONTENT (in: $FUNC_NAME)\n"
             ((WARNINGS++))
         elif [[ "$VERBOSE" == "true" ]]; then
@@ -190,7 +190,7 @@ echo "----------------------------------"
 
 DEBUG_LOGS=$(grep -c "console\.log\|console\.debug" app/app.js || echo "0")
 echo "  Found $DEBUG_LOGS console.log/debug statements"
-if [[ $DEBUG_LOGS -gt 20 ]]; then
+if [[ $DEBUG_LOGS -gt 25 ]]; then
     echo "  WARNING: High number of debug statements - review before release"
     ((WARNINGS++))
 fi

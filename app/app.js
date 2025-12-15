@@ -105,6 +105,30 @@
         authSwitch: document.getElementById('auth-switch'),
         authSwitchLink: document.getElementById('auth-switch-link'),
 
+        // Google Sign-In
+        googleSignInBtn: document.getElementById('google-signin-btn'),
+
+        // PIN Setup modal
+        pinSetupModal: document.getElementById('pin-setup-modal'),
+        pinSetupForm: document.getElementById('pin-setup-form'),
+        pinSetupPin: document.getElementById('pin-setup-pin'),
+        pinSetupConfirm: document.getElementById('pin-setup-confirm'),
+        pinSetupShow: document.getElementById('pin-setup-show'),
+        pinSetupError: document.getElementById('pin-setup-error'),
+        pinBackupDownload: document.getElementById('pin-backup-download'),
+        pinBackupServer: document.getElementById('pin-backup-server'),
+        pinSetupBtn: document.getElementById('pin-setup-btn'),
+
+        // PIN Entry modal
+        pinEntryModal: document.getElementById('pin-entry-modal'),
+        pinEntryForm: document.getElementById('pin-entry-form'),
+        pinEntryPin: document.getElementById('pin-entry-pin'),
+        pinEntryShow: document.getElementById('pin-entry-show'),
+        pinEntryError: document.getElementById('pin-entry-error'),
+        pinEntryCloseBtn: document.getElementById('pin-entry-close-btn'),
+        pinEntryCancelBtn: document.getElementById('pin-entry-cancel-btn'),
+        pinEntryBtn: document.getElementById('pin-entry-btn'),
+
         // Contacts
         contactsSection: document.getElementById('contacts-section'),
         contactsList: document.getElementById('contacts-list'),
@@ -135,6 +159,10 @@
 
     // Auth state
     let isLoginMode = true;
+
+    // OAuth/PIN state
+    let pendingOAuthUser = null;  // User info from OAuth for PIN setup
+    let pendingIdentityJson = null;  // Encrypted identity JSON awaiting PIN
 
     // Edit place state
     let editingPlace = null;
@@ -532,6 +560,285 @@
         forceRefresh();
     }
 
+    // ===================
+    // Google OAuth
+    // ===================
+
+    /**
+     * Initialize Google Identity Services
+     */
+    function initGoogleSignIn() {
+        // Check if GIS is loaded
+        if (typeof google === 'undefined' || !google.accounts) {
+            console.log('Google Identity Services not loaded - offline or blocked');
+            return;
+        }
+
+        // Initialize with client ID from meta tag or config
+        const clientId = document.querySelector('meta[name="google-client-id"]')?.content;
+        if (!clientId) {
+            console.log('Google Client ID not configured');
+            return;
+        }
+
+        google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCallback,
+            auto_select: false
+        });
+
+        console.log('Google Sign-In initialized');
+    }
+
+    /**
+     * Handle Google Sign-In button click
+     */
+    function handleGoogleSignIn() {
+        if (typeof google === 'undefined' || !google.accounts) {
+            Toast.error('Google Sign-In not available');
+            return;
+        }
+
+        // Show one-tap or popup
+        google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed()) {
+                // Fallback to popup
+                const clientId = document.querySelector('meta[name="google-client-id"]')?.content;
+                if (clientId) {
+                    google.accounts.oauth2.initTokenClient({
+                        client_id: clientId,
+                        scope: 'email profile',
+                        callback: handleGoogleCallback
+                    }).requestAccessToken();
+                }
+            }
+        });
+    }
+
+    /**
+     * Handle Google OAuth callback
+     */
+    async function handleGoogleCallback(response) {
+        try {
+            // response.credential is the ID token
+            const idToken = response.credential;
+            if (!idToken) {
+                throw new Error('No credential received from Google');
+            }
+
+            Toast.info('Signing in...');
+
+            // Authenticate with our server
+            const result = await API.authGoogle(idToken);
+
+            if (result.isNew) {
+                // New user - need to set up PIN and identity
+                pendingOAuthUser = {
+                    id: result.user.id,
+                    email: result.user.email,
+                    name: result.user.name
+                };
+                openPinSetupModal();
+            } else if (!result.hasPublicKey) {
+                // Existing user without identity on this device
+                // They need to import their identity or create new one
+                Toast.warning('Please import your identity file to continue');
+                ViewManager.navigate('welcome');
+            } else {
+                // Existing user with identity - normal login
+                await completeLogin(result.user);
+            }
+        } catch (error) {
+            console.error('Google auth failed:', error);
+            Toast.error('Sign-in failed: ' + error.message);
+        }
+    }
+
+    /**
+     * Complete login after successful auth
+     */
+    async function completeLogin(user) {
+        currentUserId = user.id;
+        Model.setCurrentUserId(user.id);
+        updateAuthUI();
+
+        ViewManager.navigate('main');
+
+        // Load user's data
+        await loadNamedLocations();
+        renderNamedLocationsList();
+        await refreshContacts();
+        await loadContactRequests();
+        await publishLocationToServer();
+
+        Toast.success('Welcome back!');
+    }
+
+    // ===================
+    // PIN Setup Modal
+    // ===================
+
+    function openPinSetupModal() {
+        elements.pinSetupModal.classList.remove('hidden');
+        elements.pinSetupForm.reset();
+        elements.pinSetupError.classList.add('hidden');
+        elements.pinSetupPin.focus();
+    }
+
+    function closePinSetupModal() {
+        elements.pinSetupModal.classList.add('hidden');
+        elements.pinSetupForm.reset();
+        elements.pinSetupError.classList.add('hidden');
+        pendingOAuthUser = null;
+    }
+
+    async function handlePinSetup(event) {
+        event.preventDefault();
+
+        const pin = elements.pinSetupPin.value;
+        const confirmPin = elements.pinSetupConfirm.value;
+        const downloadBackup = elements.pinBackupDownload.checked;
+        const serverBackup = elements.pinBackupServer.checked;
+
+        // Validate
+        if (pin.length < 6) {
+            elements.pinSetupError.textContent = 'PIN must be at least 6 characters';
+            elements.pinSetupError.classList.remove('hidden');
+            return;
+        }
+
+        if (pin !== confirmPin) {
+            elements.pinSetupError.textContent = 'PINs do not match';
+            elements.pinSetupError.classList.remove('hidden');
+            return;
+        }
+
+        if (!downloadBackup && !serverBackup) {
+            elements.pinSetupError.textContent = 'Please select at least one backup option';
+            elements.pinSetupError.classList.remove('hidden');
+            return;
+        }
+
+        elements.pinSetupBtn.disabled = true;
+
+        try {
+            // 1. Create new identity
+            await Identity.create();
+            const publicKey = Identity.getPublicKeyBase64();
+
+            // 2. Register public key with server
+            await API.registerPublicKey(publicKey);
+
+            // 3. Store PIN test value for later verification
+            const pinTest = await PinCrypto.encryptTestValue(pin);
+            localStorage.setItem('whereish_pin_test', JSON.stringify(pinTest));
+            localStorage.setItem('whereish_pin_last_check', Date.now().toString());
+
+            // 4. Generate encrypted backup
+            if (downloadBackup) {
+                const encryptedJson = await Identity.exportEncrypted({
+                    email: pendingOAuthUser.email,
+                    name: pendingOAuthUser.name
+                }, pin);
+
+                // Trigger download
+                downloadIdentityFile(encryptedJson, pendingOAuthUser.email);
+
+                localStorage.setItem('whereish_identity_exported', 'true');
+            }
+
+            // 5. Server backup (TODO: implement in Phase 4)
+            if (serverBackup) {
+                console.log('Server backup will be implemented in Phase 4');
+                // await API.uploadEncryptedBackup(encryptedJson);
+            }
+
+            closePinSetupModal();
+
+            // Complete login
+            await completeLogin(pendingOAuthUser);
+            Toast.success('Account created successfully!');
+
+        } catch (error) {
+            console.error('PIN setup failed:', error);
+            elements.pinSetupError.textContent = error.message;
+            elements.pinSetupError.classList.remove('hidden');
+        } finally {
+            elements.pinSetupBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Download identity file
+     */
+    function downloadIdentityFile(jsonContent, email) {
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `whereish-identity-${email.split('@')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ===================
+    // PIN Entry Modal
+    // ===================
+
+    function openPinEntryModal() {
+        elements.pinEntryModal.classList.remove('hidden');
+        elements.pinEntryForm.reset();
+        elements.pinEntryError.classList.add('hidden');
+        elements.pinEntryPin.focus();
+    }
+
+    function closePinEntryModal() {
+        elements.pinEntryModal.classList.add('hidden');
+        elements.pinEntryForm.reset();
+        elements.pinEntryError.classList.add('hidden');
+        pendingIdentityJson = null;
+    }
+
+    async function handlePinEntry(event) {
+        event.preventDefault();
+
+        const pin = elements.pinEntryPin.value;
+
+        if (!pendingIdentityJson) {
+            closePinEntryModal();
+            return;
+        }
+
+        elements.pinEntryBtn.disabled = true;
+
+        try {
+            // Decrypt and import identity
+            await Identity.importEncrypted(pendingIdentityJson, pin);
+
+            closePinEntryModal();
+
+            // Store PIN test value for this PIN
+            const pinTest = await PinCrypto.encryptTestValue(pin);
+            localStorage.setItem('whereish_pin_test', JSON.stringify(pinTest));
+            localStorage.setItem('whereish_pin_last_check', Date.now().toString());
+
+            Toast.success('Identity imported successfully!');
+
+            // If not logged in, show login
+            if (!API.isAuthenticated()) {
+                openAuthModal(true);
+            }
+        } catch (error) {
+            console.error('PIN entry failed:', error);
+            elements.pinEntryError.textContent = 'Incorrect PIN or corrupted file';
+            elements.pinEntryError.classList.remove('hidden');
+        } finally {
+            elements.pinEntryBtn.disabled = false;
+        }
+    }
+
     /**
      * Handle delete identity - completely wipes cryptographic identity from device
      */
@@ -674,17 +981,29 @@
 
         try {
             const json = await file.text();
-            const account = await Identity.importPrivate(json);
 
-            Toast.success(`Identity loaded for ${account.email || 'unknown account'}. Please log in to continue.`);
+            // Detect file format
+            const format = PinCrypto.detectFormat(json);
 
-            // Pre-fill email if available
-            if (account.email) {
-                elements.authEmailInput.value = account.email;
+            if (format === 'encrypted') {
+                // Store for PIN entry
+                pendingIdentityJson = json;
+                openPinEntryModal();
+            } else if (format === 'unencrypted') {
+                // Import directly (legacy v1 file)
+                const account = await Identity.importPrivate(json);
+                Toast.success(`Identity loaded for ${account.email || 'unknown account'}. Please log in to continue.`);
+
+                // Pre-fill email if available
+                if (account.email) {
+                    elements.authEmailInput.value = account.email;
+                }
+
+                // Open login modal
+                openAuthModal(true);
+            } else {
+                throw new Error('Invalid identity file format');
             }
-
-            // Open login modal
-            openAuthModal(true);
 
         } catch (error) {
             console.error('Failed to import identity:', error);
@@ -704,6 +1023,19 @@
 
         try {
             const json = await file.text();
+
+            // Detect file format
+            const format = PinCrypto.detectFormat(json);
+
+            if (format === 'encrypted') {
+                // Store for PIN entry
+                pendingIdentityJson = json;
+                closeAuthModal();
+                openPinEntryModal();
+                return;
+            }
+
+            // Import unencrypted file directly
             const account = await Identity.importPrivate(json);
 
             // Hide error and import section
@@ -1765,7 +2097,6 @@
 
         // Welcome screen buttons
         document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
-        document.getElementById('welcome-signup-btn')?.addEventListener('click', () => openAuthModal(false));
 
         // Identity import (welcome screen)
         elements.importIdentityBtn?.addEventListener('click', () => elements.identityFileInput?.click());
@@ -1793,6 +2124,28 @@
             const type = elements.authShowPassword.checked ? 'text' : 'password';
             elements.authPasswordInput.type = type;
             elements.authConfirmInput.type = type;
+        });
+
+        // Google Sign-In
+        elements.googleSignInBtn?.addEventListener('click', handleGoogleSignIn);
+
+        // PIN Setup modal
+        elements.pinSetupForm?.addEventListener('submit', handlePinSetup);
+        elements.pinSetupModal?.querySelector('.modal-backdrop')?.addEventListener('click', closePinSetupModal);
+        elements.pinSetupShow?.addEventListener('change', () => {
+            const type = elements.pinSetupShow.checked ? 'text' : 'password';
+            elements.pinSetupPin.type = type;
+            elements.pinSetupConfirm.type = type;
+        });
+
+        // PIN Entry modal
+        elements.pinEntryForm?.addEventListener('submit', handlePinEntry);
+        elements.pinEntryCloseBtn?.addEventListener('click', closePinEntryModal);
+        elements.pinEntryCancelBtn?.addEventListener('click', closePinEntryModal);
+        elements.pinEntryModal?.querySelector('.modal-backdrop')?.addEventListener('click', closePinEntryModal);
+        elements.pinEntryShow?.addEventListener('change', () => {
+            const type = elements.pinEntryShow.checked ? 'text' : 'password';
+            elements.pinEntryPin.type = type;
         });
 
         // Add contact
@@ -2173,6 +2526,9 @@
 
         setupEventListeners();
         setupInstallPrompt();
+
+        // Initialize Google Sign-In when available
+        initGoogleSignIn();
 
         // Check server connection (this will load user data if authenticated)
         await checkServerConnection();
