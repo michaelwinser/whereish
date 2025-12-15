@@ -15,6 +15,7 @@ import json
 import os
 import secrets
 import sqlite3
+import warnings
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -699,7 +700,16 @@ def health_check():
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    """Register a new user."""
+    """Register a new user.
+
+    DEPRECATED: Use /api/auth/google for new registrations.
+    This endpoint remains for backwards compatibility with existing users.
+    """
+    warnings.warn(
+        'Email/password registration is deprecated. Use Google OAuth instead.',
+        DeprecationWarning,
+        stacklevel=2,
+    )
     data = request.get_json()
 
     if not data:
@@ -740,7 +750,16 @@ def register():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    """Login with email and password."""
+    """Login with email and password.
+
+    DEPRECATED: Use /api/auth/google for authentication.
+    This endpoint remains for backwards compatibility with existing users.
+    """
+    warnings.warn(
+        'Email/password login is deprecated. Use Google OAuth instead.',
+        DeprecationWarning,
+        stacklevel=2,
+    )
     data = request.get_json()
 
     if not data:

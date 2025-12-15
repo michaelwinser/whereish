@@ -483,6 +483,21 @@
             await loadContactRequests();
             await publishLocationToServer();
 
+            // Check if existing user needs PIN setup (migration from legacy file)
+            const hasIdentity = Identity.hasIdentity();
+            const hasPinTestData = localStorage.getItem('whereish_pin_test');
+            if (hasIdentity && !hasPinTestData) {
+                // Migration case: prompt user to set up PIN for their existing identity
+                pendingOAuthUser = {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    isMigration: true
+                };
+                Toast.info('Please set up a PIN to protect your identity');
+                openPinSetupModal();
+            }
+
         } catch (error) {
             elements.authError.textContent = error.message;
             elements.authError.classList.remove('hidden');
@@ -685,6 +700,23 @@
         await loadContactRequests();
         await publishLocationToServer();
 
+        // Check if existing user needs PIN setup (migration from email/password)
+        // They have identity but never went through PIN setup
+        const hasIdentity = Identity.hasIdentity();
+        const hasPinTestData = localStorage.getItem('whereish_pin_test');
+        if (hasIdentity && !hasPinTestData) {
+            // Migration case: prompt user to set up PIN for their existing identity
+            pendingOAuthUser = {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                isMigration: true  // Flag to skip identity creation
+            };
+            Toast.info('Please set up a PIN to secure your identity');
+            openPinSetupModal();
+            return;  // Don't show "Welcome back" yet
+        }
+
         Toast.success('Welcome back!');
     }
 
@@ -713,6 +745,7 @@
         const confirmPin = elements.pinSetupConfirm.value;
         const downloadBackup = elements.pinBackupDownload.checked;
         const serverBackup = elements.pinBackupServer.checked;
+        const isMigration = pendingOAuthUser?.isMigration;
 
         // Validate
         if (pin.length < 6) {
@@ -736,12 +769,15 @@
         elements.pinSetupBtn.disabled = true;
 
         try {
-            // 1. Create new identity
-            await Identity.create();
-            const publicKey = Identity.getPublicKeyBase64();
+            // For migration, use existing identity; for new users, create one
+            if (!isMigration) {
+                // 1. Create new identity
+                await Identity.create();
+                const publicKey = Identity.getPublicKeyBase64();
 
-            // 2. Register public key with server
-            await API.registerPublicKey(publicKey);
+                // 2. Register public key with server
+                await API.registerPublicKey(publicKey);
+            }
 
             // 3. Store PIN test value for later verification
             const pinTest = await PinCrypto.encryptTestValue(pin);
@@ -771,9 +807,14 @@
 
             closePinSetupModal();
 
-            // Complete login
-            await completeLogin(pendingOAuthUser);
-            Toast.success('Account created successfully!');
+            if (isMigration) {
+                // Migration complete - show success and stay on main view
+                Toast.success('PIN setup complete! Your identity is now protected.');
+            } else {
+                // Complete login for new users
+                await completeLogin(pendingOAuthUser);
+                Toast.success('Account created successfully!');
+            }
 
         } catch (error) {
             console.error('PIN setup failed:', error);
