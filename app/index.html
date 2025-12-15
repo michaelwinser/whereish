@@ -609,6 +609,38 @@
         </div>
     </div>
 
+    <!-- PIN Verification Modal (periodic check) -->
+    <div id="pin-verify-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>PIN Reminder</h2>
+            </div>
+            <form id="pin-verify-form" class="modal-body">
+                <p class="pin-verify-intro">
+                    To make sure you can recover your account, please confirm your PIN.
+                    This check happens periodically to help you remember it.
+                </p>
+                <div class="form-group">
+                    <label for="pin-verify-pin">Enter Your PIN</label>
+                    <input type="password" id="pin-verify-pin" name="pin" placeholder="Enter PIN" required inputmode="numeric" autocomplete="current-password">
+                </div>
+                <div class="form-group form-group-inline">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="pin-verify-show">
+                        <span>Show PIN</span>
+                    </label>
+                </div>
+                <div id="pin-verify-error" class="form-error hidden"></div>
+                <div id="pin-verify-success" class="form-success hidden">PIN verified successfully!</div>
+                <div class="modal-actions">
+                    <button type="button" id="pin-verify-skip-btn" class="btn btn-secondary">Skip for now</button>
+                    <button type="submit" id="pin-verify-btn" class="btn btn-primary">Verify PIN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Transfer Source Modal (shows code to share) -->
     <div id="transfer-source-modal" class="modal hidden">
         <div class="modal-backdrop"></div>

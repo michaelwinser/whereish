@@ -14,6 +14,7 @@
     --color-primary-dark: #3d6649;
     --color-accent: #68d391;
     --color-error: #e53e3e;
+    --color-success: #38a169;
     --color-border: #e2e8f0;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --radius: 12px;
@@ -998,6 +999,15 @@ body {
     margin-bottom: 1rem;
 }
 
+.form-success {
+    background: #f0fff4;
+    color: var(--color-success);
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
 .auth-import-section {
     background: rgba(74, 124, 89, 0.1);
     padding: 1rem;
@@ -1107,6 +1117,10 @@ body {
 @media (prefers-color-scheme: dark) {
     .form-error {
         background: rgba(229, 62, 62, 0.1);
+    }
+
+    .form-success {
+        background: rgba(56, 161, 105, 0.1);
     }
 
     .request-item {

@@ -129,6 +129,16 @@
         pinEntryCancelBtn: document.getElementById('pin-entry-cancel-btn'),
         pinEntryBtn: document.getElementById('pin-entry-btn'),
 
+        // PIN Verification modal (periodic check)
+        pinVerifyModal: document.getElementById('pin-verify-modal'),
+        pinVerifyForm: document.getElementById('pin-verify-form'),
+        pinVerifyPin: document.getElementById('pin-verify-pin'),
+        pinVerifyShow: document.getElementById('pin-verify-show'),
+        pinVerifyError: document.getElementById('pin-verify-error'),
+        pinVerifySuccess: document.getElementById('pin-verify-success'),
+        pinVerifySkipBtn: document.getElementById('pin-verify-skip-btn'),
+        pinVerifyBtn: document.getElementById('pin-verify-btn'),
+
         // Contacts
         contactsSection: document.getElementById('contacts-section'),
         contactsList: document.getElementById('contacts-list'),
@@ -1641,6 +1651,124 @@
     }
 
     // ===================
+    // PIN Verification (Signal-style periodic check)
+    // ===================
+
+    // Configuration for periodic PIN checks
+    const PIN_CHECK_CONFIG = {
+        intervalDays: 14,  // Check every 14 days
+        storageKeyTest: 'whereish_pin_test',
+        storageKeyLastCheck: 'whereish_pin_last_check'
+    };
+
+    /**
+     * Check if user should be prompted for PIN verification
+     * @returns {boolean} True if PIN check is needed
+     */
+    function shouldPromptForPIN() {
+        // Only check if user is authenticated and has PIN test data
+        if (!API.isAuthenticated()) return false;
+
+        const testData = localStorage.getItem(PIN_CHECK_CONFIG.storageKeyTest);
+        if (!testData) return false;  // No PIN test data means legacy user or new signup
+
+        const lastCheck = localStorage.getItem(PIN_CHECK_CONFIG.storageKeyLastCheck);
+        if (!lastCheck) return true;  // Never checked before
+
+        const daysSinceCheck = (Date.now() - parseInt(lastCheck, 10)) / (1000 * 60 * 60 * 24);
+        return daysSinceCheck >= PIN_CHECK_CONFIG.intervalDays;
+    }
+
+    /**
+     * Open the PIN verification modal
+     */
+    function openPinVerifyModal() {
+        elements.pinVerifyModal.classList.remove('hidden');
+        elements.pinVerifyForm.reset();
+        elements.pinVerifyError.classList.add('hidden');
+        elements.pinVerifySuccess.classList.add('hidden');
+        elements.pinVerifyBtn.disabled = false;
+        elements.pinVerifySkipBtn.disabled = false;
+        elements.pinVerifyPin.focus();
+    }
+
+    /**
+     * Close the PIN verification modal
+     */
+    function closePinVerifyModal() {
+        elements.pinVerifyModal.classList.add('hidden');
+        elements.pinVerifyForm.reset();
+    }
+
+    /**
+     * Handle PIN verification form submission
+     * @param {Event} event - Form submit event
+     */
+    async function handlePinVerifySubmit(event) {
+        event.preventDefault();
+
+        const pin = elements.pinVerifyPin.value;
+        if (!pin) return;
+
+        elements.pinVerifyBtn.disabled = true;
+        elements.pinVerifyError.classList.add('hidden');
+        elements.pinVerifySuccess.classList.add('hidden');
+
+        try {
+            const testDataJson = localStorage.getItem(PIN_CHECK_CONFIG.storageKeyTest);
+            if (!testDataJson) {
+                throw new Error('No PIN test data found');
+            }
+
+            const testData = JSON.parse(testDataJson);
+            const isValid = await PinCrypto.verifyPIN(testData, pin);
+
+            if (isValid) {
+                // Success - update last check time
+                localStorage.setItem(PIN_CHECK_CONFIG.storageKeyLastCheck, Date.now().toString());
+                elements.pinVerifySuccess.classList.remove('hidden');
+
+                // Close modal after a short delay
+                setTimeout(() => {
+                    closePinVerifyModal();
+                }, 1500);
+            } else {
+                // Wrong PIN - show warning but allow continue
+                elements.pinVerifyError.textContent = 'Incorrect PIN. If you\'ve forgotten your PIN, you may lose access to your account on new devices.';
+                elements.pinVerifyError.classList.remove('hidden');
+                elements.pinVerifyBtn.disabled = false;
+            }
+        } catch (error) {
+            console.error('PIN verification error:', error);
+            elements.pinVerifyError.textContent = 'Error verifying PIN. Please try again.';
+            elements.pinVerifyError.classList.remove('hidden');
+            elements.pinVerifyBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Handle skip button click on PIN verification
+     */
+    function handlePinVerifySkip() {
+        // Show warning toast about skipping
+        Toast.warning('Remember: you\'ll need your PIN to recover your account on a new device.');
+        closePinVerifyModal();
+    }
+
+    /**
+     * Perform the periodic PIN check if needed
+     * This should be called on app startup after authentication
+     */
+    function performPINCheckIfNeeded() {
+        if (shouldPromptForPIN()) {
+            // Small delay to let the UI settle
+            setTimeout(() => {
+                openPinVerifyModal();
+            }, 500);
+        }
+    }
+
+    // ===================
     // Contacts
     // ===================
 
@@ -2730,6 +2858,15 @@
             elements.pinEntryPin.type = type;
         });
 
+        // PIN Verification modal (periodic check)
+        elements.pinVerifyForm?.addEventListener('submit', handlePinVerifySubmit);
+        elements.pinVerifySkipBtn?.addEventListener('click', handlePinVerifySkip);
+        elements.pinVerifyModal?.querySelector('.modal-backdrop')?.addEventListener('click', handlePinVerifySkip);
+        elements.pinVerifyShow?.addEventListener('change', () => {
+            const type = elements.pinVerifyShow.checked ? 'text' : 'password';
+            elements.pinVerifyPin.type = type;
+        });
+
         // Transfer Source modal (initiate transfer)
         document.getElementById('transfer-to-device-btn')?.addEventListener('click', openTransferSourceModal);
         document.getElementById('transfer-source-close-btn')?.addEventListener('click', closeTransferSourceModal);
@@ -3145,6 +3282,8 @@
         // Determine initial view based on auth state
         if (API.isAuthenticated()) {
             ViewManager.navigate('main', {}, false);
+            // Check if periodic PIN verification is needed
+            performPINCheckIfNeeded();
         } else {
             ViewManager.navigate('welcome', {}, false);
         }
