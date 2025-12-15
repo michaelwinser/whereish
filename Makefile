@@ -114,7 +114,7 @@ lint-python: ## Lint Python code with ruff
 
 lint-js: ## Lint JavaScript code with eslint
 	@echo "Linting JavaScript..."
-	@npx eslint app/*.js --no-error-on-unmatched-pattern
+	@npx eslint app/*.js --no-error-on-unmatched-pattern --no-warn-ignored
 	@echo "✓ JavaScript lint OK"
 
 lint-md: ## Lint Markdown files
