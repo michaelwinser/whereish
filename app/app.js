@@ -734,23 +734,25 @@
             localStorage.setItem('whereish_pin_test', JSON.stringify(pinTest));
             localStorage.setItem('whereish_pin_last_check', Date.now().toString());
 
-            // 4. Generate encrypted backup
-            if (downloadBackup) {
-                const encryptedJson = await Identity.exportEncrypted({
+            // 4. Generate encrypted backup (for download and/or server)
+            let encryptedJson = null;
+            if (downloadBackup || serverBackup) {
+                encryptedJson = await Identity.exportEncrypted({
                     email: pendingOAuthUser.email,
                     name: pendingOAuthUser.name
                 }, pin);
+            }
 
-                // Trigger download
+            // 5. Trigger download if requested
+            if (downloadBackup) {
                 downloadIdentityFile(encryptedJson, pendingOAuthUser.email);
-
                 localStorage.setItem('whereish_identity_exported', 'true');
             }
 
-            // 5. Server backup (TODO: implement in Phase 4)
+            // 6. Server backup if requested
             if (serverBackup) {
-                console.log('Server backup will be implemented in Phase 4');
-                // await API.uploadEncryptedBackup(encryptedJson);
+                await API.storeIdentityBackup(encryptedJson);
+                console.log('Server backup stored successfully');
             }
 
             closePinSetupModal();

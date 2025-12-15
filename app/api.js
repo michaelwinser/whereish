@@ -261,6 +261,38 @@ const API = (function() {
         });
     }
 
+    /**
+     * Store encrypted identity backup on server
+     * @param {string} encryptedIdentity - JSON string of encrypted identity
+     * @returns {Promise<Object>}
+     */
+    async function storeIdentityBackup(encryptedIdentity) {
+        return request('/api/identity/backup', {
+            method: 'POST',
+            body: JSON.stringify({ encryptedIdentity })
+        });
+    }
+
+    /**
+     * Get encrypted identity backup from server
+     * @returns {Promise<Object>} { encryptedIdentity: string }
+     */
+    async function getIdentityBackup() {
+        return request('/api/identity/backup', {
+            method: 'GET'
+        });
+    }
+
+    /**
+     * Delete encrypted identity backup from server
+     * @returns {Promise<Object>}
+     */
+    async function deleteIdentityBackup() {
+        return request('/api/identity/backup', {
+            method: 'DELETE'
+        });
+    }
+
     // ===================
     // Contact Requests
     // ===================
@@ -464,6 +496,9 @@ const API = (function() {
         getCurrentUser,
         getUserEmail,
         registerPublicKey,
+        storeIdentityBackup,
+        getIdentityBackup,
+        deleteIdentityBackup,
 
         // Location (E2E Encrypted)
         publishEncryptedLocations,

@@ -167,6 +167,41 @@ class APIClient:
         self.token = token
 
     # ===================
+    # Identity Backup
+    # ===================
+
+    def store_identity_backup(self, encrypted_identity: str) -> dict:
+        """Store encrypted identity backup on server."""
+        response = self._post('/api/identity/backup', {
+            'encryptedIdentity': encrypted_identity
+        }, expected_status=200)
+        return response.json()
+
+    def store_identity_backup_raw(self, encrypted_identity: str = None, body: dict = None):
+        """Store backup without status check."""
+        if body is not None:
+            return self._post('/api/identity/backup', body)
+        return self._post('/api/identity/backup', {'encryptedIdentity': encrypted_identity})
+
+    def get_identity_backup(self) -> dict:
+        """Get encrypted identity backup from server."""
+        response = self._get('/api/identity/backup', expected_status=200)
+        return response.json()
+
+    def get_identity_backup_raw(self):
+        """Get backup without status check."""
+        return self._get('/api/identity/backup')
+
+    def delete_identity_backup(self) -> dict:
+        """Delete encrypted identity backup from server."""
+        response = self._delete('/api/identity/backup', expected_status=200)
+        return response.json()
+
+    def delete_identity_backup_raw(self):
+        """Delete backup without status check."""
+        return self._delete('/api/identity/backup')
+
+    # ===================
     # Contacts
     # ===================
 

@@ -684,6 +684,71 @@ def register_public_key():
     return jsonify({'success': True})
 
 
+@app.route('/api/identity/backup', methods=['POST'])
+@require_auth
+def store_identity_backup():
+    """Store encrypted identity backup on server.
+
+    The server stores this blob encrypted - it cannot decrypt it.
+    Only the user with their PIN can decrypt this data.
+    """
+    user = g.current_user
+    data = request.get_json()
+
+    if not data or 'encryptedIdentity' not in data:
+        return jsonify({'error': 'Missing encryptedIdentity'}), 400
+
+    encrypted_identity = data['encryptedIdentity']
+
+    # Basic validation - should be a non-empty string (JSON blob)
+    if not encrypted_identity or not isinstance(encrypted_identity, str):
+        return jsonify({'error': 'Invalid encrypted identity format'}), 400
+
+    # Size limit - 10KB should be plenty for encrypted identity
+    if len(encrypted_identity) > 10240:
+        return jsonify({'error': 'Encrypted identity too large'}), 400
+
+    db = get_db()
+    db.execute(
+        'UPDATE users SET encrypted_identity = ? WHERE id = ?',
+        (encrypted_identity, user['id']),
+    )
+    db.commit()
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/identity/backup', methods=['GET'])
+@require_auth
+def get_identity_backup():
+    """Retrieve encrypted identity backup from server.
+
+    Returns the encrypted blob that was stored. User must decrypt with PIN.
+    """
+    user = g.current_user
+
+    db = get_db()
+    row = db.execute('SELECT encrypted_identity FROM users WHERE id = ?', (user['id'],)).fetchone()
+
+    if not row or not row['encrypted_identity']:
+        return jsonify({'error': 'No backup found'}), 404
+
+    return jsonify({'encryptedIdentity': row['encrypted_identity']})
+
+
+@app.route('/api/identity/backup', methods=['DELETE'])
+@require_auth
+def delete_identity_backup():
+    """Remove encrypted identity backup from server."""
+    user = g.current_user
+
+    db = get_db()
+    db.execute('UPDATE users SET encrypted_identity = NULL WHERE id = ?', (user['id'],))
+    db.commit()
+
+    return jsonify({'success': True})
+
+
 @app.route('/api/contacts/<contact_id>/public-key', methods=['GET'])
 @require_auth
 def get_contact_public_key(contact_id):
