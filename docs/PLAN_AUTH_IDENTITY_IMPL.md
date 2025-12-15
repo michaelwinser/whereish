@@ -522,22 +522,34 @@ Phase 9: Add migration support and polish (#2, #64)
 ## Execution Checklist
 
 Before starting:
-- [ ] Review and approve this plan
-- [ ] Ensure `.claude/settings.local.json` has permissions
-- [ ] Have Google Cloud project with OAuth client ID ready
+- [x] Review and approve this plan
+- [x] Ensure `.claude/settings.local.json` has permissions
+- [x] Have Google Cloud project with OAuth client ID ready
 
 Per phase:
-- [ ] Implement changes
-- [ ] Run `make test`
-- [ ] Manual smoke test if applicable
-- [ ] Commit (no push)
-- [ ] Update this plan with actual decisions/deviations
+- [x] Implement changes
+- [x] Run `make test`
+- [x] Manual smoke test if applicable
+- [x] Commit (no push)
+- [x] Update this plan with actual decisions/deviations
 
 After all phases:
 - [ ] Full regression test
 - [ ] Review all commits
 - [ ] Squash if desired
 - [ ] Push to GitHub
+
+## Implementation Notes
+
+**Completed December 2025**
+
+Key design decisions made during implementation:
+
+1. **Phase 7 - Polling vs WebSocket**: Used polling instead of WebSocket to avoid adding flask-socketio/eventlet dependencies. Transfer uses 6-digit codes with 10-minute expiry and 2-second polling intervals.
+
+2. **Phase 8 - PIN Check Interval**: Default is 14 days (configurable). Wrong PIN shows warning but allows continue (no lockout). Skip option shows warning toast.
+
+3. **Phase 9 - Migration Detection**: Migration triggers when identity exists but no PIN test data. Works for both OAuth and email/password login paths.
 
 ---
 
