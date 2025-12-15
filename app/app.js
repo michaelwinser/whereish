@@ -880,15 +880,15 @@
 
             renderIncomingRequests(incoming);
             renderOutgoingRequests(outgoing);
-            console.log('[loadContactRequests] Rendered requests');
-
-            // Show/hide container based on whether any requests exist
-            const hasRequests = incoming.length > 0 || outgoing.length > 0;
-            elements.pendingRequests.classList.toggle('hidden', !hasRequests);
-            console.log('[loadContactRequests] Done, hasRequests:', hasRequests);
+            updatePendingRequestsVisibility(incoming.length > 0 || outgoing.length > 0);
+            console.log('[loadContactRequests] Done');
         } catch (error) {
             console.error('[loadContactRequests] Error:', error);
         }
+    }
+
+    function updatePendingRequestsVisibility(hasRequests) {
+        elements.pendingRequests.classList.toggle('hidden', !hasRequests);
     }
 
     function renderIncomingRequests(incoming) {

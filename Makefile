@@ -124,7 +124,7 @@ lint-md: ## Lint Markdown files
 
 lint-ui-sync: ## Check UI sync pattern violations
 	@echo "Checking UI sync patterns..."
-	@./scripts/lint-ui-sync.sh || true
+	@./scripts/lint-ui-sync.sh
 	@echo "✓ UI sync check complete"
 
 # =============================================================================

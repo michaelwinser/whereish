@@ -37,8 +37,8 @@ echo "---------------------------------------------------"
 # Get line numbers of render/display function definitions
 RENDER_FUNCS=$(grep -n "function render\|function display\|async function render\|async function display" app/app.js | cut -d: -f1 | tr '\n' '|' | sed 's/|$//')
 
-# Find all DOM manipulations
-DOM_OPS=$(grep -n "\.innerHTML\|\.textContent\|\.classList\.\|\.appendChild\|\.removeChild\|\.insertBefore" app/app.js | grep -v "// lint-ignore" || true)
+# Find all DOM manipulations (exclude .classList.contains which is read-only)
+DOM_OPS=$(grep -n "\.innerHTML\|\.textContent\|\.classList\.\|\.appendChild\|\.removeChild\|\.insertBefore" app/app.js | grep -v "// lint-ignore\|\.classList\.contains" || true)
 
 if [[ -n "$DOM_OPS" ]]; then
     # For each DOM operation, check if it's inside a render function
@@ -61,12 +61,21 @@ if [[ -n "$DOM_OPS" ]]; then
         fi
 
         # Check if this looks like it's in a valid UI update context
-        # Look backwards for the function name
-        CONTEXT=$(sed -n "1,${LINE_NUM}p" app/app.js | tail -50 | grep -o "function [a-zA-Z]*" | tail -1 || echo "unknown")
+        # Look backwards for the function name (increased to 120 lines for longer functions)
+        CONTEXT=$(sed -n "1,${LINE_NUM}p" app/app.js | tail -120 | grep -o "function [a-zA-Z]*" | tail -1 || echo "unknown")
         FUNC_NAME=$(echo "$CONTEXT" | sed 's/function //')
 
-        # Valid UI function patterns: render*, display*, show*, hide*, update*, open*, close*, handle*
-        if ! echo "$FUNC_NAME" | grep -qiE "^(render|display|show|hide|update|open|close|handle|init)"; then
+        # If no function name found, check if we're in a callback (e.g., ViewManager.register, addEventListener)
+        if [[ -z "$FUNC_NAME" || "$FUNC_NAME" == "unknown" ]]; then
+            CALLBACK_CONTEXT=$(sed -n "1,${LINE_NUM}p" app/app.js | tail -30 | grep -oE "(ViewManager\.register|addEventListener|onEnter|onExit|\.then|\.catch)" | tail -1 || true)
+            if [[ -n "$CALLBACK_CONTEXT" ]]; then
+                FUNC_NAME="callback:$CALLBACK_CONTEXT"
+            fi
+        fi
+
+        # Valid UI function patterns: render*, display*, show*, hide*, update*, open*, close*, handle*, init*
+        # Also allow callback: prefix for anonymous callbacks in valid contexts
+        if ! echo "$FUNC_NAME" | grep -qiE "^(render|display|show|hide|update|open|close|handle|init|callback:)"; then
             OUTSIDE_RENDER="${OUTSIDE_RENDER}  Line $LINE_NUM: $LINE_CONTENT (in: $FUNC_NAME)\n"
             ((WARNINGS++))
         elif [[ "$VERBOSE" == "true" ]]; then
