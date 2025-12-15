@@ -3,8 +3,8 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v113';
-const APP_VERSION = 113;  // Must match CACHE_NAME version number
+const CACHE_NAME = 'whereish-v114';
+const APP_VERSION = 114;  // Must match CACHE_NAME version number
 
 const STATIC_ASSETS = [
     '/',
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
     '/nacl-util.min.js',
     '/version.js',
     '/crypto.js',
+    '/pin-crypto.js',
     '/identity.js',
     '/events.js',
     '/model.js',

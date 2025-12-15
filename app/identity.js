@@ -10,7 +10,7 @@
  * @see docs/PRD_ENCRYPTION.md for user-facing identity concepts
  */
 
-/* global Crypto, nacl */
+/* global Crypto, nacl, PinCrypto */
 /* exported Identity */
 
 const Identity = (function() {
@@ -182,7 +182,7 @@ const Identity = (function() {
     }
 
     /**
-     * Import a private identity from a backup file
+     * Import a private identity from a backup file (v1 unencrypted format)
      * @param {string} json - JSON string of private identity file
      * @returns {Promise<{email: string, name: string}>} Account metadata from file
      */
@@ -205,6 +205,61 @@ const Identity = (function() {
         await save(currentIdentity);
 
         return data.account || { email: '', name: '' };
+    }
+
+    /**
+     * Export encrypted identity file (v2 format with PIN protection)
+     * @param {{email: string, name: string}} account - Account metadata to include
+     * @param {string} pin - PIN to encrypt with
+     * @returns {Promise<string>} JSON string of encrypted identity file
+     */
+    async function exportEncrypted(account, pin) {
+        if (!currentIdentity) {
+            throw new Error('No identity loaded');
+        }
+
+        return PinCrypto.encryptIdentity(currentIdentity, account, pin);
+    }
+
+    /**
+     * Import an encrypted identity from a backup file (v2 format)
+     * @param {string} json - JSON string of encrypted identity file
+     * @param {string} pin - PIN to decrypt with
+     * @returns {Promise<{email: string, name: string}>} Account metadata from file
+     * @throws {Error} If PIN is incorrect or file is corrupted
+     */
+    async function importEncrypted(json, pin) {
+        const result = await PinCrypto.decryptIdentity(json, pin);
+
+        currentIdentity = result.identity;
+        await save(currentIdentity);
+
+        return result.account;
+    }
+
+    /**
+     * Import identity from any format (auto-detects v1 vs v2)
+     * @param {string} json - JSON string of identity file
+     * @param {string} [pin] - PIN for v2 encrypted files (ignored for v1)
+     * @returns {Promise<{email: string, name: string, wasEncrypted: boolean}>}
+     */
+    async function importAny(json, pin) {
+        const format = PinCrypto.detectFormat(json);
+
+        if (format === 'encrypted') {
+            if (!pin) {
+                throw new Error('PIN required for encrypted identity file');
+            }
+            const account = await importEncrypted(json, pin);
+            return { ...account, wasEncrypted: true };
+        }
+
+        if (format === 'unencrypted') {
+            const account = await importPrivate(json);
+            return { ...account, wasEncrypted: false };
+        }
+
+        throw new Error('Unknown identity file format');
     }
 
     /**
@@ -268,7 +323,10 @@ const Identity = (function() {
         save,
         exportPrivate,
         exportPublic,
+        exportEncrypted,
         importPrivate,
+        importEncrypted,
+        importAny,
         clear,
         getCurrent,
         getPublicKeyBase64,
