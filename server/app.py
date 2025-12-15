@@ -20,6 +20,8 @@ from functools import wraps
 from pathlib import Path
 
 from flask import Flask, g, jsonify, request, send_from_directory
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -78,6 +80,14 @@ APP_VERSION = os.environ.get('APP_VERSION', '100')
 # Clients below this version will be forced to update
 # v100 required for E2E encryption compatibility
 MIN_APP_VERSION = os.environ.get('MIN_APP_VERSION', '100')
+
+# Google OAuth Client ID
+# Get from Google Cloud Console -> APIs & Services -> Credentials
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+
+# Testing mode - allows test tokens to bypass Google verification
+# NEVER set this in production!
+TESTING_MODE = os.environ.get('TESTING_MODE', 'false').lower() == 'true'
 
 # ===================
 # Permission Levels
@@ -226,11 +236,23 @@ def init_db():
     """)
     db.commit()
 
-    # Migration: add public_key column to existing users table if missing
+    # Migration: add columns to existing users table if missing
     cursor = db.execute('PRAGMA table_info(users)')
     columns = [row[1] for row in cursor.fetchall()]
     if 'public_key' not in columns:
         db.execute('ALTER TABLE users ADD COLUMN public_key TEXT')
+        db.commit()
+    if 'google_id' not in columns:
+        # Note: SQLite doesn't support ADD COLUMN with UNIQUE constraint on non-empty tables
+        # The UNIQUE constraint is enforced at application level for migrations
+        db.execute('ALTER TABLE users ADD COLUMN google_id TEXT')
+        # Create index for uniqueness check (allows NULL duplicates, which is fine)
+        db.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL'
+        )
+        db.commit()
+    if 'encrypted_identity' not in columns:
+        db.execute('ALTER TABLE users ADD COLUMN encrypted_identity TEXT')
         db.commit()
 
 
@@ -304,7 +326,7 @@ def get_user_by_email(email):
     """Get user by email from database."""
     db = get_db()
     row = db.execute(
-        'SELECT id, email, name, password_hash, created_at FROM users WHERE email = ?',
+        'SELECT id, email, name, password_hash, google_id, created_at FROM users WHERE email = ?',
         (email.lower(),),
     ).fetchone()
     if row:
@@ -313,6 +335,7 @@ def get_user_by_email(email):
             'email': row['email'],
             'name': row['name'],
             'password_hash': row['password_hash'],
+            'google_id': row['google_id'],
             'created_at': row['created_at'],
         }
     return None
@@ -459,6 +482,118 @@ def login():
             'token': token,
             'hasPublicKey': has_public_key,
             'publicKey': server_public_key,
+        }
+    )
+
+
+@app.route('/api/auth/google', methods=['POST'])
+def auth_google():
+    """
+    Authenticate via Google OAuth.
+
+    Accepts a Google ID token, verifies it with Google's servers,
+    and returns a session token. Creates a new user if email not found,
+    or links Google ID to existing account if email matches.
+
+    Request:
+        { "id_token": "eyJ..." }
+
+    Response:
+        {
+            "user": { "id", "email", "name" },
+            "token": "session_token",
+            "isNew": true/false,
+            "hasPublicKey": true/false,
+            "hasServerBackup": true/false
+        }
+    """
+    if not GOOGLE_CLIENT_ID and not TESTING_MODE:
+        return jsonify({'error': 'Google OAuth not configured'}), 500
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Missing request body'}), 400
+
+    token = data.get('id_token')
+    if not token:
+        return jsonify({'error': 'Missing id_token'}), 400
+
+    # In testing mode, accept test tokens with format "test:email:name:google_id"
+    if TESTING_MODE and token.startswith('test:'):
+        parts = token.split(':')
+        if len(parts) >= 4:
+            email = parts[1].lower()
+            name = parts[2]
+            google_id = parts[3]
+        else:
+            return jsonify({'error': 'Invalid test token format'}), 400
+    else:
+        try:
+            # Verify the token with Google
+            idinfo = google_id_token.verify_oauth2_token(
+                token, google_requests.Request(), GOOGLE_CLIENT_ID
+            )
+
+            # Get user info from token
+            email = idinfo.get('email', '').lower()
+            name = idinfo.get('name', email.split('@')[0])
+            google_id = idinfo.get('sub')  # Google's unique user ID
+
+            if not email:
+                return jsonify({'error': 'No email in token'}), 400
+
+        except ValueError as e:
+            # Invalid token
+            return jsonify({'error': f'Invalid token: {str(e)}'}), 401
+
+    db = get_db()
+    is_new = False
+
+    # First, check if user exists by email
+    user = get_user_by_email(email)
+
+    if user:
+        # Existing user - link Google ID if not already linked
+        if not user.get('google_id'):
+            db.execute(
+                'UPDATE users SET google_id = ? WHERE id = ?',
+                (google_id, user['id']),
+            )
+            db.commit()
+    else:
+        # New user - create account
+        is_new = True
+        user_id = secrets.token_hex(8)
+
+        # For OAuth users, we set a placeholder password hash
+        # They can't log in with password, only OAuth
+        placeholder_hash = 'oauth:' + google_id
+
+        db.execute(
+            'INSERT INTO users (id, email, password_hash, name, google_id) VALUES (?, ?, ?, ?, ?)',
+            (user_id, email, placeholder_hash, name, google_id),
+        )
+        db.commit()
+
+        user = {'id': user_id, 'email': email, 'name': name}
+
+    # Get additional user info
+    row = db.execute(
+        'SELECT public_key, encrypted_identity FROM users WHERE id = ?', (user['id'],)
+    ).fetchone()
+    has_public_key = row and row['public_key'] is not None
+    has_server_backup = row and row['encrypted_identity'] is not None
+
+    # Generate session token
+    session_token = generate_token(user['id'])
+
+    return jsonify(
+        {
+            'user': {'id': user['id'], 'email': user['email'], 'name': user['name']},
+            'token': session_token,
+            'isNew': is_new,
+            'hasPublicKey': has_public_key,
+            'hasServerBackup': has_server_backup,
         }
     )
 

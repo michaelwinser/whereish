@@ -50,6 +50,7 @@ def server():
     env['SECRET_KEY'] = 'test-secret-key-for-integration-tests'
     env['PORT'] = str(TEST_PORT)
     env['FLASK_DEBUG'] = 'false'
+    env['TESTING_MODE'] = 'true'  # Enable test tokens for Google OAuth
 
     process = subprocess.Popen(
         [sys.executable, '-m', 'server.app'],

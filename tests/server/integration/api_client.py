@@ -128,6 +128,27 @@ class APIClient:
             'password': password
         }, auth=False)
 
+    def auth_google(self, id_token: str) -> User:
+        """Authenticate via Google OAuth and store token."""
+        response = self._post('/api/auth/google', {
+            'id_token': id_token
+        }, auth=False, expected_status=200)
+
+        data = response.json()
+        self.token = data['token']
+        return User(
+            id=data['user']['id'],
+            email=data['user']['email'],
+            name=data['user']['name'],
+            token=data['token']
+        )
+
+    def auth_google_raw(self, id_token: str = None, body: dict = None):
+        """Google OAuth without automatic token storage - for testing errors."""
+        if body is not None:
+            return self._post('/api/auth/google', body, auth=False)
+        return self._post('/api/auth/google', {'id_token': id_token}, auth=False)
+
     def logout(self):
         """Clear stored token."""
         self.token = None
