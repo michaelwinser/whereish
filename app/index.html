@@ -95,6 +95,12 @@
                         <p class="welcome-legacy-text">Existing user with password?</p>
                         <button id="welcome-login-btn" class="btn btn-link">Log in with email</button>
                     </div>
+
+                    <!-- Transfer from another device -->
+                    <div class="welcome-transfer">
+                        <p class="welcome-transfer-text">Have another device signed in?</p>
+                        <button id="welcome-transfer-btn" class="btn btn-link">Add device by code</button>
+                    </div>
                 </div>
 
                 <div class="welcome-import">
@@ -337,6 +343,12 @@
                     <div id="devices-empty" class="devices-empty hidden">
                         No devices registered yet.
                     </div>
+                    <button id="transfer-to-device-btn" class="btn btn-secondary settings-transfer-btn">
+                        Transfer Identity to Another Device
+                    </button>
+                    <p class="settings-hint">
+                        Add your identity to a new device by generating a transfer code.
+                    </p>
                 </section>
 
                 <!-- Privacy Section (placeholders) -->
@@ -594,6 +606,113 @@
                     <button type="submit" id="pin-entry-btn" class="btn btn-primary">Unlock</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Transfer Source Modal (shows code to share) -->
+    <div id="transfer-source-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Transfer Identity</h2>
+                <button id="transfer-source-close-btn" class="modal-close">&times;</button>
+            </div>
+            <div id="transfer-source-body" class="modal-body">
+                <!-- Initial state: Show code -->
+                <div id="transfer-source-pending" class="transfer-state">
+                    <p class="transfer-intro">Share this code with your other device:</p>
+                    <div class="transfer-code-display">
+                        <span id="transfer-code">------</span>
+                    </div>
+                    <p class="transfer-hint">Code expires in <span id="transfer-expires">10</span> minutes</p>
+                    <div class="transfer-status">
+                        <span class="transfer-status-text">Waiting for device to connect...</span>
+                    </div>
+                </div>
+                <!-- Claimed state: Device connected -->
+                <div id="transfer-source-claimed" class="transfer-state hidden">
+                    <p class="transfer-success-text">Device connected!</p>
+                    <div class="transfer-device-info">
+                        <span class="transfer-device-name" id="transfer-target-device">Unknown Device</span>
+                    </div>
+                    <p class="transfer-hint">Approve to send your identity to this device.</p>
+                    <div class="form-group">
+                        <label for="transfer-pin">Enter your PIN to approve:</label>
+                        <input type="password" id="transfer-pin" placeholder="PIN" inputmode="numeric" autocomplete="current-password">
+                    </div>
+                    <div id="transfer-source-error" class="form-error hidden"></div>
+                    <div class="modal-actions">
+                        <button type="button" id="transfer-deny-btn" class="btn btn-secondary">Deny</button>
+                        <button type="button" id="transfer-approve-btn" class="btn btn-primary">Approve Transfer</button>
+                    </div>
+                </div>
+                <!-- Complete state -->
+                <div id="transfer-source-complete" class="transfer-state hidden">
+                    <p class="transfer-success-text">Transfer Complete!</p>
+                    <p class="transfer-hint">Your identity has been transferred to the other device.</p>
+                    <div class="modal-actions">
+                        <button type="button" id="transfer-done-btn" class="btn btn-primary">Done</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="transfer-source-footer">
+                <button type="button" id="transfer-cancel-btn" class="btn btn-secondary">Cancel Transfer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Receive Modal (enter code) -->
+    <div id="transfer-receive-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Device by Code</h2>
+                <button id="transfer-receive-close-btn" class="modal-close">&times;</button>
+            </div>
+            <div id="transfer-receive-body" class="modal-body">
+                <!-- Initial state: Enter code -->
+                <div id="transfer-receive-enter" class="transfer-state">
+                    <p class="transfer-intro">Enter the 6-digit code from your other device:</p>
+                    <div class="form-group">
+                        <input type="text" id="transfer-receive-code" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" class="transfer-code-input">
+                    </div>
+                    <div id="transfer-receive-error" class="form-error hidden"></div>
+                    <div class="modal-actions">
+                        <button type="button" id="transfer-receive-cancel-btn" class="btn btn-secondary">Cancel</button>
+                        <button type="button" id="transfer-receive-submit-btn" class="btn btn-primary">Connect</button>
+                    </div>
+                </div>
+                <!-- Waiting state: Waiting for approval -->
+                <div id="transfer-receive-waiting" class="transfer-state hidden">
+                    <p class="transfer-intro">Connected to:</p>
+                    <div class="transfer-device-info">
+                        <span class="transfer-device-name" id="transfer-source-user">Unknown User</span>
+                        <span class="transfer-device-detail" id="transfer-source-device">Unknown Device</span>
+                    </div>
+                    <p class="transfer-hint">Waiting for approval from the other device...</p>
+                    <div class="transfer-spinner"></div>
+                </div>
+                <!-- Enter PIN state -->
+                <div id="transfer-receive-pin" class="transfer-state hidden">
+                    <p class="transfer-success-text">Identity received!</p>
+                    <p class="transfer-intro">Enter your PIN to decrypt and import the identity:</p>
+                    <div class="form-group">
+                        <input type="password" id="transfer-receive-pin-input" placeholder="PIN" inputmode="numeric" autocomplete="current-password">
+                    </div>
+                    <div id="transfer-receive-pin-error" class="form-error hidden"></div>
+                    <div class="modal-actions">
+                        <button type="button" id="transfer-receive-pin-btn" class="btn btn-primary">Import Identity</button>
+                    </div>
+                </div>
+                <!-- Complete state -->
+                <div id="transfer-receive-complete" class="transfer-state hidden">
+                    <p class="transfer-success-text">Transfer Complete!</p>
+                    <p class="transfer-hint">Your identity has been imported. You can now sign in.</p>
+                    <div class="modal-actions">
+                        <button type="button" id="transfer-receive-done-btn" class="btn btn-primary">Continue</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -17,7 +17,7 @@ const API = (function() {
 
     // App version - must match server's APP_VERSION for compatibility
     // This should match the service worker CACHE_NAME version number
-    const APP_VERSION = 116;
+    const APP_VERSION = 117;
 
     // Current auth token
     let authToken = localStorage.getItem('whereish_auth_token') || null;
@@ -434,6 +434,84 @@ const API = (function() {
     }
 
     // ===================
+    // Identity Transfer
+    // ===================
+
+    /**
+     * Create a transfer session (source device)
+     * @param {string} deviceId - Current device ID
+     * @returns {Promise<Object>} { id, code, status, expiresAt }
+     */
+    async function createTransfer(deviceId) {
+        const data = await request('/api/transfers', {
+            method: 'POST',
+            body: JSON.stringify({ deviceId })
+        });
+        return data;
+    }
+
+    /**
+     * Get transfer status (source device polling)
+     * @param {string} transferId
+     * @returns {Promise<Object>} { id, status, expiresAt, targetDevice? }
+     */
+    async function getTransferStatus(transferId) {
+        return request(`/api/transfers/${transferId}`);
+    }
+
+    /**
+     * Approve a transfer (source device)
+     * @param {string} transferId
+     * @param {string} encryptedIdentity
+     * @returns {Promise<Object>}
+     */
+    async function approveTransfer(transferId, encryptedIdentity) {
+        return request(`/api/transfers/${transferId}/approve`, {
+            method: 'POST',
+            body: JSON.stringify({ encryptedIdentity })
+        });
+    }
+
+    /**
+     * Cancel a transfer (source device)
+     * @param {string} transferId
+     * @returns {Promise<Object>}
+     */
+    async function cancelTransfer(transferId) {
+        return request(`/api/transfers/${transferId}/cancel`, {
+            method: 'POST'
+        });
+    }
+
+    /**
+     * Claim a transfer using code (target device, no auth)
+     * @param {string} code - 6-digit code
+     * @param {string} deviceName
+     * @param {string} devicePlatform
+     * @returns {Promise<Object>} { transferId, tempDeviceId, sourceUser, sourceDevice }
+     */
+    async function claimTransfer(code, deviceName, devicePlatform) {
+        const data = await request('/api/transfers/claim', {
+            method: 'POST',
+            body: JSON.stringify({
+                code,
+                deviceName,
+                devicePlatform
+            })
+        });
+        return data;
+    }
+
+    /**
+     * Receive encrypted identity (target device polling, no auth)
+     * @param {string} transferId
+     * @returns {Promise<Object>} { status, encryptedIdentity? }
+     */
+    async function receiveTransferIdentity(transferId) {
+        return request(`/api/transfers/${transferId}/receive`);
+    }
+
+    // ===================
     // Devices
     // ===================
 
@@ -572,6 +650,14 @@ const API = (function() {
         addDevice,
         activateDevice,
         deleteDevice,
+
+        // Identity Transfer
+        createTransfer,
+        getTransferStatus,
+        approveTransfer,
+        cancelTransfer,
+        claimTransfer,
+        receiveTransferIdentity,
 
         // Utility
         checkHealth

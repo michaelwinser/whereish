@@ -247,6 +247,27 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_devices_user_id
         ON devices(user_id);
+
+        CREATE TABLE IF NOT EXISTS transfers (
+            id TEXT PRIMARY KEY,
+            code TEXT NOT NULL UNIQUE,
+            source_user_id TEXT NOT NULL,
+            source_device_id TEXT NOT NULL,
+            target_device_id TEXT,
+            target_device_name TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            encrypted_identity TEXT,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (source_user_id) REFERENCES users(id),
+            FOREIGN KEY (source_device_id) REFERENCES devices(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_transfers_code
+        ON transfers(code);
+
+        CREATE INDEX IF NOT EXISTS idx_transfers_source_user
+        ON transfers(source_user_id);
     """)
     db.commit()
 
@@ -422,6 +443,155 @@ def update_device_last_seen(device_id):
     """Update the last_seen timestamp for a device."""
     db = get_db()
     db.execute('UPDATE devices SET last_seen = ? WHERE id = ?', (datetime.utcnow(), device_id))
+    db.commit()
+
+
+# ===================
+# Transfer Helpers
+# ===================
+
+# Transfer session expiry (minutes)
+TRANSFER_EXPIRY_MINUTES = 10
+
+
+def generate_transfer_code():
+    """Generate a 6-digit transfer code."""
+    return ''.join(str(secrets.randbelow(10)) for _ in range(6))
+
+
+def create_transfer_session(user_id, source_device_id):
+    """Create a new transfer session.
+
+    Returns the transfer record with code for sharing.
+    """
+    db = get_db()
+
+    # Generate unique transfer ID and code
+    transfer_id = secrets.token_hex(16)
+    code = generate_transfer_code()
+
+    # Ensure code is unique (very unlikely to collide, but be safe)
+    while db.execute('SELECT id FROM transfers WHERE code = ?', (code,)).fetchone():
+        code = generate_transfer_code()
+
+    # Set expiry time
+    expires_at = datetime.utcnow() + timedelta(minutes=TRANSFER_EXPIRY_MINUTES)
+
+    db.execute(
+        """INSERT INTO transfers (id, code, source_user_id, source_device_id, status, expires_at)
+           VALUES (?, ?, ?, ?, 'pending', ?)""",
+        (transfer_id, code, user_id, source_device_id, expires_at),
+    )
+    db.commit()
+
+    return {
+        'id': transfer_id,
+        'code': code,
+        'status': 'pending',
+        'expiresAt': format_timestamp(expires_at),
+    }
+
+
+def get_transfer_by_code(code):
+    """Get transfer by code (for target device to claim)."""
+    db = get_db()
+    row = db.execute(
+        """SELECT t.*, u.name as source_user_name, d.name as source_device_name
+           FROM transfers t
+           JOIN users u ON t.source_user_id = u.id
+           JOIN devices d ON t.source_device_id = d.id
+           WHERE t.code = ? AND t.expires_at > ?""",
+        (code, datetime.utcnow()),
+    ).fetchone()
+
+    if not row:
+        return None
+
+    return dict(row)
+
+
+def get_transfer_by_id(transfer_id, user_id=None):
+    """Get transfer by ID (for status checking)."""
+    db = get_db()
+    query = 'SELECT * FROM transfers WHERE id = ?'
+    params = [transfer_id]
+
+    if user_id:
+        query += ' AND source_user_id = ?'
+        params.append(user_id)
+
+    row = db.execute(query, params).fetchone()
+    return dict(row) if row else None
+
+
+def claim_transfer(transfer_id, target_device_id, target_device_name):
+    """Claim a transfer session (target device)."""
+    db = get_db()
+
+    # Check transfer exists and is pending
+    transfer = get_transfer_by_id(transfer_id)
+    if not transfer:
+        return None
+    if transfer['status'] != 'pending':
+        return None
+
+    # Update with target device info
+    db.execute(
+        """UPDATE transfers SET target_device_id = ?, target_device_name = ?, status = 'claimed'
+           WHERE id = ? AND status = 'pending'""",
+        (target_device_id, target_device_name, transfer_id),
+    )
+    db.commit()
+
+    return get_transfer_by_id(transfer_id)
+
+
+def approve_transfer(transfer_id, user_id, encrypted_identity):
+    """Approve a transfer and provide encrypted identity (source device)."""
+    db = get_db()
+
+    # Verify transfer belongs to user and is claimed
+    transfer = get_transfer_by_id(transfer_id, user_id)
+    if not transfer:
+        return None
+    if transfer['status'] != 'claimed':
+        return None
+
+    db.execute(
+        """UPDATE transfers SET encrypted_identity = ?, status = 'approved'
+           WHERE id = ? AND source_user_id = ? AND status = 'claimed'""",
+        (encrypted_identity, transfer_id, user_id),
+    )
+    db.commit()
+
+    return get_transfer_by_id(transfer_id, user_id)
+
+
+def complete_transfer(transfer_id):
+    """Mark a transfer as completed (target device received identity)."""
+    db = get_db()
+    db.execute(
+        "UPDATE transfers SET status = 'completed' WHERE id = ? AND status = 'approved'",
+        (transfer_id,),
+    )
+    db.commit()
+
+
+def cancel_transfer(transfer_id, user_id):
+    """Cancel a transfer (source device)."""
+    db = get_db()
+    result = db.execute(
+        'DELETE FROM transfers WHERE id = ? AND source_user_id = ?',
+        (transfer_id, user_id),
+    )
+    db.commit()
+    return result.rowcount > 0
+
+
+def cleanup_expired_transfers():
+    """Remove expired transfer sessions."""
+    db = get_db()
+    db.execute('DELETE FROM transfers WHERE expires_at < ?', (datetime.utcnow(),))
     db.commit()
 
 
@@ -1371,6 +1541,221 @@ def remove_device(device_id):
         return jsonify({'error': 'Device not found'}), 404
 
     return jsonify({'success': True})
+
+
+# ===================
+# API Routes - Identity Transfer
+# ===================
+
+
+@app.route('/api/transfers', methods=['POST'])
+@require_auth
+def create_transfer():
+    """Create a new identity transfer session.
+
+    Source device calls this to start a transfer.
+    Returns a 6-digit code to share with target device.
+
+    Request:
+        { "deviceId": "source_device_id" }
+
+    Response:
+        { "id": "transfer_id", "code": "123456", "status": "pending", "expiresAt": "..." }
+    """
+    user = g.current_user
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Missing request body'}), 400
+
+    device_id = data.get('deviceId')
+    if not device_id:
+        return jsonify({'error': 'Device ID is required'}), 400
+
+    # Verify device belongs to user
+    devices = get_user_devices(user['id'])
+    if not any(d['id'] == device_id for d in devices):
+        return jsonify({'error': 'Device not found'}), 404
+
+    # Cleanup expired transfers first
+    cleanup_expired_transfers()
+
+    # Create transfer session
+    transfer = create_transfer_session(user['id'], device_id)
+
+    return jsonify(transfer), 201
+
+
+@app.route('/api/transfers/<transfer_id>', methods=['GET'])
+@require_auth
+def get_transfer_status(transfer_id):
+    """Get transfer status (source device polling).
+
+    Response includes target device info when claimed.
+    """
+    user = g.current_user
+
+    transfer = get_transfer_by_id(transfer_id, user['id'])
+    if not transfer:
+        return jsonify({'error': 'Transfer not found'}), 404
+
+    # Check if expired
+    if datetime.fromisoformat(str(transfer['expires_at'])) < datetime.utcnow():
+        return jsonify({'error': 'Transfer expired'}), 410
+
+    response = {
+        'id': transfer['id'],
+        'status': transfer['status'],
+        'expiresAt': format_timestamp(transfer['expires_at']),
+    }
+
+    # Include target device info if claimed
+    if transfer['status'] in ('claimed', 'approved', 'completed'):
+        response['targetDevice'] = {
+            'id': transfer['target_device_id'],
+            'name': transfer['target_device_name'],
+        }
+
+    return jsonify(response)
+
+
+@app.route('/api/transfers/<transfer_id>/approve', methods=['POST'])
+@require_auth
+def approve_transfer_request(transfer_id):
+    """Approve a claimed transfer (source device).
+
+    Provides encrypted identity for target device.
+
+    Request:
+        { "encryptedIdentity": "..." }
+    """
+    user = g.current_user
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Missing request body'}), 400
+
+    encrypted_identity = data.get('encryptedIdentity')
+    if not encrypted_identity:
+        return jsonify({'error': 'Encrypted identity is required'}), 400
+
+    transfer = approve_transfer(transfer_id, user['id'], encrypted_identity)
+    if not transfer:
+        return jsonify({'error': 'Transfer not found or not in claimed status'}), 404
+
+    return jsonify(
+        {
+            'success': True,
+            'status': transfer['status'],
+        }
+    )
+
+
+@app.route('/api/transfers/<transfer_id>/cancel', methods=['POST'])
+@require_auth
+def cancel_transfer_request(transfer_id):
+    """Cancel a transfer session (source device)."""
+    user = g.current_user
+
+    if not cancel_transfer(transfer_id, user['id']):
+        return jsonify({'error': 'Transfer not found'}), 404
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/transfers/claim', methods=['POST'])
+def claim_transfer_request():
+    """Claim a transfer using code (target device).
+
+    Target device enters code from source device.
+    No authentication required - this is how a new device joins.
+
+    Request:
+        { "code": "123456", "deviceName": "My iPhone", "devicePlatform": "ios" }
+
+    Response:
+        { "transferId": "...", "sourceUser": "...", "sourceDevice": "..." }
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Missing request body'}), 400
+
+    code = data.get('code', '').strip()
+    device_name = data.get('deviceName', '').strip()
+
+    if not code or len(code) != 6:
+        return jsonify({'error': 'Invalid code format'}), 400
+
+    if not device_name:
+        return jsonify({'error': 'Device name is required'}), 400
+
+    # Find transfer by code
+    transfer = get_transfer_by_code(code)
+    if not transfer:
+        return jsonify({'error': 'Invalid or expired code'}), 404
+
+    # Generate a temporary device ID for the target device
+    # (will be properly registered after transfer completes)
+    temp_device_id = secrets.token_hex(16)
+
+    # Claim the transfer
+    claimed = claim_transfer(transfer['id'], temp_device_id, device_name)
+    if not claimed:
+        return jsonify({'error': 'Transfer already claimed'}), 409
+
+    return jsonify(
+        {
+            'transferId': transfer['id'],
+            'tempDeviceId': temp_device_id,
+            'sourceUser': transfer['source_user_name'],
+            'sourceDevice': transfer['source_device_name'],
+        }
+    )
+
+
+@app.route('/api/transfers/<transfer_id>/receive', methods=['GET'])
+def receive_transfer_identity(transfer_id):
+    """Receive encrypted identity (target device polling).
+
+    Target device polls this after claiming until identity is available.
+    No authentication - uses transfer ID as authorization.
+    """
+    transfer = get_transfer_by_id(transfer_id)
+    if not transfer:
+        return jsonify({'error': 'Transfer not found'}), 404
+
+    # Check expiry
+    if datetime.fromisoformat(str(transfer['expires_at'])) < datetime.utcnow():
+        return jsonify({'error': 'Transfer expired'}), 410
+
+    if transfer['status'] == 'claimed':
+        # Still waiting for approval
+        return jsonify(
+            {
+                'status': 'waiting',
+                'message': 'Waiting for approval from source device',
+            }
+        )
+
+    if transfer['status'] == 'approved':
+        # Identity ready - return it
+        identity = transfer['encrypted_identity']
+
+        # Mark as completed
+        complete_transfer(transfer_id)
+
+        return jsonify(
+            {
+                'status': 'approved',
+                'encryptedIdentity': identity,
+            }
+        )
+
+    if transfer['status'] == 'completed':
+        return jsonify({'error': 'Transfer already completed'}), 410
+
+    return jsonify({'error': 'Invalid transfer status'}), 400
 
 
 # ===================

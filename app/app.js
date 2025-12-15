@@ -1314,6 +1314,333 @@
     }
 
     // ===================
+    // Identity Transfer (Source Device)
+    // ===================
+
+    let activeTransfer = null;
+    let transferPollInterval = null;
+
+    function openTransferSourceModal() {
+        const modal = document.getElementById('transfer-source-modal');
+        const pendingState = document.getElementById('transfer-source-pending');
+        const claimedState = document.getElementById('transfer-source-claimed');
+        const completeState = document.getElementById('transfer-source-complete');
+        const footer = document.getElementById('transfer-source-footer');
+
+        // Reset to pending state
+        pendingState.classList.remove('hidden');
+        claimedState.classList.add('hidden');
+        completeState.classList.add('hidden');
+        footer.classList.remove('hidden');
+
+        modal.classList.remove('hidden');
+        initTransfer();
+    }
+
+    function closeTransferSourceModal() {
+        const modal = document.getElementById('transfer-source-modal');
+        modal.classList.add('hidden');
+
+        // Stop polling
+        if (transferPollInterval) {
+            clearInterval(transferPollInterval);
+            transferPollInterval = null;
+        }
+        activeTransfer = null;
+    }
+
+    async function initTransfer() {
+        const deviceId = getStoredDeviceId();
+        if (!deviceId) {
+            Toast.error('No device registered');
+            closeTransferSourceModal();
+            return;
+        }
+
+        try {
+            const transfer = await API.createTransfer(deviceId);
+            activeTransfer = transfer;
+
+            // Update UI
+            document.getElementById('transfer-code').textContent = transfer.code;
+
+            // Calculate minutes remaining
+            const expiresAt = new Date(transfer.expiresAt);
+            const minutes = Math.ceil((expiresAt - Date.now()) / 60000);
+            document.getElementById('transfer-expires').textContent = minutes;
+
+            // Start polling for claim
+            startTransferPolling();
+        } catch (error) {
+            console.error('Failed to create transfer:', error);
+            Toast.error('Failed to create transfer');
+            closeTransferSourceModal();
+        }
+    }
+
+    function startTransferPolling() {
+        if (transferPollInterval) clearInterval(transferPollInterval);
+
+        transferPollInterval = setInterval(async () => {
+            if (!activeTransfer) {
+                clearInterval(transferPollInterval);
+                return;
+            }
+
+            try {
+                const status = await API.getTransferStatus(activeTransfer.id);
+                activeTransfer = { ...activeTransfer, ...status };
+
+                if (status.status === 'claimed') {
+                    // Device claimed - show approval UI
+                    showTransferClaimed(status.targetDevice);
+                    clearInterval(transferPollInterval);
+                    transferPollInterval = null;
+                } else if (status.status === 'approved' || status.status === 'completed') {
+                    showTransferComplete();
+                    clearInterval(transferPollInterval);
+                    transferPollInterval = null;
+                }
+            } catch (error) {
+                if (error.message.includes('expired') || error.message.includes('410')) {
+                    Toast.warning('Transfer expired');
+                    closeTransferSourceModal();
+                }
+            }
+        }, 2000); // Poll every 2 seconds
+    }
+
+    function showTransferClaimed(targetDevice) {
+        document.getElementById('transfer-source-pending').classList.add('hidden');
+        document.getElementById('transfer-source-claimed').classList.remove('hidden');
+        document.getElementById('transfer-target-device').textContent = targetDevice?.name || 'Unknown Device';
+        document.getElementById('transfer-pin').value = '';
+        document.getElementById('transfer-source-error').classList.add('hidden');
+    }
+
+    function showTransferComplete() {
+        document.getElementById('transfer-source-pending').classList.add('hidden');
+        document.getElementById('transfer-source-claimed').classList.add('hidden');
+        document.getElementById('transfer-source-complete').classList.remove('hidden');
+        document.getElementById('transfer-source-footer').classList.add('hidden');
+    }
+
+    async function handleTransferApprove() {
+        if (!activeTransfer) return;
+
+        const pin = document.getElementById('transfer-pin').value;
+        if (!pin) {
+            document.getElementById('transfer-source-error').textContent = 'Please enter your PIN';
+            document.getElementById('transfer-source-error').classList.remove('hidden');
+            return;
+        }
+
+        const approveBtn = document.getElementById('transfer-approve-btn');
+        approveBtn.disabled = true;
+        approveBtn.textContent = 'Approving...';
+
+        try {
+            // Export encrypted identity with PIN
+            const email = API.getUserEmail() || '';
+            const encryptedJson = await Identity.exportEncrypted({ email, name: '' }, pin);
+
+            // Send to server
+            await API.approveTransfer(activeTransfer.id, encryptedJson);
+
+            showTransferComplete();
+            Toast.success('Transfer approved');
+        } catch (error) {
+            console.error('Failed to approve transfer:', error);
+            document.getElementById('transfer-source-error').textContent = 'Failed to approve: ' + error.message;
+            document.getElementById('transfer-source-error').classList.remove('hidden');
+        } finally {
+            approveBtn.disabled = false;
+            approveBtn.textContent = 'Approve Transfer';
+        }
+    }
+
+    async function handleTransferDeny() {
+        if (!activeTransfer) return;
+
+        try {
+            await API.cancelTransfer(activeTransfer.id);
+        } catch {
+            // Ignore errors on cancel
+        }
+        closeTransferSourceModal();
+        Toast.info('Transfer denied');
+    }
+
+    async function handleTransferCancel() {
+        if (activeTransfer) {
+            try {
+                await API.cancelTransfer(activeTransfer.id);
+            } catch {
+                // Ignore errors on cancel
+            }
+        }
+        closeTransferSourceModal();
+    }
+
+    // ===================
+    // Identity Transfer (Receive Device)
+    // ===================
+
+    let receiveTransfer = null;
+    let receivePollInterval = null;
+
+    function openTransferReceiveModal() {
+        const modal = document.getElementById('transfer-receive-modal');
+        const enterState = document.getElementById('transfer-receive-enter');
+        const waitingState = document.getElementById('transfer-receive-waiting');
+        const pinState = document.getElementById('transfer-receive-pin');
+        const completeState = document.getElementById('transfer-receive-complete');
+
+        // Reset to enter state
+        enterState.classList.remove('hidden');
+        waitingState.classList.add('hidden');
+        pinState.classList.add('hidden');
+        completeState.classList.add('hidden');
+
+        document.getElementById('transfer-receive-code').value = '';
+        document.getElementById('transfer-receive-error').classList.add('hidden');
+
+        modal.classList.remove('hidden');
+        document.getElementById('transfer-receive-code').focus();
+    }
+
+    function closeTransferReceiveModal() {
+        const modal = document.getElementById('transfer-receive-modal');
+        modal.classList.add('hidden');
+
+        if (receivePollInterval) {
+            clearInterval(receivePollInterval);
+            receivePollInterval = null;
+        }
+        receiveTransfer = null;
+    }
+
+    async function handleTransferReceiveSubmit() {
+        const code = document.getElementById('transfer-receive-code').value.trim();
+        const errorEl = document.getElementById('transfer-receive-error');
+
+        if (!code || code.length !== 6) {
+            errorEl.textContent = 'Please enter a 6-digit code';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        const submitBtn = document.getElementById('transfer-receive-submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Connecting...';
+        errorEl.classList.add('hidden');
+
+        try {
+            const result = await API.claimTransfer(code, getDeviceName(), getDevicePlatform());
+            receiveTransfer = result;
+
+            // Show waiting state
+            document.getElementById('transfer-receive-enter').classList.add('hidden');
+            document.getElementById('transfer-receive-waiting').classList.remove('hidden');
+            document.getElementById('transfer-source-user').textContent = result.sourceUser;
+            document.getElementById('transfer-source-device').textContent = result.sourceDevice;
+
+            // Start polling for identity
+            startReceivePolling();
+        } catch (error) {
+            console.error('Failed to claim transfer:', error);
+            errorEl.textContent = error.message || 'Invalid or expired code';
+            errorEl.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Connect';
+        }
+    }
+
+    function startReceivePolling() {
+        if (receivePollInterval) clearInterval(receivePollInterval);
+
+        receivePollInterval = setInterval(async () => {
+            if (!receiveTransfer) {
+                clearInterval(receivePollInterval);
+                return;
+            }
+
+            try {
+                const result = await API.receiveTransferIdentity(receiveTransfer.transferId);
+
+                if (result.status === 'approved' && result.encryptedIdentity) {
+                    clearInterval(receivePollInterval);
+                    receivePollInterval = null;
+                    receiveTransfer.encryptedIdentity = result.encryptedIdentity;
+                    showReceivePinState();
+                }
+            } catch (error) {
+                if (error.message.includes('expired') || error.message.includes('410')) {
+                    Toast.warning('Transfer expired or cancelled');
+                    closeTransferReceiveModal();
+                    clearInterval(receivePollInterval);
+                }
+            }
+        }, 2000); // Poll every 2 seconds
+    }
+
+    function showReceivePinState() {
+        document.getElementById('transfer-receive-waiting').classList.add('hidden');
+        document.getElementById('transfer-receive-pin').classList.remove('hidden');
+        document.getElementById('transfer-receive-pin-input').value = '';
+        document.getElementById('transfer-receive-pin-error').classList.add('hidden');
+        document.getElementById('transfer-receive-pin-input').focus();
+    }
+
+    async function handleReceiveImportIdentity() {
+        if (!receiveTransfer || !receiveTransfer.encryptedIdentity) return;
+
+        const pin = document.getElementById('transfer-receive-pin-input').value;
+        const errorEl = document.getElementById('transfer-receive-pin-error');
+
+        if (!pin) {
+            errorEl.textContent = 'Please enter your PIN';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        const importBtn = document.getElementById('transfer-receive-pin-btn');
+        importBtn.disabled = true;
+        importBtn.textContent = 'Importing...';
+        errorEl.classList.add('hidden');
+
+        try {
+            // Import the identity
+            await Identity.importEncrypted(receiveTransfer.encryptedIdentity, pin);
+
+            // Store PIN test value
+            const pinTest = await PinCrypto.encryptTestValue(pin);
+            localStorage.setItem('whereish_pin_test', JSON.stringify(pinTest));
+            localStorage.setItem('whereish_pin_last_check', Date.now().toString());
+
+            // Show complete state
+            document.getElementById('transfer-receive-pin').classList.add('hidden');
+            document.getElementById('transfer-receive-complete').classList.remove('hidden');
+
+            Toast.success('Identity imported successfully!');
+        } catch (error) {
+            console.error('Failed to import identity:', error);
+            errorEl.textContent = 'Incorrect PIN or corrupted data';
+            errorEl.classList.remove('hidden');
+        } finally {
+            importBtn.disabled = false;
+            importBtn.textContent = 'Import Identity';
+        }
+    }
+
+    function handleReceiveComplete() {
+        closeTransferReceiveModal();
+        // Redirect to login
+        openAuthModal(true);
+    }
+
+    // ===================
     // Contacts
     // ===================
 
@@ -2402,6 +2729,24 @@
             const type = elements.pinEntryShow.checked ? 'text' : 'password';
             elements.pinEntryPin.type = type;
         });
+
+        // Transfer Source modal (initiate transfer)
+        document.getElementById('transfer-to-device-btn')?.addEventListener('click', openTransferSourceModal);
+        document.getElementById('transfer-source-close-btn')?.addEventListener('click', closeTransferSourceModal);
+        document.getElementById('transfer-source-modal')?.querySelector('.modal-backdrop')?.addEventListener('click', closeTransferSourceModal);
+        document.getElementById('transfer-approve-btn')?.addEventListener('click', handleTransferApprove);
+        document.getElementById('transfer-deny-btn')?.addEventListener('click', handleTransferDeny);
+        document.getElementById('transfer-cancel-btn')?.addEventListener('click', handleTransferCancel);
+        document.getElementById('transfer-done-btn')?.addEventListener('click', closeTransferSourceModal);
+
+        // Transfer Receive modal (enter code from another device)
+        document.getElementById('welcome-transfer-btn')?.addEventListener('click', openTransferReceiveModal);
+        document.getElementById('transfer-receive-close-btn')?.addEventListener('click', closeTransferReceiveModal);
+        document.getElementById('transfer-receive-modal')?.querySelector('.modal-backdrop')?.addEventListener('click', closeTransferReceiveModal);
+        document.getElementById('transfer-receive-cancel-btn')?.addEventListener('click', closeTransferReceiveModal);
+        document.getElementById('transfer-receive-submit-btn')?.addEventListener('click', handleTransferReceiveSubmit);
+        document.getElementById('transfer-receive-pin-btn')?.addEventListener('click', handleReceiveImportIdentity);
+        document.getElementById('transfer-receive-done-btn')?.addEventListener('click', handleReceiveComplete);
 
         // Add contact
         elements.addContactBtn.addEventListener('click', openAddContactModal);

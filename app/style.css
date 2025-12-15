@@ -2145,6 +2145,117 @@ body {
     color: var(--color-text-secondary);
 }
 
+.settings-transfer-btn {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* Transfer Modals */
+.transfer-state {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.transfer-intro {
+    color: var(--color-text-secondary);
+    margin-bottom: 1rem;
+}
+
+.transfer-code-display {
+    background: var(--color-card-bg);
+    border: 2px dashed var(--color-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.transfer-code-display #transfer-code {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-size: 2.5rem;
+    font-weight: bold;
+    letter-spacing: 0.3em;
+    color: var(--color-primary);
+}
+
+.transfer-code-input {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-size: 1.5rem;
+    letter-spacing: 0.2em;
+    text-align: center;
+    padding: 1rem;
+}
+
+.transfer-hint {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin: 0.5rem 0;
+}
+
+.transfer-status {
+    margin-top: 1.5rem;
+    padding: 0.75rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+}
+
+.transfer-status-text {
+    color: var(--color-primary);
+    font-size: 0.9rem;
+}
+
+.transfer-success-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--color-success);
+    margin-bottom: 1rem;
+}
+
+.transfer-device-info {
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.transfer-device-name {
+    display: block;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.transfer-device-detail {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-top: 0.25rem;
+}
+
+.transfer-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    margin: 1rem auto;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.welcome-transfer {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.welcome-transfer-text {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+}
+
 /* Delete Account View */
 .delete-account-warning {
     background: #fff5f5;
