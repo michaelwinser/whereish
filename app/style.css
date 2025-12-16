@@ -822,11 +822,6 @@ body {
     opacity: 0.7;
 }
 
-.contact-location.no-location {
-    color: var(--color-text-muted);
-    opacity: 0.5;
-}
-
 .contact-time {
     font-size: 0.75rem;
     color: var(--color-text-muted);

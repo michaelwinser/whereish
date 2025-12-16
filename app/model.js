@@ -72,7 +72,8 @@ const Model = (function() {
         { key: 'county', label: 'County', nominatimKeys: ['county'] },
         { key: 'state', label: 'State', nominatimKeys: ['state'] },
         { key: 'country', label: 'Country', nominatimKeys: ['country'] },
-        { key: 'continent', label: 'Continent', nominatimKeys: [] }
+        { key: 'continent', label: 'Continent', nominatimKeys: [] },
+        { key: 'planet', label: 'Planet', nominatimKeys: [] }
     ];
 
     const COUNTRY_TO_CONTINENT = {
@@ -157,15 +158,23 @@ const Model = (function() {
     /**
      * Build a location hierarchy from Nominatim address components
      * @param {Object} addressComponents - Nominatim address response
-     * @returns {Object} Hierarchy object with keys: address, street, neighborhood, city, county, state, country, continent
+     * @returns {Object} Hierarchy object with keys: address, street, neighborhood, city, county, state, country, continent, planet
      */
     function buildHierarchy(addressComponents) {
         const hierarchy = {};
 
         for (const level of HIERARCHY_LEVELS) {
+            if (level.key === 'planet') {
+                // Planet is always set - the minimum sharing level for connected contacts
+                hierarchy.planet = 'Planet Earth';
+                continue;
+            }
+
             if (level.key === 'continent') {
                 const country = hierarchy.country;
-                hierarchy.continent = country ? (COUNTRY_TO_CONTINENT[country] || 'Planet Earth') : 'Planet Earth';
+                if (country && COUNTRY_TO_CONTINENT[country]) {
+                    hierarchy.continent = COUNTRY_TO_CONTINENT[country];
+                }
                 continue;
             }
 
@@ -186,12 +195,16 @@ const Model = (function() {
             }
         }
 
-        if (!hierarchy.continent) {
-            hierarchy.continent = 'Planet Earth';
+        // Planet is always present as the minimum level
+        if (!hierarchy.planet) {
+            hierarchy.planet = 'Planet Earth';
         }
 
         return hierarchy;
     }
+
+    // Default location text - the minimum sharing level for connected contacts
+    const DEFAULT_LOCATION = 'Planet Earth';
 
     /**
      * Find the most specific level in a hierarchy
@@ -205,6 +218,34 @@ const Model = (function() {
             }
         }
         return null;
+    }
+
+    /**
+     * Get display text for a location hierarchy
+     * @param {Object} hierarchy - Location hierarchy object
+     * @param {string} [namedLocation] - Optional named location to show instead
+     * @returns {string} Location text to display (never null)
+     */
+    function getLocationText(hierarchy, namedLocation) {
+        if (namedLocation) {
+            return namedLocation;
+        }
+        return findMostSpecificLevel(hierarchy) || DEFAULT_LOCATION;
+    }
+
+    /**
+     * Get display text for a contact's location
+     * Connected contacts always share at minimum planet level
+     * @param {Object} contact - Contact object with optional location data
+     * @returns {string} Location text to display (never null)
+     */
+    function getContactLocationText(contact) {
+        if (contact.location && contact.location.data) {
+            const data = contact.location.data;
+            return getLocationText(data.hierarchy, data.namedLocation);
+        }
+        // No location data yet - default to planet level
+        return DEFAULT_LOCATION;
     }
 
     /**
@@ -270,19 +311,19 @@ const Model = (function() {
     /**
      * Filter a hierarchy based on permission level
      * @param {Object} hierarchy - Full location hierarchy
-     * @param {string} permissionLevel - Permission level key (e.g., 'city', 'street')
+     * @param {string} permissionLevel - Permission level key (e.g., 'city', 'street', 'planet')
      * @returns {Object} Filtered hierarchy containing only allowed levels
      */
     function getFilteredHierarchy(hierarchy, permissionLevel) {
-        if (!hierarchy) return { continent: 'Planet Earth' };
+        if (!hierarchy) return { planet: 'Planet Earth' };
 
         const levelIndex = HIERARCHY_LEVELS.findIndex(function(l) {
             return l.key === permissionLevel;
         });
 
         if (levelIndex === -1) {
-            // Unknown level - show planet only
-            return { continent: 'Planet Earth' };
+            // Unknown level - default to planet (minimum sharing)
+            return { planet: 'Planet Earth' };
         }
 
         const filtered = {};
@@ -293,9 +334,9 @@ const Model = (function() {
             }
         }
 
-        // Ensure at least continent is set
+        // Ensure at least planet is set (should always be present)
         if (Object.keys(filtered).length === 0) {
-            filtered.continent = 'Planet Earth';
+            filtered.planet = 'Planet Earth';
         }
 
         return filtered;
@@ -629,10 +670,13 @@ const Model = (function() {
         CONFIG: CONFIG,
         HIERARCHY_LEVELS: HIERARCHY_LEVELS,
         COUNTRY_TO_CONTINENT: COUNTRY_TO_CONTINENT,
+        DEFAULT_LOCATION: DEFAULT_LOCATION,
 
         // Pure functions
         buildHierarchy: buildHierarchy,
         findMostSpecificLevel: findMostSpecificLevel,
+        getLocationText: getLocationText,
+        getContactLocationText: getContactLocationText,
         formatTimeAgo: formatTimeAgo,
         escapeHtml: escapeHtml,
         getVisibilityIndicator: getVisibilityIndicator,

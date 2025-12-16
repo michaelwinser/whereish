@@ -295,18 +295,16 @@
             return;
         }
 
-        const mostSpecific = Model.findMostSpecificLevel(hierarchy);
-
         if (match) {
             // Show named location as primary, actual location as secondary
             primaryEl.textContent = match.label;
             if (secondaryEl) {
-                secondaryEl.textContent = mostSpecific || 'Planet Earth';
+                secondaryEl.textContent = Model.getLocationText(hierarchy);
                 secondaryEl.classList.remove('hidden');
             }
         } else {
             // Show most specific location as primary, no secondary
-            primaryEl.textContent = mostSpecific || 'Planet Earth';
+            primaryEl.textContent = Model.getLocationText(hierarchy);
             secondaryEl?.classList.add('hidden');
         }
     }
@@ -330,26 +328,19 @@
             return;
         }
 
-        // Build hierarchy from most specific to least specific, ending with Planet Earth
+        // Build hierarchy from most specific to least specific, ending with Planet
         const levels = [];
 
-        // Add all hierarchy levels that have values
+        // Add all hierarchy levels that have values (planet is always present as minimum)
         for (const level of Model.HIERARCHY_LEVELS) {
             if (currentHierarchy[level.key]) {
                 levels.push({
-                    icon: '📍',
+                    icon: level.key === 'planet' ? '🌍' : '📍',
                     text: currentHierarchy[level.key],
                     primary: levels.length === 0  // First one is most specific
                 });
             }
         }
-
-        // Always add Planet Earth at the end
-        levels.push({
-            icon: '🌍',
-            text: 'Planet Earth',
-            primary: false
-        });
 
         container.innerHTML = levels.map((level, _index) => `
             <div class="welcome-hierarchy-level${level.primary ? ' primary' : ''}">
@@ -1896,15 +1887,12 @@
 
         elements.contactsList.innerHTML = contacts.map(contact => {
             const initial = contact.name.charAt(0).toUpperCase();
-            let locationText = 'Planet Earth';
-            let locationClass = 'no-location';
+            const locationText = Model.getContactLocationText(contact);
+            let locationClass = '';
             let timeText = '';
             let distanceText = '';
 
-            if (contact.location && contact.location.data) {
-                const data = contact.location.data;
-                // Get the most specific level from their filtered hierarchy
-                locationText = data.namedLocation || Model.findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
+            if (contact.location) {
                 locationClass = contact.location.stale ? 'stale' : '';
 
                 if (contact.location.updated_at) {
@@ -2158,49 +2146,41 @@
             el.textContent = firstName;
         });
 
-        // Update their location
+        // Update their location (model provides default for contacts without data)
         const locationDisplay = document.getElementById('contact-location-display');
         const distanceEl = document.getElementById('contact-distance');
         const lastUpdatedEl = document.getElementById('contact-last-updated');
+        const openMapsLink = document.getElementById('open-in-maps-link');
 
-        if (contact.location && contact.location.data) {
-            const data = contact.location.data;
-            const locationText = data.namedLocation || Model.findMostSpecificLevel(data.hierarchy) || 'Planet Earth';
-            locationDisplay.innerHTML = `<span class="location-text">${Model.escapeHtml(locationText)}</span>`;
+        const locationText = Model.getContactLocationText(contact);
+        locationDisplay.innerHTML = `<span class="location-text">${Model.escapeHtml(locationText)}</span>`;
 
-            // Calculate distance if we have coordinates
-            if (currentCoordinates && contact.latitude && contact.longitude) {
-                const distance = Geofence.calculateDistance(
-                    currentCoordinates.latitude,
-                    currentCoordinates.longitude,
-                    contact.latitude,
-                    contact.longitude
-                );
-                distanceEl.textContent = Geofence.formatDistance(distance) + ' away';
-            } else {
-                distanceEl.textContent = '';
-            }
-
-            // Show last updated
-            if (contact.location.updated_at) {
-                lastUpdatedEl.textContent = 'Last updated ' + Model.formatTimeAgo(contact.location.updated_at);
-            } else {
-                lastUpdatedEl.textContent = '';
-            }
-
-            // Show "Open in Maps" link when coordinates are available
-            const openMapsLink = document.getElementById('open-in-maps-link');
-            if (contact.latitude && contact.longitude) {
-                openMapsLink.href = `https://www.google.com/maps?q=${contact.latitude},${contact.longitude}`;
-                openMapsLink.classList.remove('hidden');
-            } else {
-                openMapsLink.classList.add('hidden');
-            }
+        // Calculate distance if we have coordinates
+        if (currentCoordinates && contact.latitude && contact.longitude) {
+            const distance = Geofence.calculateDistance(
+                currentCoordinates.latitude,
+                currentCoordinates.longitude,
+                contact.latitude,
+                contact.longitude
+            );
+            distanceEl.textContent = Geofence.formatDistance(distance) + ' away';
         } else {
-            locationDisplay.innerHTML = '<span class="location-text">Location not shared</span>';
             distanceEl.textContent = '';
+        }
+
+        // Show last updated
+        if (contact.location && contact.location.updated_at) {
+            lastUpdatedEl.textContent = 'Last updated ' + Model.formatTimeAgo(contact.location.updated_at);
+        } else {
             lastUpdatedEl.textContent = '';
-            document.getElementById('open-in-maps-link').classList.add('hidden');
+        }
+
+        // Show "Open in Maps" link when coordinates are available
+        if (contact.latitude && contact.longitude) {
+            openMapsLink.href = `https://www.google.com/maps?q=${contact.latitude},${contact.longitude}`;
+            openMapsLink.classList.remove('hidden');
+        } else {
+            openMapsLink.classList.add('hidden');
         }
 
         // Update permission dropdown
@@ -2228,22 +2208,9 @@
             return;
         }
 
-        // Get the location text for this permission level
-        const levelIndex = Model.HIERARCHY_LEVELS.findIndex(l => l.key === level);
-        if (levelIndex === -1) {
-            previewEl.textContent = 'Planet Earth';
-            return;
-        }
-
-        // Find the first available level from the granted level up
-        for (let i = levelIndex; i < Model.HIERARCHY_LEVELS.length; i++) {
-            const key = Model.HIERARCHY_LEVELS[i].key;
-            if (currentHierarchy[key]) {
-                previewEl.textContent = currentHierarchy[key];
-                return;
-            }
-        }
-        previewEl.textContent = 'Planet Earth';
+        // Show what the contact would see at this permission level
+        const filteredHierarchy = Model.getFilteredHierarchy(currentHierarchy, level);
+        previewEl.textContent = Model.getLocationText(filteredHierarchy);
     }
 
     async function handleDetailPermissionChange(event) {

@@ -60,12 +60,14 @@ test.describe('Model Module', () => {
             expect(hierarchy.continent).toBe('Asia');
         });
 
-        test('defaults to Planet Earth for unknown countries', async ({ page }) => {
+        test('sets planet for unknown countries (continent not mapped)', async ({ page }) => {
             const hierarchy = await page.evaluate(() => {
                 return Model.buildHierarchy({ country: 'Atlantis' });
             });
 
-            expect(hierarchy.continent).toBe('Planet Earth');
+            // Unknown country has no continent mapping, but planet is always set
+            expect(hierarchy.continent).toBeUndefined();
+            expect(hierarchy.planet).toBe('Planet Earth');
         });
 
         test('builds address from house_number and road', async ({ page }) => {
@@ -125,12 +127,13 @@ test.describe('Model Module', () => {
             expect(hierarchy.city).toBe('Kirkland');
         });
 
-        test('handles empty input', async ({ page }) => {
+        test('handles empty input (planet always set)', async ({ page }) => {
             const hierarchy = await page.evaluate(() => {
                 return Model.buildHierarchy({});
             });
 
-            expect(hierarchy.continent).toBe('Planet Earth');
+            // Empty input still gets planet as minimum level
+            expect(hierarchy.planet).toBe('Planet Earth');
         });
     });
 
@@ -186,6 +189,14 @@ test.describe('Model Module', () => {
             });
 
             expect(result).toBeNull();
+        });
+
+        test('returns Planet Earth when only planet is set', async ({ page }) => {
+            const result = await page.evaluate(() => {
+                return Model.findMostSpecificLevel({ planet: 'Planet Earth' });
+            });
+
+            expect(result).toBe('Planet Earth');
         });
     });
 
@@ -434,20 +445,37 @@ test.describe('Model Module', () => {
             expect(result.continent).toBe('North America');
         });
 
-        test('returns Planet Earth for null hierarchy', async ({ page }) => {
+        test('returns only planet for planet level', async ({ page }) => {
+            const result = await page.evaluate(() => {
+                const hierarchy = {
+                    city: 'Seattle',
+                    state: 'Washington',
+                    country: 'United States',
+                    continent: 'North America',
+                    planet: 'Planet Earth'
+                };
+                return Model.getFilteredHierarchy(hierarchy, 'planet');
+            });
+
+            expect(result.city).toBeUndefined();
+            expect(result.continent).toBeUndefined();
+            expect(result.planet).toBe('Planet Earth');
+        });
+
+        test('returns planet for null hierarchy', async ({ page }) => {
             const result = await page.evaluate(() => {
                 return Model.getFilteredHierarchy(null, 'city');
             });
 
-            expect(result.continent).toBe('Planet Earth');
+            expect(result.planet).toBe('Planet Earth');
         });
 
-        test('returns Planet Earth for unknown level', async ({ page }) => {
+        test('returns planet for unknown level', async ({ page }) => {
             const result = await page.evaluate(() => {
                 return Model.getFilteredHierarchy({ city: 'Seattle' }, 'unknown');
             });
 
-            expect(result.continent).toBe('Planet Earth');
+            expect(result.planet).toBe('Planet Earth');
         });
     });
 
