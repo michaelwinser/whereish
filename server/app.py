@@ -11,6 +11,7 @@ Key principles:
 """
 
 import hashlib
+import html
 import json
 import os
 import secrets
@@ -20,7 +21,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 
-from flask import Flask, g, jsonify, request, send_from_directory
+from flask import Flask, Response, g, jsonify, request, send_from_directory
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -1845,8 +1846,22 @@ def serve_static(path):
     if path and (STATIC_DIR / path).is_file():
         return send_from_directory(STATIC_DIR, path)
 
-    # Default to index.html
-    return send_from_directory(STATIC_DIR, 'index.html')
+    # Default to index.html - inject configuration values
+    return serve_index_html()
+
+
+def serve_index_html():
+    """Serve index.html with injected configuration values."""
+    index_path = STATIC_DIR / 'index.html'
+    if not index_path.is_file():
+        return jsonify({'error': 'index.html not found'}), 404
+
+    # Read and inject config (escape to prevent HTML injection)
+    content = index_path.read_text()
+    safe_client_id = html.escape(GOOGLE_CLIENT_ID or '')
+    content = content.replace('__GOOGLE_CLIENT_ID__', safe_client_id)
+
+    return Response(content, mimetype='text/html')
 
 
 # ===================

@@ -609,14 +609,35 @@
         google.accounts.id.initialize({
             client_id: clientId,
             callback: handleGoogleCallback,
-            auto_select: false
+            auto_select: false,
+            use_fedcm_for_prompt: true  // Opt-in to FedCM
         });
+
+        // Render the Google Sign-In button in the container
+        const buttonContainer = document.getElementById('google-signin-container');
+        if (buttonContainer) {
+            google.accounts.id.renderButton(buttonContainer, {
+                type: 'standard',
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                shape: 'rectangular',
+                width: 280
+            });
+            // Only hide custom button if Google's button was actually rendered
+            // Use requestAnimationFrame to check after DOM update
+            requestAnimationFrame(() => {
+                if (buttonContainer.children.length > 0 && elements.googleSignInBtn) {
+                    elements.googleSignInBtn.style.display = 'none';
+                }
+            });
+        }
 
         console.log('Google Sign-In initialized');
     }
 
     /**
-     * Handle Google Sign-In button click
+     * Handle Google Sign-In button click (fallback if rendered button not available)
      */
     function handleGoogleSignIn() {
         if (typeof google === 'undefined' || !google.accounts) {
@@ -624,20 +645,8 @@
             return;
         }
 
-        // Show one-tap or popup
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed()) {
-                // Fallback to popup
-                const clientId = document.querySelector('meta[name="google-client-id"]')?.content;
-                if (clientId) {
-                    google.accounts.oauth2.initTokenClient({
-                        client_id: clientId,
-                        scope: 'email profile',
-                        callback: handleGoogleCallback
-                    }).requestAccessToken();
-                }
-            }
-        });
+        // Use the prompt API as fallback (with FedCM enabled in initialize)
+        google.accounts.id.prompt();
     }
 
     /**
@@ -805,6 +814,8 @@
                 console.log('Server backup stored successfully');
             }
 
+            // Save user before closing modal (which clears pendingOAuthUser)
+            const user = pendingOAuthUser;
             closePinSetupModal();
 
             if (isMigration) {
@@ -812,7 +823,7 @@
                 Toast.success('PIN setup complete! Your identity is now protected.');
             } else {
                 // Complete login for new users
-                await completeLogin(pendingOAuthUser);
+                await completeLogin(user);
                 Toast.success('Account created successfully!');
             }
 
@@ -2631,7 +2642,8 @@
         // Require identity for E2E encryption
         const identity = Identity.getCurrent();
         if (!identity) {
-            console.warn('No identity - cannot publish encrypted location');
+            // Expected during setup (after auth but before PIN/identity creation)
+            console.debug('No identity yet - skipping location publish');
             return;
         }
 

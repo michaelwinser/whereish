@@ -14,6 +14,8 @@ services:
       - SERVE_STATIC=true
       # Set BEHIND_PROXY=true if using nginx/traefik reverse proxy
       - BEHIND_PROXY=${BEHIND_PROXY:-false}
+      # Google OAuth - required for sign-in
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
     volumes:
       - whereish-data:/app/data
     healthcheck:

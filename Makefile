@@ -1,7 +1,7 @@
 # Whereish Makefile
 # Run 'make help' to see available targets
 
-.PHONY: help test test-smoke test-server test-client test-all run build docker-run clean clean-all clean-db clean-docker-db lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
+.PHONY: help test test-smoke test-server test-client test-all run check-env build docker-run clean clean-all clean-db clean-docker-db lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
 
 # Default target
 .DEFAULT_GOAL := help
@@ -58,10 +58,22 @@ install-hooks: ## Install git hooks
 # Development
 # =============================================================================
 
-run: ## Run dev server (API + static files on :8080)
+run: check-env ## Run dev server (API + static files on :8080)
 	@echo "Starting Whereish on http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
-	cd server && SERVE_STATIC=true PORT=8080 $(PYTHON) run.py
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		cd server && SERVE_STATIC=true PORT=8080 $(PYTHON) run.py
+
+check-env: ## Check required environment variables
+	@( \
+		if [ -f .env ]; then set -a && . ./.env && set +a; fi; \
+		if [ -z "$$GOOGLE_CLIENT_ID" ]; then \
+			echo "⚠️  GOOGLE_CLIENT_ID not set"; \
+			echo "   Set it in your environment or create a .env file:"; \
+			echo "   echo 'GOOGLE_CLIENT_ID=your-id.apps.googleusercontent.com' > .env"; \
+			echo ""; \
+		fi \
+	)
 
 # =============================================================================
 # Testing
@@ -134,10 +146,14 @@ lint-ui-sync: ## Check UI sync pattern violations
 build: update-build-info ## Build Docker image (updates build info first)
 	docker build -t whereish .
 
-docker-run: build ## Run Docker container locally
+docker-run: build check-env ## Run Docker container locally
 	@echo "Starting Whereish container on http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
-	docker run --rm -p 8080:8080 -v whereish-data:/app/data -e SECRET_KEY=dev-secret-for-local-testing whereish
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		docker run --rm -p 8080:8080 -v whereish-data:/app/data \
+		-e SECRET_KEY=dev-secret-for-local-testing \
+		-e GOOGLE_CLIENT_ID="$$GOOGLE_CLIENT_ID" \
+		whereish
 
 # =============================================================================
 # Utility

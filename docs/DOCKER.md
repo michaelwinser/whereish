@@ -8,14 +8,21 @@ Deploy Whereish using Docker for easy self-hosting behind a reverse proxy.
 # Build the image
 docker build -t whereish .
 
+# Create .env file with required variables
+cat > .env << EOF
+SECRET_KEY=$(openssl rand -hex 32)
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+EOF
+
 # Run with docker-compose (recommended)
-SECRET_KEY=$(openssl rand -hex 32) docker compose up -d
+docker compose up -d
 
 # Or run directly
 docker run -d \
   -p 8080:8080 \
   -v whereish-data:/app/data \
   -e SECRET_KEY=$(openssl rand -hex 32) \
+  -e GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com \
   whereish
 ```
 
@@ -26,6 +33,7 @@ Visit http://localhost:8080 to access the app.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `SECRET_KEY` | Yes | - | JWT signing key (use `openssl rand -hex 32` to generate) |
+| `GOOGLE_CLIENT_ID` | Yes | - | Google OAuth client ID (from Google Cloud Console) |
 | `DATABASE_PATH` | No | `/app/data/whereish.db` | SQLite database file path |
 | `PORT` | No | `8080` | Server port |
 | `SERVE_STATIC` | No | `true` | Serve PWA from Flask (always true in Docker) |
@@ -45,6 +53,7 @@ services:
       - "8080:8080"
     environment:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
       - DATABASE_PATH=/app/data/whereish.db
       - SERVE_STATIC=true
       - BEHIND_PROXY=${BEHIND_PROXY:-false}
@@ -166,7 +175,7 @@ docker logs whereish
 ```
 
 Common issues:
-- Missing `SECRET_KEY` environment variable
+- Missing `SECRET_KEY` or `GOOGLE_CLIENT_ID` environment variable
 - Port 8080 already in use (change with `-p 8081:8080`)
 
 ### Database errors
