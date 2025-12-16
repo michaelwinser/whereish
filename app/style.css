@@ -829,6 +829,7 @@ body {
     border: none;
     padding: 0.25rem;
     font-size: 1rem;
+    color: var(--color-text);
     cursor: pointer;
     border-radius: 4px;
     transition: background 0.2s ease;
