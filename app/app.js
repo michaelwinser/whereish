@@ -425,7 +425,12 @@
             openAuthModal(!isLoginMode);
         });
 
-        elements.authEmailInput.focus();
+        // Focus on first visible field: name for signup, email for login
+        if (loginMode) {
+            elements.authEmailInput.focus();
+        } else {
+            elements.authNameInput.focus();
+        }
     }
 
     function closeAuthModal() {
