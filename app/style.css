@@ -393,18 +393,6 @@ body {
     flex-shrink: 0;
 }
 
-/* Welcome screen legacy login */
-.welcome-legacy {
-    margin-top: 1.5rem;
-    text-align: center;
-}
-
-.welcome-legacy-text {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-    margin-bottom: 0.25rem;
-}
-
 /* PIN setup styles */
 .pin-setup-intro,
 .pin-entry-intro {
@@ -809,6 +797,14 @@ body {
     color: var(--color-text);
 }
 
+.contact-email {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .contact-location {
     font-size: 0.875rem;
     color: var(--color-text-muted);
@@ -833,6 +829,7 @@ body {
     border: none;
     padding: 0.25rem;
     font-size: 1rem;
+    color: var(--color-text);
     cursor: pointer;
     border-radius: 4px;
     transition: background 0.2s ease;

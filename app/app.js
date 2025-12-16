@@ -425,7 +425,12 @@
             openAuthModal(!isLoginMode);
         });
 
-        elements.authEmailInput.focus();
+        // Focus on first visible field: name for signup, email for login
+        if (loginMode) {
+            elements.authEmailInput.focus();
+        } else {
+            elements.authNameInput.focus();
+        }
     }
 
     function closeAuthModal() {
@@ -1823,6 +1828,14 @@
             return;
         }
 
+        // Show loading state on button (lint-ignore: UI feedback in data fetch)
+        const refreshBtn = elements.refreshContactsBtn;
+        const originalContent = refreshBtn?.textContent; // lint-ignore
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '⏳'; // lint-ignore
+        }
+
         try {
             // Get contacts with encrypted locations
             const rawContacts = await API.getContactsEncrypted();
@@ -1834,6 +1847,7 @@
                     id: contact.id,
                     contactId: contact.id,
                     name: contact.name,
+                    email: contact.email,
                     publicKey: contact.publicKey,
                     permissionGranted: contact.permissionGranted,
                     permissionReceived: contact.permissionReceived,
@@ -1871,6 +1885,13 @@
             renderContactsList();
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
+            Toast.error('Failed to refresh contacts');
+        } finally {
+            // Reset button state
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = originalContent || '🔄'; // lint-ignore
+            }
         }
     }
 
@@ -1916,6 +1937,7 @@
                     <div class="contact-avatar">${initial}</div>
                     <div class="contact-info">
                         <div class="contact-name">${Model.escapeHtml(contact.name)}</div>
+                        ${contact.email ? `<div class="contact-email">${Model.escapeHtml(contact.email)}</div>` : ''}
                         <div class="contact-location ${locationClass}">${Model.escapeHtml(locationText)}</div>
                     </div>
                     <div class="contact-meta">
@@ -2800,6 +2822,25 @@
     // ===================
 
     function setupEventListeners() {
+        // Handle unauthorized (401) responses - redirect to welcome/login
+        Events.on('auth:unauthorized', () => {
+            // Clear app state
+            currentUserId = null;
+            contacts = [];
+            namedLocations = [];
+            currentMatch = null;
+
+            // Sync with Model
+            Model.setCurrentUserId(null);
+            Model.setContacts([]);
+            Model.setPlaces([]);
+            Model.setCurrentMatch(null);
+
+            // Show message and redirect to welcome
+            Toast.warning('Session expired. Please log in again.');
+            ViewManager.navigate('welcome');
+        });
+
         // Location buttons
         elements.refreshBtn.addEventListener('click', updateLocation);
         elements.retryBtn.addEventListener('click', updateLocation);
@@ -2824,9 +2865,6 @@
         document.getElementById('delete-account-form')?.addEventListener('submit', handleDeleteAccountSubmit);
         document.getElementById('delete-account-back-btn')?.addEventListener('click', () => ViewManager.goBack());
         document.getElementById('delete-account-cancel-btn')?.addEventListener('click', () => ViewManager.goBack());
-
-        // Welcome screen buttons
-        document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
 
         // Identity import (welcome screen)
         elements.importIdentityBtn?.addEventListener('click', () => elements.identityFileInput?.click());

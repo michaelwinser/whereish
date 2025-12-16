@@ -1,8 +1,44 @@
 #!/bin/sh
-# Pre-commit hook: run tests before allowing commit
+# Pre-commit hook: run appropriate tests before allowing commit
+#
+# Uses scripts/select-test-level.sh to determine whether to run
+# 'make test' (fast) or 'make test-all' (comprehensive) based on
+# the nature of the staged changes.
+#
+# See docs/PRE_COMMIT_CHECKS.md for full documentation.
 
 echo "Running pre-commit checks..."
-make pre-commit
+
+# Determine test level based on staged changes
+SCRIPT_DIR="$(dirname "$0")/../../scripts"
+if [ -x "$SCRIPT_DIR/select-test-level.sh" ]; then
+    # Run analysis and capture output
+    ANALYSIS_OUTPUT=$("$SCRIPT_DIR/select-test-level.sh" 2>&1)
+
+    # The last line is the decision (test or test-all)
+    TEST_LEVEL=$(echo "$ANALYSIS_OUTPUT" | tail -1)
+
+    # Show the summary line (first line of non-verbose output)
+    echo "$ANALYSIS_OUTPUT" | head -1
+else
+    # Fallback if script not found
+    echo "Warning: select-test-level.sh not found, running full tests"
+    TEST_LEVEL="test-all"
+fi
+
+# Validate test level
+case "$TEST_LEVEL" in
+    test|test-all)
+        ;;
+    *)
+        echo "Warning: unexpected test level '$TEST_LEVEL', defaulting to test-all"
+        TEST_LEVEL="test-all"
+        ;;
+esac
+
+# Run the selected test level
+echo "Running: make $TEST_LEVEL"
+make $TEST_LEVEL
 
 if [ $? -ne 0 ]; then
     echo ""

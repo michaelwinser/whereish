@@ -54,6 +54,12 @@ const API = (function() {
         // Check for version mismatch
         checkVersionHeader(response);
 
+        // Handle 401 Unauthorized - session expired or invalid token
+        if (response.status === 401) {
+            handleUnauthorized();
+            throw new Error('Session expired. Please log in again.');
+        }
+
         // Handle non-JSON responses
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -84,9 +90,15 @@ const API = (function() {
 
         if (!serverVersion || isNaN(serverVersion)) return;
 
+        // Prevent duplicate update banners/reloads during the same update cycle
+        // (sessionStorage persists across reloads but not new sessions)
+        const updateKey = `whereish_updating_to_${serverVersion}`;
+        if (sessionStorage.getItem(updateKey)) return;
+
         // Check if client is below minimum supported version (forced update)
         if (minVersion && !isNaN(minVersion) && APP_VERSION < minVersion) {
             updatePending = true;
+            sessionStorage.setItem(updateKey, 'true');
             showForcedUpdateBanner();
             // Auto-reload after 3 seconds
             setTimeout(() => window.location.reload(true), 3000);
@@ -96,6 +108,7 @@ const API = (function() {
         // Check if newer version is available (auto-update)
         if (serverVersion > APP_VERSION) {
             updatePending = true;
+            sessionStorage.setItem(updateKey, 'true');
             // Reload automatically - no banner needed
             // Small delay to let current request complete
             setTimeout(() => window.location.reload(true), 100);
@@ -116,6 +129,20 @@ const API = (function() {
             <span>Update required - refreshing...</span>
         `;
         document.body.prepend(banner);
+    }
+
+    /**
+     * Handle unauthorized (401) response
+     * Clears auth state and emits event for UI to handle redirect
+     */
+    function handleUnauthorized() {
+        // Clear auth state
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem('whereish_auth_token');
+
+        // Emit event for UI to handle (redirect to login)
+        Events.emit('auth:unauthorized');
     }
 
     // ===================
