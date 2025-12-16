@@ -59,13 +59,13 @@ module.exports = defineConfig({
   webServer: [
     {
       // Static file server for the PWA client
-      command: 'python3 -m http.server 8081 -d app',
+      command: '.venv/bin/python3 -m http.server 8081 -d app',
       port: 8081,
       reuseExistingServer: !process.env.CI,
     },
     {
-      // API server
-      command: 'DATABASE_PATH=test_client.db SECRET_KEY=test-secret python3 -m server.app',
+      // API server (use venv Python for dependencies)
+      command: 'DATABASE_PATH=test_client.db SECRET_KEY=test-secret .venv/bin/python3 -m server.app',
       port: 8501,
       reuseExistingServer: !process.env.CI,
       env: {
