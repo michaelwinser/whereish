@@ -797,6 +797,14 @@ body {
     color: var(--color-text);
 }
 
+.contact-email {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .contact-location {
     font-size: 0.875rem;
     color: var(--color-text-muted);

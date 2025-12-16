@@ -1847,6 +1847,7 @@
                     id: contact.id,
                     contactId: contact.id,
                     name: contact.name,
+                    email: contact.email,
                     publicKey: contact.publicKey,
                     permissionGranted: contact.permissionGranted,
                     permissionReceived: contact.permissionReceived,
@@ -1936,6 +1937,7 @@
                     <div class="contact-avatar">${initial}</div>
                     <div class="contact-info">
                         <div class="contact-name">${Model.escapeHtml(contact.name)}</div>
+                        ${contact.email ? `<div class="contact-email">${Model.escapeHtml(contact.email)}</div>` : ''}
                         <div class="contact-location ${locationClass}">${Model.escapeHtml(locationText)}</div>
                     </div>
                     <div class="contact-meta">

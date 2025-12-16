@@ -1176,6 +1176,7 @@ def get_contacts_encrypted():
         contact_data = {
             'id': contact['id'],
             'name': contact['name'],
+            'email': contact['email'],
             'publicKey': public_key,
             'permissionGranted': granted_level,
             'permissionReceived': received_level,
