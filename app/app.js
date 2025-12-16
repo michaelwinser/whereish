@@ -2849,9 +2849,6 @@
         document.getElementById('delete-account-back-btn')?.addEventListener('click', () => ViewManager.goBack());
         document.getElementById('delete-account-cancel-btn')?.addEventListener('click', () => ViewManager.goBack());
 
-        // Welcome screen buttons
-        document.getElementById('welcome-login-btn')?.addEventListener('click', () => openAuthModal(true));
-
         // Identity import (welcome screen)
         elements.importIdentityBtn?.addEventListener('click', () => elements.identityFileInput?.click());
         elements.identityFileInput?.addEventListener('change', handleImportIdentity);
