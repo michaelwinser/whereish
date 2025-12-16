@@ -46,6 +46,7 @@ Scheduled reviews for ongoing health monitoring.
 | **Dependency Audit** | Monthly | package.json, requirements.txt | Risk assessment across all dimensions |
 | **Test Coverage** | Before release | All tests | Gaps, flaky tests, new test needs |
 | **Documentation** | Before release | All docs | Outdated content, missing docs |
+| **Release Triage** | Before each release | All open issues | Issues included/deferred, release scope |
 
 ### 3. Major Release Reviews
 
@@ -628,6 +629,162 @@ Implicit dependencies are invisible in import graphs but create real coupling th
 *Review conducted [before/after] [effort name]*
 *Next architecture review recommended: [trigger condition]*
 ```
+
+---
+
+## Release Triage Review
+
+A Release Triage review determines which open issues should be addressed in the upcoming release versus deferred to future releases. This is distinct from Issue Tracker Hygiene (which focuses on closing stale/duplicate issues) and focuses on prioritization and scope decisions.
+
+### When to Conduct
+
+- Before starting work on a new release
+- After significant scope changes or timeline shifts
+- When issue backlog grows beyond manageable size
+
+### Triage Categories
+
+| Category | Definition | Criteria |
+|----------|------------|----------|
+| **Must Fix** | Blocks release or causes significant user harm | Security issues, data loss, blocking bugs, broken core features |
+| **Should Fix** | Important but release can ship without | UX bugs, polish issues, non-critical enhancements |
+| **Nice to Have** | Would improve release but low priority | Minor improvements, developer experience, tooling |
+| **Defer** | Explicitly not in this release | Large features, research tasks, long-term vision |
+| **Needs Discussion** | Cannot categorize without user input | Ambiguous priority, unclear scope, competing with other work |
+
+### Decision Factors
+
+When triaging issues, consider:
+
+| Factor | Questions |
+|--------|-----------|
+| **User Impact** | How many users affected? How severely? Workaround available? |
+| **Effort** | Hours/days to fix? Risk of introducing new bugs? |
+| **Dependencies** | Does this block other work? Is it blocked by other work? |
+| **Release Theme** | Does it align with this release's goals? |
+| **Technical Debt** | Will deferring make future work harder? |
+| **External Factors** | Compliance deadlines? User commitments? Competition? |
+
+### Release Triage Template
+
+```markdown
+# Release Triage Review
+
+**Date:** YYYY-MM-DD
+**Reviewer:** [Name/Model]
+**Target Release:** [Version or milestone name]
+**Release Theme:** [1-2 sentence description of release goals]
+**Issues Reviewed:** [Count]
+
+## Executive Summary
+
+[Brief overview: X issues triaged, Y for this release, Z deferred]
+
+## Release Scope
+
+### Target Themes
+- [Theme 1]: [Brief description]
+- [Theme 2]: [Brief description]
+
+### Out of Scope
+- [Category explicitly deferred]
+
+## Triage Results
+
+### Must Fix (X issues)
+
+Issues that block release or cause significant user harm.
+
+| Issue | Title | Rationale | Effort |
+|-------|-------|-----------|--------|
+| #N | [Title] | [Why it's a must-fix] | [S/M/L] |
+
+### Should Fix (X issues)
+
+Important issues that improve quality if time permits.
+
+| Issue | Title | Rationale | Effort |
+|-------|-------|-----------|--------|
+| #N | [Title] | [Why it's important] | [S/M/L] |
+
+### Nice to Have (X issues)
+
+Low priority improvements for this release.
+
+| Issue | Title | Rationale | Effort |
+|-------|-------|-----------|--------|
+| #N | [Title] | [Why it's nice but not critical] | [S/M/L] |
+
+### Defer to Future Release (X issues)
+
+Explicitly out of scope for this release.
+
+| Issue | Title | Rationale | Revisit When |
+|-------|-------|-----------|--------------|
+| #N | [Title] | [Why deferring] | [Trigger or milestone] |
+
+### Needs Discussion (X issues)
+
+Cannot categorize without user input.
+
+| Issue | Title | Question |
+|-------|-------|----------|
+| #N | [Title] | [What decision is needed?] |
+
+## Issue Groups
+
+Related issues that should be addressed together or in sequence.
+
+| Group | Issues | Notes |
+|-------|--------|-------|
+| [Group name] | #A, #B, #C | [Relationship and approach] |
+
+## Release Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| [Risk description] | Low/Med/High | Low/Med/High | [How to address] |
+
+## Recommended Release Order
+
+If time runs short, address issues in this order:
+
+1. **Critical path:** [Issues that must ship]
+2. **High value:** [Issues with best effort/impact ratio]
+3. **Polish:** [Issues to add if time permits]
+
+## Questions for User
+
+1. [Specific question about priorities]
+2. [Specific question about scope]
+
+## Action Items
+
+- [ ] User to approve/adjust triage decisions
+- [ ] Create release milestone and tag issues
+- [ ] Schedule work on Must Fix items
+```
+
+### Effort Estimates
+
+Use relative sizing, not time estimates:
+
+| Size | Definition |
+|------|------------|
+| **S** | Can complete in a focused work session |
+| **M** | Requires multiple sessions or touches several files |
+| **L** | Multi-day effort or significant complexity |
+| **XL** | Major feature, may need to be broken down |
+
+### Post-Triage Actions
+
+After the review is approved:
+
+1. **Create milestone** in GitHub (if not exists)
+2. **Tag issues** with milestone
+3. **Close issues** identified as invalid/duplicate during triage
+4. **Create issues** for new work identified during triage
+5. **Update project board** (if using one)
 
 ---
 
