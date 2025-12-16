@@ -2805,6 +2805,25 @@
     // ===================
 
     function setupEventListeners() {
+        // Handle unauthorized (401) responses - redirect to welcome/login
+        Events.on('auth:unauthorized', () => {
+            // Clear app state
+            currentUserId = null;
+            contacts = [];
+            namedLocations = [];
+            currentMatch = null;
+
+            // Sync with Model
+            Model.setCurrentUserId(null);
+            Model.setContacts([]);
+            Model.setPlaces([]);
+            Model.setCurrentMatch(null);
+
+            // Show message and redirect to welcome
+            Toast.warning('Session expired. Please log in again.');
+            ViewManager.navigate('welcome');
+        });
+
         // Location buttons
         elements.refreshBtn.addEventListener('click', updateLocation);
         elements.retryBtn.addEventListener('click', updateLocation);

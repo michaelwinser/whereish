@@ -54,6 +54,12 @@ const API = (function() {
         // Check for version mismatch
         checkVersionHeader(response);
 
+        // Handle 401 Unauthorized - session expired or invalid token
+        if (response.status === 401) {
+            handleUnauthorized();
+            throw new Error('Session expired. Please log in again.');
+        }
+
         // Handle non-JSON responses
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -123,6 +129,20 @@ const API = (function() {
             <span>Update required - refreshing...</span>
         `;
         document.body.prepend(banner);
+    }
+
+    /**
+     * Handle unauthorized (401) response
+     * Clears auth state and emits event for UI to handle redirect
+     */
+    function handleUnauthorized() {
+        // Clear auth state
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem('whereish_auth_token');
+
+        // Emit event for UI to handle (redirect to login)
+        Events.emit('auth:unauthorized');
     }
 
     // ===================
