@@ -67,12 +67,7 @@
 
                 <div class="welcome-location">
                     <p class="welcome-label">You are at:</p>
-                    <div id="welcome-hierarchy" class="welcome-hierarchy">
-                        <div class="welcome-hierarchy-level">
-                            <span class="welcome-hierarchy-icon">📍</span>
-                            <span class="welcome-hierarchy-text">Locating...</span>
-                        </div>
-                    </div>
+                    <p id="welcome-hierarchy" class="welcome-hierarchy">Locating...</p>
                 </div>
 
                 <p class="welcome-pitch">
@@ -103,6 +98,12 @@
                     <p class="welcome-import-text">Have a backup file?</p>
                     <button id="import-identity-btn" class="btn btn-link">Import Identity File</button>
                     <input type="file" id="identity-file-input" accept=".json" class="hidden">
+                </div>
+
+                <div class="welcome-version">
+                    <span id="welcome-client-version">--</span>
+                    <span class="welcome-version-sep">/</span>
+                    <span id="welcome-server-version">--</span>
                 </div>
             </div>
         </section>

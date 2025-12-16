@@ -319,35 +319,47 @@
         if (!container) return;
 
         if (!currentHierarchy) {
-            container.innerHTML = `
-                <div class="welcome-hierarchy-level">
-                    <span class="welcome-hierarchy-icon">📍</span>
-                    <span class="welcome-hierarchy-text">Locating...</span>
-                </div>
-            `;
+            container.textContent = 'Locating...';
             return;
         }
 
-        // Build hierarchy from most specific to least specific, ending with Planet
-        const levels = [];
-
-        // Add all hierarchy levels that have values (planet is always present as minimum)
+        // Build comma-separated location string from most specific to least specific
+        const parts = [];
         for (const level of Model.HIERARCHY_LEVELS) {
             if (currentHierarchy[level.key]) {
-                levels.push({
-                    icon: level.key === 'planet' ? '🌍' : '📍',
-                    text: currentHierarchy[level.key],
-                    primary: levels.length === 0  // First one is most specific
-                });
+                parts.push(currentHierarchy[level.key]);
             }
         }
 
-        container.innerHTML = levels.map((level, _index) => `
-            <div class="welcome-hierarchy-level${level.primary ? ' primary' : ''}">
-                <span class="welcome-hierarchy-icon">${level.icon}</span>
-                <span class="welcome-hierarchy-text">${Model.escapeHtml(level.text)}</span>
-            </div>
-        `).join('');
+        container.textContent = parts.join(', ');
+    }
+
+    /**
+     * Update version info on the welcome screen
+     */
+    async function updateWelcomeVersionInfo() {
+        const clientVersionEl = document.getElementById('welcome-client-version');
+        const serverVersionEl = document.getElementById('welcome-server-version');
+
+        // Display client version
+        if (clientVersionEl && typeof BUILD_INFO !== 'undefined') {
+            clientVersionEl.textContent = `v${BUILD_INFO.version}`;
+        }
+
+        // Fetch and display server version
+        if (serverVersionEl) {
+            try {
+                const response = await fetch('/api/health');
+                const serverVersion = response.headers.get('X-App-Version');
+                if (serverVersion) {
+                    serverVersionEl.textContent = `v${serverVersion}`;
+                } else {
+                    serverVersionEl.textContent = '--';
+                }
+            } catch {
+                serverVersionEl.textContent = '--';
+            }
+        }
     }
 
     // ===================
@@ -3253,6 +3265,8 @@
             onEnter: () => {
                 // Update welcome screen with current location
                 renderWelcomeHierarchy();
+                // Display version info
+                updateWelcomeVersionInfo();
             },
             onExit: () => {}
         });
