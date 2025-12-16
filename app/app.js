@@ -1828,6 +1828,14 @@
             return;
         }
 
+        // Show loading state on button (lint-ignore: UI feedback in data fetch)
+        const refreshBtn = elements.refreshContactsBtn;
+        const originalContent = refreshBtn?.textContent; // lint-ignore
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '⏳'; // lint-ignore
+        }
+
         try {
             // Get contacts with encrypted locations
             const rawContacts = await API.getContactsEncrypted();
@@ -1876,6 +1884,13 @@
             renderContactsList();
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
+            Toast.error('Failed to refresh contacts');
+        } finally {
+            // Reset button state
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = originalContent || '🔄'; // lint-ignore
+            }
         }
     }
 
