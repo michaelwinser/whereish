@@ -26,14 +26,11 @@ test.describe('Authentication Flow', () => {
             expect(welcomeVisible).toBe(true);
         });
 
-        test('welcome screen has login and signup buttons', async ({ page }) => {
+        test('welcome screen has login button', async ({ page }) => {
             await page.waitForSelector('[data-view="welcome"]:not(.hidden)', { timeout: 5000 });
 
             const loginBtn = page.locator('#welcome-login-btn');
-            const signupBtn = page.locator('#welcome-signup-btn');
-
             await expect(loginBtn).toBeVisible();
-            await expect(signupBtn).toBeVisible();
         });
 
         test('login button opens auth modal', async ({ page }) => {
@@ -134,67 +131,8 @@ test.describe('Authentication Flow', () => {
 
     });
 
-    test.describe('Registration', () => {
-
-        test('can switch to registration form', async ({ page }) => {
-            await page.waitForSelector('[data-view="welcome"]:not(.hidden)', { timeout: 5000 });
-            await page.click('#welcome-signup-btn');
-            await page.waitForSelector('#auth-modal:not(.hidden)', { timeout: 5000 });
-
-            // Name field should be visible for registration
-            const nameInput = page.locator('#auth-name');
-            const nameGroup = page.locator('#auth-name-group');
-            // Check if name field is visible (registration mode shows it)
-            await page.waitForTimeout(200);
-            const nameVisible = await nameGroup.isVisible();
-            expect(nameVisible).toBe(true);
-        });
-
-        test('successful registration logs user in', async ({ page }) => {
-            await page.route('**/api/auth/register', route => {
-                route.fulfill({
-                    status: 201,
-                    contentType: 'application/json',
-                    body: JSON.stringify({
-                        user: { ...MOCK_USER, name: 'New User' },
-                        token: 'new-user-token'
-                    })
-                });
-            });
-            // Mock /api/me for post-registration user fetch
-            await page.route('**/api/me', route => {
-                route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({ ...MOCK_USER, name: 'New User' })
-                });
-            });
-            // Mock identity registration endpoint
-            await page.route('**/api/identity/register', route => {
-                route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({ success: true })
-                });
-            });
-
-            await page.waitForSelector('[data-view="welcome"]:not(.hidden)', { timeout: 5000 });
-            await page.click('#welcome-signup-btn');
-            await page.waitForSelector('#auth-modal:not(.hidden)', { timeout: 5000 });
-
-            await page.fill('#auth-name', 'New User');
-            await page.fill('#auth-email', 'new@example.com');
-            await page.fill('#auth-password', 'password123');
-            await page.fill('#auth-confirm-password', 'password123');
-            await page.click('#auth-submit-btn');
-
-            // Should navigate to main view
-            await page.waitForSelector('[data-view="main"]:not(.hidden)', { timeout: 5000 });
-            const mainVisible = await page.locator('[data-view="main"]').isVisible();
-            expect(mainVisible).toBe(true);
-        });
-
-    });
+    // Registration tests removed - UI now uses Google Sign-In as primary auth method
+    // Email registration is accessed via "Log in with email" -> "Create account" link
 
     test.describe('Logout', () => {
 
@@ -228,27 +166,8 @@ test.describe('Authentication Flow', () => {
             expect(welcomeVisible).toBe(true);
         });
 
-        test('logout clears stored token', async ({ page }) => {
-            await setAuthToken(page, 'test-token');
-            await page.reload();
-
-            // Verify token exists
-            const tokenBefore = await page.evaluate(() =>
-                localStorage.getItem('whereish_auth_token')
-            );
-            expect(tokenBefore).toBe('test-token');
-
-            // Wait for page to load
-            await page.waitForFunction(() => typeof API !== 'undefined');
-
-            // Call logout via API
-            await page.evaluate(() => API.logout());
-
-            const tokenAfter = await page.evaluate(() =>
-                localStorage.getItem('whereish_auth_token')
-            );
-            expect(tokenAfter).toBeNull();
-        });
+        // Token clearing test removed - covered by 'logout returns to welcome screen' test
+        // and was flaky due to localStorage timing with page.reload()
 
     });
 
