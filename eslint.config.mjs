@@ -19,6 +19,7 @@ export default [
         document: "readonly",
         console: "readonly",
         localStorage: "readonly",
+        sessionStorage: "readonly",
         indexedDB: "readonly",
         fetch: "readonly",
         navigator: "readonly",

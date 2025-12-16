@@ -84,9 +84,15 @@ const API = (function() {
 
         if (!serverVersion || isNaN(serverVersion)) return;
 
+        // Prevent duplicate update banners/reloads during the same update cycle
+        // (sessionStorage persists across reloads but not new sessions)
+        const updateKey = `whereish_updating_to_${serverVersion}`;
+        if (sessionStorage.getItem(updateKey)) return;
+
         // Check if client is below minimum supported version (forced update)
         if (minVersion && !isNaN(minVersion) && APP_VERSION < minVersion) {
             updatePending = true;
+            sessionStorage.setItem(updateKey, 'true');
             showForcedUpdateBanner();
             // Auto-reload after 3 seconds
             setTimeout(() => window.location.reload(true), 3000);
@@ -96,6 +102,7 @@ const API = (function() {
         // Check if newer version is available (auto-update)
         if (serverVersion > APP_VERSION) {
             updatePending = true;
+            sessionStorage.setItem(updateKey, 'true');
             // Reload automatically - no banner needed
             // Small delay to let current request complete
             setTimeout(() => window.location.reload(true), 100);
