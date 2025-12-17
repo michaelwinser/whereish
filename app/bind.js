@@ -13,6 +13,7 @@
  * Copied from poc/custom-binding/bind.js for production use.
  */
 
+/* global queueMicrotask */
 /* exported Bind */
 const Bind = (function() {
   // Registry of all bindings

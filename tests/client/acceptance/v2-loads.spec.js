@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 
-test.describe('V2 Implementation Loading', () => {
+test.describe('App Loading', () => {
 
-    test('v1 loads without errors', async ({ page }) => {
+    test('app loads without errors', async ({ page }) => {
         const jsErrors = [];
         page.on('pageerror', err => jsErrors.push(err.message));
 
@@ -20,25 +20,7 @@ test.describe('V2 Implementation Loading', () => {
         expect(jsErrors).toHaveLength(0);
     });
 
-    test('v2 loads without errors', async ({ page }) => {
-        const jsErrors = [];
-        page.on('pageerror', err => jsErrors.push(err.message));
-
-        await page.route('**/api/health', route => {
-            route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) });
-        });
-
-        await page.goto('/?v2');
-        await page.waitForTimeout(2000);
-
-        // V2 should show welcome view
-        await expect(page.locator('[data-view="welcome"]')).toBeVisible();
-
-        // No JavaScript runtime errors
-        expect(jsErrors).toHaveLength(0);
-    });
-
-    test('v2 console shows initialization message', async ({ page }) => {
+    test('console shows initialization message', async ({ page }) => {
         const logs = [];
         page.on('console', msg => {
             if (msg.type() === 'log') logs.push(msg.text());
@@ -48,10 +30,10 @@ test.describe('V2 Implementation Loading', () => {
             route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) });
         });
 
-        await page.goto('/?v2');
+        await page.goto('/');
         await page.waitForTimeout(2000);
 
-        // V2 should log initialization message
+        // App should log initialization message
         expect(logs.some(log => log.includes('[v2] Initialized'))).toBe(true);
     });
 

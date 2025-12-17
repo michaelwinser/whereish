@@ -3,8 +3,8 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v120';
-const APP_VERSION = 120;  // Must match CACHE_NAME version number
+const CACHE_NAME = 'whereish-v121';
+const APP_VERSION = 121;  // Must match CACHE_NAME version number
 
 const STATIC_ASSETS = [
     '/',
@@ -18,6 +18,15 @@ const STATIC_ASSETS = [
     '/identity.js',
     '/events.js',
     '/model.js',
+    '/bind.js',
+    '/render/contacts.js',
+    '/render/places.js',
+    '/render/auth.js',
+    '/render/devices.js',
+    '/handlers/contacts.js',
+    '/handlers/places.js',
+    '/handlers/auth.js',
+    '/handlers/devices.js',
     '/app.js',
     '/storage.js',
     '/geofence.js',
