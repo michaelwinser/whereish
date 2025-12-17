@@ -1274,13 +1274,11 @@
             // Build hierarchy from address
             const hierarchy = Model.buildHierarchy(addressComponents);
 
-            // Update location in Model
-            Model.setLocation({
-                hierarchy,
-                latitude: lat,
-                longitude: lon,
-                timestamp: new Date().toISOString()
-            });
+            // Update location in Model (coordinates, hierarchy)
+            Model.setLocation(
+                { latitude: lat, longitude: lon },
+                hierarchy
+            );
 
             // Check for named location match
             const places = Model.getPlaces();
