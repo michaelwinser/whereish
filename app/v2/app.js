@@ -357,8 +357,12 @@
 
         if (API.isAuthenticated()) {
             ViewManager.navigate('main', {}, false);
+            // Trigger location refresh for authenticated users
+            handleRefreshLocation();
         } else {
             ViewManager.navigate('welcome', {}, false);
+            // Still try to get location for welcome screen
+            handleRefreshLocation();
         }
     }
 
@@ -384,6 +388,7 @@
         const statusEl = document.getElementById('server-status');
         const iconEl = statusEl?.querySelector('.server-status-icon');
         const textEl = statusEl?.querySelector('.server-status-text');
+        const contactsSection = document.getElementById('contacts-section');
 
         if (!statusEl) return;
 
@@ -392,6 +397,11 @@
             statusEl.classList.add('hidden');
             if (iconEl) iconEl.textContent = '✓';
             if (textEl) textEl.textContent = 'Connected to server';
+
+            // Show contacts section when connected AND authenticated
+            if (API.isAuthenticated() && contactsSection) {
+                contactsSection.classList.remove('hidden');
+            }
         } else {
             statusEl.classList.remove('connected');
             statusEl.classList.remove('hidden');
@@ -399,7 +409,7 @@
             if (textEl) textEl.textContent = 'Backend server not connected';
 
             // Hide contacts section when server not connected
-            document.getElementById('contacts-section')?.classList.add('hidden');
+            contactsSection?.classList.add('hidden');
         }
     }
 
@@ -600,6 +610,16 @@
         // Logout button
         document.getElementById('settings-logout-btn')?.addEventListener('click', handleLogout);
 
+        // Settings buttons
+        document.getElementById('export-identity-btn')?.addEventListener('click', handleExportIdentity);
+        document.getElementById('delete-account-btn')?.addEventListener('click', () => {
+            ViewManager.navigate('delete-account');
+        });
+        document.getElementById('delete-account-form')?.addEventListener('submit', handleDeleteAccountSubmit);
+
+        // Transfer device button
+        document.getElementById('transfer-device-btn')?.addEventListener('click', handleTransferDevice);
+
         // Contact item clicks (delegated)
         elements.contactsList?.addEventListener('click', (e) => {
             const contactItem = e.target.closest('.contact-item');
@@ -758,6 +778,121 @@
         } catch (e) {
             console.error('[v2] Logout failed:', e);
             Toast.error('Logout failed');
+        }
+    }
+
+    /**
+     * Handle export identity button click
+     */
+    function handleExportIdentity() {
+        try {
+            if (!Identity.hasIdentity()) {
+                Toast.warning('No identity to export. Please log in first.');
+                return;
+            }
+
+            const email = API.getUserEmail?.() || 'unknown';
+            const json = Identity.exportPrivate({ email: email, name: '' });
+
+            // Create download
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'whereish-identity.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            Toast.success('Identity exported');
+        } catch (e) {
+            console.error('[v2] Export identity failed:', e);
+            Toast.error('Failed to export identity');
+        }
+    }
+
+    /**
+     * Handle delete account form submission
+     */
+    async function handleDeleteAccountSubmit(e) {
+        e.preventDefault();
+
+        const passwordInput = document.getElementById('delete-account-password');
+        const errorDiv = document.getElementById('delete-account-error');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+
+        const password = passwordInput?.value;
+        if (!password) {
+            if (errorDiv) {
+                errorDiv.textContent = 'Please enter your password';
+                errorDiv.classList.remove('hidden');
+            }
+            return;
+        }
+
+        // Disable submit button
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Deleting...';
+        }
+        errorDiv?.classList.add('hidden');
+
+        try {
+            await API.deleteAccount(password);
+            await API.logout();
+            Identity.clear();
+            Toast.success('Account deleted');
+            ViewManager.navigate('welcome');
+        } catch (err) {
+            console.error('[v2] Delete account failed:', err);
+            if (errorDiv) {
+                errorDiv.textContent = err.message || 'Failed to delete account';
+                errorDiv.classList.remove('hidden');
+            }
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Delete Account';
+            }
+        }
+    }
+
+    /**
+     * Handle transfer device button click
+     */
+    function handleTransferDevice() {
+        // Transfer uses the transfer modal from v1
+        const modal = document.getElementById('transfer-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            // Generate transfer code
+            initiateTransfer();
+        } else {
+            Toast.warning('Transfer feature not available');
+        }
+    }
+
+    /**
+     * Initiate transfer - generate code
+     */
+    async function initiateTransfer() {
+        try {
+            const codeEl = document.getElementById('transfer-code');
+            const statusEl = document.getElementById('transfer-status');
+
+            if (codeEl) codeEl.textContent = 'Generating...';
+            if (statusEl) statusEl.textContent = 'Preparing transfer...';
+
+            // Use API to generate transfer code
+            const result = await API.initiateTransfer();
+            if (result && result.code) {
+                if (codeEl) codeEl.textContent = result.code;
+                if (statusEl) statusEl.textContent = 'Share this code with your other device';
+            }
+        } catch (e) {
+            console.error('[v2] Transfer initiation failed:', e);
+            Toast.error('Failed to initiate transfer');
+            document.getElementById('transfer-modal')?.classList.add('hidden');
         }
     }
 
