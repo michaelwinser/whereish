@@ -264,6 +264,152 @@ async function waitForAppReady(page) {
     );
 }
 
+// =============================================================================
+// Acceptance Test Helpers
+// =============================================================================
+
+/**
+ * Setup an authenticated page with API mocks ready for acceptance tests.
+ * Sets up mocks, navigates to app, sets auth token, and waits for main view.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} options - Optional overrides for contacts, requests, etc.
+ */
+async function setupAuthenticatedPage(page, options = {}) {
+    const {
+        contacts = MOCK_CONTACTS,
+        requests = { incoming: [], outgoing: [] },
+        user = MOCK_USER
+    } = options;
+
+    // Setup API mocks before navigation
+    await page.route('**/api/health', route => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) });
+    });
+
+    await page.route('**/api/me', route => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) });
+    });
+
+    await page.route('**/api/contacts/encrypted', route => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ contacts }) });
+    });
+
+    await page.route('**/api/contacts/requests', route => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(requests) });
+    });
+
+    await page.route('**/api/permission-levels', route => {
+        route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                levels: ['planet', 'continent', 'country', 'state', 'county', 'city', 'neighborhood', 'street', 'address'],
+                default: 'planet'
+            })
+        });
+    });
+
+    await page.route('**/api/devices', route => {
+        route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                devices: [{ id: 'device-1', name: 'Test Device', platform: 'web', isActive: true, isCurrent: true }]
+            })
+        });
+    });
+
+    // Navigate and set auth
+    await page.goto('/');
+    await setAuthToken(page, 'test-token-123');
+    await page.reload();
+
+    // Wait for main view to be visible (authenticated state)
+    await page.waitForSelector('[data-view="main"]:not(.hidden)', { timeout: 10000 });
+
+    // Wait for contacts to finish loading (no longer shows "Loading contacts...")
+    // If contacts are provided, wait for them to render
+    if (contacts.length > 0) {
+        await page.waitForFunction(() => {
+            const contactsList = document.getElementById('contacts-list');
+            return contactsList && !contactsList.textContent.includes('Loading contacts');
+        }, { timeout: 10000 });
+    }
+}
+
+/**
+ * Mock browser geolocation with specific coordinates
+ * @param {import('@playwright/test').BrowserContext} context
+ * @param {Object} coords - { latitude, longitude }
+ */
+async function mockGeolocation(context, coords = TEST_LOCATIONS.SEATTLE) {
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation(coords);
+}
+
+/**
+ * Mock Nominatim geocoding response
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} hierarchy - Location hierarchy object
+ */
+async function mockGeocode(page, hierarchy = SEATTLE_HIERARCHY) {
+    await page.route('**/nominatim.openstreetmap.org/**', route => {
+        route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                address: {
+                    continent: hierarchy.continent,
+                    country: hierarchy.country,
+                    state: hierarchy.state,
+                    county: hierarchy.county,
+                    city: hierarchy.city,
+                    suburb: hierarchy.neighborhood,
+                    road: hierarchy.street,
+                    house_number: hierarchy.address?.split(' ')[0]
+                }
+            })
+        });
+    });
+}
+
+/**
+ * Create a named location via Storage API
+ * @param {import('@playwright/test').Page} page
+ * @param {string} label - Location name
+ * @param {number} radius - Radius in meters
+ * @param {Object} coords - { latitude, longitude }
+ * @param {Object} visibility - { mode: 'private'|'all'|'selected', contactIds: [] }
+ */
+async function createPlace(page, label, radius, coords = TEST_LOCATIONS.SEATTLE, visibility = { mode: 'private', contactIds: [] }) {
+    await page.evaluate(({ label, radius, coords, visibility }) => {
+        return Storage.saveNamedLocation({
+            id: crypto.randomUUID(),
+            userId: 'test-user-123',
+            label,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            radiusMeters: radius,
+            visibility,
+            createdAt: new Date().toISOString()
+        });
+    }, { label, radius, coords, visibility });
+}
+
+/**
+ * Clear all named locations for clean test state
+ * @param {import('@playwright/test').Page} page
+ */
+async function clearPlaces(page) {
+    await page.evaluate(() => {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.deleteDatabase('whereish');
+            req.onsuccess = () => resolve(undefined);
+            req.onerror = () => reject(req.error);
+        });
+    });
+}
+
 module.exports = {
     test,
     expect,
@@ -278,4 +424,10 @@ module.exports = {
     setAuthToken,
     clearAuth,
     waitForAppReady,
+    // Acceptance test helpers
+    setupAuthenticatedPage,
+    mockGeolocation,
+    mockGeocode,
+    createPlace,
+    clearPlaces,
 };
