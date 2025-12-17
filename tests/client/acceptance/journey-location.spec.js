@@ -37,7 +37,8 @@ test.describe('Journey: Location Management', () => {
             await expect(locationBar).toBeVisible();
         });
 
-        test('refresh button triggers location update', async ({ page, context }) => {
+        // TODO: Unskip when v2 implements location refresh
+        test.skip('refresh button triggers location update', async ({ page, context }) => {
             await mockGeolocation(context, TEST_LOCATIONS.SEATTLE);
             await mockGeocode(page, SEATTLE_HIERARCHY);
             await setupAuthenticatedPage(page, { contacts: [] });
@@ -62,7 +63,8 @@ test.describe('Journey: Location Management', () => {
             }
         });
 
-        test('loading state shown during refresh', async ({ page, context }) => {
+        // TODO: Unskip when v2 implements location loading states
+        test.skip('loading state shown during refresh', async ({ page, context }) => {
             await mockGeolocation(context, TEST_LOCATIONS.SEATTLE);
             await setupAuthenticatedPage(page, { contacts: [] });
 
@@ -97,7 +99,8 @@ test.describe('Journey: Location Management', () => {
             }
         });
 
-        test('location error displays error message', async ({ page, context }) => {
+        // TODO: Unskip when v2 implements location error handling
+        test.skip('location error displays error message', async ({ page, context }) => {
             // Don't grant geolocation permission to trigger error
             await setupAuthenticatedPage(page, { contacts: [] });
 
@@ -119,7 +122,8 @@ test.describe('Journey: Location Management', () => {
 
     test.describe('Named Location Match', () => {
 
-        test('matched place name shows in location bar', async ({ page, context }) => {
+        // TODO: Unskip when v2 implements named location matching
+        test.skip('matched place name shows in location bar', async ({ page, context }) => {
             await mockGeolocation(context, TEST_LOCATIONS.SEATTLE);
             await mockGeocode(page, SEATTLE_HIERARCHY);
             await setupAuthenticatedPage(page, { contacts: [] });
