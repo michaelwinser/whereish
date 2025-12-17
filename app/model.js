@@ -639,6 +639,38 @@ const Model = (function() {
     }
 
     // ===================
+    // State Management
+    // ===================
+
+    /**
+     * Reset all Model state to initial values.
+     * Call this on page load before fetching fresh data to ensure
+     * no stale state persists across reloads.
+     */
+    function reset() {
+        state.currentCoordinates = null;
+        state.currentHierarchy = null;
+        state.namedLocations = [];
+        state.currentMatch = null;
+        state.contacts = [];
+        state.selectedContact = null;
+        state.contactRequests = { incoming: [], outgoing: [] };
+        state.currentUserId = null;
+        state.serverConnected = false;
+        state.permissionLevels = [];
+        state.devices = [];
+        state.currentDeviceId = null;
+
+        // Emit events so any listeners know state was cleared
+        Events.emit(EVENTS.LOCATION_CHANGED, { coordinates: null, hierarchy: null });
+        Events.emit(EVENTS.PLACES_CHANGED, { places: [] });
+        Events.emit(EVENTS.CONTACTS_CHANGED, { contacts: [] });
+        Events.emit(EVENTS.CONTACT_REQUESTS_CHANGED, { requests: { incoming: [], outgoing: [] } });
+        Events.emit(EVENTS.DEVICES_CHANGED, { devices: [] });
+        Events.emit(EVENTS.AUTH_CHANGED, { userId: null, authenticated: false });
+    }
+
+    // ===================
     // Event Helpers
     // ===================
 
@@ -720,6 +752,9 @@ const Model = (function() {
         getCurrentDeviceId: getCurrentDeviceId,
         setCurrentDeviceId: setCurrentDeviceId,
         getActiveDevice: getActiveDevice,
-        isCurrentDeviceActive: isCurrentDeviceActive
+        isCurrentDeviceActive: isCurrentDeviceActive,
+
+        // State management
+        reset: reset
     };
 })();

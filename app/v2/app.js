@@ -352,10 +352,16 @@
      * Check initial authentication state and show appropriate view
      */
     async function checkInitialState() {
+        // Reset Model to clear any stale state from previous session
+        Model.reset();
+        console.log('[v2] Model reset complete');
+
         // Check server health first
         await checkServerHealth();
 
         if (API.isAuthenticated()) {
+            // Load all data before showing main view
+            await initializeAuthenticatedState();
             ViewManager.navigate('main', {}, false);
             // Trigger location refresh for authenticated users
             handleRefreshLocation();
@@ -364,6 +370,94 @@
             // Still try to get location for welcome screen
             handleRefreshLocation();
         }
+    }
+
+    /**
+     * Initialize all state for an authenticated user.
+     * Loads data from all sources (server + IndexedDB) in parallel.
+     */
+    async function initializeAuthenticatedState() {
+        const userId = API.getUserId?.() || null;
+        if (!userId) {
+            console.warn('[v2] No user ID available for initialization');
+            return;
+        }
+
+        Model.setCurrentUserId(userId);
+        console.log('[v2] Initializing authenticated state for user:', userId);
+
+        try {
+            // Load all data sources in parallel for performance
+            const [rawContacts, requests, devices, places] = await Promise.all([
+                API.getContactsEncrypted().catch(e => { console.error('[v2] Failed to load contacts:', e); return []; }),
+                API.getContactRequests().catch(e => { console.error('[v2] Failed to load requests:', e); return { incoming: [], outgoing: [] }; }),
+                API.getDevices().catch(e => { console.error('[v2] Failed to load devices:', e); return { devices: [] }; }),
+                Storage.getAllNamedLocations(userId).catch(e => { console.error('[v2] Failed to load places:', e); return []; })
+            ]);
+
+            // Process contacts (decrypt locations)
+            const contacts = processContacts(rawContacts);
+
+            // Update Model with all data (single point of truth)
+            Model.setContacts(contacts);
+            Model.setContactRequests(requests);
+            Model.setDevices(devices.devices || devices || []);
+            Model.setPlaces(places);
+
+            console.log('[v2] Loaded:', {
+                contacts: contacts.length,
+                incomingRequests: requests.incoming?.length || 0,
+                outgoingRequests: requests.outgoing?.length || 0,
+                devices: (devices.devices || devices || []).length,
+                places: places.length
+            });
+        } catch (e) {
+            console.error('[v2] Failed to initialize authenticated state:', e);
+        }
+    }
+
+    /**
+     * Process raw contacts from API - decrypt locations if available
+     */
+    function processContacts(rawContacts) {
+        const identity = Identity.getCurrent();
+
+        return rawContacts.map(contact => {
+            const processed = {
+                id: contact.id,
+                contactId: contact.id,
+                name: contact.name,
+                email: contact.email,
+                publicKey: contact.publicKey,
+                permissionGranted: contact.permissionGranted,
+                permissionReceived: contact.permissionReceived,
+                location: null
+            };
+
+            // Try to decrypt location if available
+            if (contact.encryptedLocation && identity) {
+                try {
+                    const decrypted = Crypto.decryptForRecipient(
+                        contact.encryptedLocation,
+                        contact.publicKey,
+                        identity.secretKey
+                    );
+                    if (decrypted) {
+                        processed.location = JSON.parse(decrypted);
+                        // Check if location is stale (> 30 min)
+                        if (processed.location.timestamp) {
+                            const age = Date.now() - new Date(processed.location.timestamp).getTime();
+                            processed.location.stale = age > 30 * 60 * 1000;
+                        }
+                    }
+                } catch (decryptErr) {
+                    // Decryption failed - contact may have re-keyed or data corrupt
+                    console.debug('[v2] Failed to decrypt location for', contact.name);
+                }
+            }
+
+            return processed;
+        });
     }
 
     /**
@@ -414,14 +508,25 @@
     }
 
     /**
-     * Refresh all data from server
+     * Refresh all data from server (used for manual refresh and periodic updates)
      */
     async function refreshAllData() {
+        const userId = API.getUserId?.() || Model.getCurrentUserId();
+        if (!userId) return;
+
         try {
-            // These will trigger events that update bindings
-            await API.getContactsEncrypted();
-            const requests = await API.getContactRequests();
+            // Load from all sources in parallel
+            const [rawContacts, requests, places] = await Promise.all([
+                API.getContactsEncrypted(),
+                API.getContactRequests(),
+                Storage.getAllNamedLocations(userId)
+            ]);
+
+            // Process and update Model
+            const contacts = processContacts(rawContacts);
+            Model.setContacts(contacts);
             Model.setContactRequests(requests);
+            Model.setPlaces(places);
         } catch (e) {
             console.error('[v2] Failed to refresh data:', e);
         }

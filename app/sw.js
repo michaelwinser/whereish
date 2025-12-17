@@ -3,8 +3,8 @@
  * Provides offline capability and caching
  */
 
-const CACHE_NAME = 'whereish-v119';
-const APP_VERSION = 119;  // Must match CACHE_NAME version number
+const CACHE_NAME = 'whereish-v120';
+const APP_VERSION = 120;  // Must match CACHE_NAME version number
 
 const STATIC_ASSETS = [
     '/',
@@ -68,9 +68,15 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch: cache-first for static assets, network-first for API calls
+// Fetch: cache-first for static assets, network-only for API calls
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+
+    // Network-only for API calls (never cache - data changes frequently)
+    if (url.pathname.startsWith('/api/')) {
+        // Don't intercept - let browser handle normally (no caching)
+        return;
+    }
 
     // Network-first for geocoding API (always want fresh data)
     if (url.hostname === 'nominatim.openstreetmap.org') {
@@ -92,7 +98,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Cache-first for static assets
+    // Cache-first for static assets only
     event.respondWith(
         caches.match(event.request)
             .then((cached) => {

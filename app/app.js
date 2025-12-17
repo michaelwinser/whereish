@@ -3259,6 +3259,10 @@
     // ===================
 
     async function init() {
+        // Reset Model to clear any stale state from previous session
+        Model.reset();
+        console.log('[v1] Model reset complete');
+
         // Register views with ViewManager
         ViewManager.register('welcome', {
             onEnter: () => {
