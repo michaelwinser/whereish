@@ -59,8 +59,8 @@ func main() {
 	r.Use(corsMiddleware)
 	r.Use(server.AuthMiddleware)
 
-	// Mount API routes
-	api.HandlerFromMux(server, r)
+	// Mount API routes with /api prefix
+	api.HandlerFromMuxWithBaseURL(server, r, "/api")
 
 	// Start server
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
