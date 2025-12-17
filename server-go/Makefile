@@ -12,8 +12,8 @@ tools:
 
 # Generate code from OpenAPI spec
 generate: tools
-	oapi-codegen -generate types,server,spec -package api api/openapi.yaml > internal/api/generated.go
-	oapi-codegen -generate types,client -package client api/openapi.yaml > pkg/client/generated.go
+	$(shell go env GOPATH)/bin/oapi-codegen -generate types,chi-server,spec -package api api/openapi.yaml > internal/api/generated.go
+	$(shell go env GOPATH)/bin/oapi-codegen -generate types,client -package client api/openapi.yaml > pkg/client/generated.go
 
 # Build the server binary
 build:
