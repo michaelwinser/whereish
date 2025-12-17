@@ -1224,6 +1224,34 @@
     // ===================
 
     /**
+     * Reverse geocode coordinates to address using Nominatim
+     */
+    async function reverseGeocode(lat, lon) {
+        const url = new URL(Model.CONFIG.geocodeUrl);
+        url.searchParams.set('lat', lat);
+        url.searchParams.set('lon', lon);
+        url.searchParams.set('format', 'json');
+        url.searchParams.set('addressdetails', '1');
+        url.searchParams.set('zoom', '18');
+
+        const response = await fetch(url, {
+            headers: { 'User-Agent': Model.CONFIG.userAgent }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Geocoding failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(`Geocoding error: ${data.error}`);
+        }
+
+        return data.address || {};
+    }
+
+    /**
      * Handle location refresh
      */
     async function handleRefreshLocation() {
@@ -1240,8 +1268,11 @@
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
 
-            // Geocode coordinates
-            const hierarchy = await Geofence.geocodeLocation(lat, lon);
+            // Reverse geocode to get address
+            const addressComponents = await reverseGeocode(lat, lon);
+
+            // Build hierarchy from address
+            const hierarchy = Model.buildHierarchy(addressComponents);
 
             // Update location in Model
             Model.setLocation({
@@ -1253,7 +1284,7 @@
 
             // Check for named location match
             const places = Model.getPlaces();
-            const match = Geofence.findMatchingPlace(lat, lon, places);
+            const match = Geofence.findBestMatch(lat, lon, places);
             Model.setCurrentMatch(match);
 
             // Publish location to server if authenticated
