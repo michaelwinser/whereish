@@ -12,6 +12,7 @@
     "test:debug": "npx playwright test --debug"
   },
   "devDependencies": {
+    "@apidevtools/swagger-cli": "^4.0.4",
     "@playwright/test": "^1.40.0"
   }
 }
