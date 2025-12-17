@@ -1,7 +1,7 @@
 # Whereish Makefile
 # Run 'make help' to see available targets
 
-.PHONY: help test test-smoke test-server test-client test-all run check-env build docker-run clean clean-all clean-db clean-docker-db lint lint-python lint-js lint-md venv install install-dev install-hooks pre-commit
+.PHONY: help test test-smoke test-server test-client test-all run check-env build docker-run clean clean-all clean-db clean-docker-db lint lint-python lint-js lint-md lint-poc venv install install-dev install-hooks pre-commit
 
 # Default target
 .DEFAULT_GOAL := help
@@ -116,7 +116,7 @@ test-all: test-server test-client ## Run all tests (server + client)
 # Linting
 # =============================================================================
 
-lint: lint-python lint-js lint-md lint-ui-sync ## Run all linters
+lint: lint-python lint-js lint-md lint-ui-sync lint-poc ## Run all linters
 
 lint-python: ## Lint Python code with ruff
 	@echo "Linting Python..."
@@ -131,13 +131,18 @@ lint-js: ## Lint JavaScript code with eslint
 
 lint-md: ## Lint Markdown files
 	@echo "Linting Markdown..."
-	@npx markdownlint-cli@0.41.0 '**/*.md' --ignore node_modules --ignore .venv --ignore test-results
+	@npx markdownlint-cli@0.41.0 docs/*.md reviews/*.md '*.md' 'poc/*.md' 'poc/shared/*.md' 'poc/custom-binding/*.md'
 	@echo "✓ Markdown lint OK"
 
 lint-ui-sync: ## Check UI sync pattern violations
 	@echo "Checking UI sync patterns..."
 	@./scripts/lint-ui-sync.sh
 	@echo "✓ UI sync check complete"
+
+lint-poc: ## Check MVC patterns in POC implementations
+	@echo "Checking POC MVC patterns..."
+	@./scripts/lint-poc.sh --all; EXIT_CODE=$$?; if [ $$EXIT_CODE -eq 2 ]; then exit 2; fi
+	@echo "✓ POC lint complete"
 
 # =============================================================================
 # Docker
