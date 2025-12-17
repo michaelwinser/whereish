@@ -63,7 +63,152 @@
         // Initial app state check
         await checkInitialState();
 
+        // Initialize Google Sign-In
+        initGoogleSignIn();
+
         console.log('[v2] Initialized with', Bind.getBindingCount(), 'bindings');
+    }
+
+    // ===================
+    // Google Sign-In
+    // ===================
+
+    // Track pending OAuth user for PIN setup
+    let pendingOAuthUser = null;
+
+    /**
+     * Initialize Google Identity Services
+     */
+    function initGoogleSignIn() {
+        // Check if GIS is loaded
+        if (typeof google === 'undefined' || !google.accounts) {
+            console.log('[v2] Google Identity Services not loaded - offline or blocked');
+            return;
+        }
+
+        // Get client ID from meta tag
+        const clientId = document.querySelector('meta[name="google-client-id"]')?.content;
+        if (!clientId) {
+            console.log('[v2] Google Client ID not configured');
+            return;
+        }
+
+        google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCallback,
+            auto_select: false,
+            use_fedcm_for_prompt: true
+        });
+
+        // Render the Google Sign-In button
+        const buttonContainer = document.getElementById('google-signin-container');
+        if (buttonContainer) {
+            google.accounts.id.renderButton(buttonContainer, {
+                type: 'standard',
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                shape: 'rectangular',
+                width: 280
+            });
+            // Hide fallback button if Google's button was rendered
+            requestAnimationFrame(() => {
+                const fallbackBtn = document.getElementById('google-signin-btn');
+                if (buttonContainer.children.length > 0 && fallbackBtn) {
+                    fallbackBtn.style.display = 'none';
+                }
+            });
+        }
+
+        console.log('[v2] Google Sign-In initialized');
+    }
+
+    /**
+     * Handle Google Sign-In button click (fallback)
+     */
+    function handleGoogleSignIn() {
+        if (typeof google === 'undefined' || !google.accounts) {
+            Toast.error('Google Sign-In not available');
+            return;
+        }
+        google.accounts.id.prompt();
+    }
+
+    /**
+     * Handle Google OAuth callback
+     */
+    async function handleGoogleCallback(response) {
+        try {
+            const idToken = response.credential;
+            if (!idToken) {
+                throw new Error('No credential received from Google');
+            }
+
+            Toast.info('Signing in...');
+
+            const result = await API.authGoogle(idToken);
+
+            if (result.isNew) {
+                // New user - need to set up PIN
+                pendingOAuthUser = {
+                    id: result.user.id,
+                    email: result.user.email,
+                    name: result.user.name
+                };
+                showPinSetupModal();
+            } else if (result.needsPin) {
+                // Existing user with encrypted identity - need PIN
+                pendingOAuthUser = {
+                    id: result.user.id,
+                    email: result.user.email,
+                    name: result.user.name,
+                    encryptedIdentity: result.encryptedIdentity
+                };
+                showPinEntryModal();
+            } else {
+                // Returning user with local identity
+                await completeLogin(result.user);
+            }
+        } catch (e) {
+            console.error('[v2] Google auth failed:', e);
+            Toast.error('Sign in failed: ' + e.message);
+        }
+    }
+
+    /**
+     * Complete login after authentication
+     */
+    async function completeLogin(user) {
+        Model.setCurrentUserId(user.id);
+        Toast.success(`Welcome, ${user.name || user.email}!`);
+        ViewManager.navigate('main');
+        await refreshAllData();
+    }
+
+    /**
+     * Show PIN setup modal (placeholder - uses v1 modal)
+     */
+    function showPinSetupModal() {
+        const modal = document.getElementById('pin-setup-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        } else {
+            console.warn('[v2] PIN setup modal not found');
+            Toast.warning('PIN setup required but modal not available');
+        }
+    }
+
+    /**
+     * Show PIN entry modal (placeholder - uses v1 modal)
+     */
+    function showPinEntryModal() {
+        const modal = document.getElementById('pin-entry-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        } else {
+            console.warn('[v2] PIN entry modal not found');
+            Toast.warning('PIN entry required but modal not available');
+        }
     }
 
     /**
@@ -431,6 +576,9 @@
         document.getElementById('settings-btn')?.addEventListener('click', () => {
             ViewManager.navigate('settings');
         });
+
+        // Google Sign-In fallback button
+        document.getElementById('google-signin-btn')?.addEventListener('click', handleGoogleSignIn);
 
         // Back buttons - use ViewManager.goBack() for proper history
         document.getElementById('settings-back-btn')?.addEventListener('click', () => {
