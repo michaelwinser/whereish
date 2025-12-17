@@ -498,6 +498,34 @@
         // Refresh location button
         document.getElementById('refresh-location-btn')?.addEventListener('click', handleRefreshLocation);
 
+        // Save location button and modal
+        document.getElementById('save-location-btn')?.addEventListener('click', showSaveLocationModal);
+        document.getElementById('save-location-form')?.addEventListener('submit', handleSaveLocation);
+        document.getElementById('modal-close-btn')?.addEventListener('click', closeSaveLocationModal);
+        document.getElementById('modal-cancel-btn')?.addEventListener('click', closeSaveLocationModal);
+        document.getElementById('save-modal')?.querySelector('.modal-backdrop')?.addEventListener('click', closeSaveLocationModal);
+
+        // Places list clicks (delegated)
+        document.getElementById('places-list')?.addEventListener('click', (e) => {
+            const placeItem = e.target.closest('.named-location-item');
+            if (placeItem) {
+                const placeId = placeItem.dataset.id;
+                handlePlaceClick(placeId);
+            }
+        });
+
+        // Edit place modal
+        document.getElementById('edit-place-form')?.addEventListener('submit', handleEditPlaceSubmit);
+        document.getElementById('edit-place-close-btn')?.addEventListener('click', closeEditPlaceModal);
+        document.getElementById('edit-place-cancel-btn')?.addEventListener('click', closeEditPlaceModal);
+        document.getElementById('edit-place-modal')?.querySelector('.modal-backdrop')?.addEventListener('click', closeEditPlaceModal);
+        document.getElementById('delete-place-btn')?.addEventListener('click', handleDeletePlace);
+
+        // Visibility radio change in edit place modal
+        document.getElementById('edit-place-form')?.querySelectorAll('input[name="visibility"]').forEach(radio => {
+            radio.addEventListener('change', updateVisibilityContactSelector);
+        });
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -581,6 +609,292 @@
             form?.reset();
         }
     }
+
+    // ===================
+    // Places Modal Handlers
+    // ===================
+
+    // Track which place is being edited
+    let editingPlace = null;
+
+    /**
+     * Show the save location modal
+     */
+    function showSaveLocationModal() {
+        const modal = document.getElementById('save-modal');
+        const loc = Model.getLocation();
+
+        if (!loc || !loc.hierarchy) {
+            Toast.warning('No location available. Please refresh your location first.');
+            return;
+        }
+
+        if (modal) {
+            // Update modal with current location
+            const locText = document.getElementById('modal-current-location');
+            if (locText) {
+                locText.textContent = Model.getLocationText(loc.hierarchy);
+            }
+            modal.classList.remove('hidden');
+            document.getElementById('location-label')?.focus();
+        }
+    }
+
+    /**
+     * Close the save location modal
+     */
+    function closeSaveLocationModal() {
+        const modal = document.getElementById('save-modal');
+        const form = document.getElementById('save-location-form');
+        if (modal) {
+            modal.classList.add('hidden');
+            form?.reset();
+        }
+    }
+
+    /**
+     * Handle save location form submit
+     */
+    async function handleSaveLocation(e) {
+        e.preventDefault();
+
+        const loc = Model.getLocation();
+        if (!loc) {
+            Toast.warning('No location available.');
+            return;
+        }
+
+        const userId = API.getUserId?.() || Model.getCurrentUserId();
+        if (!userId) {
+            Toast.warning('Please log in to save locations.');
+            return;
+        }
+
+        const label = document.getElementById('location-label')?.value?.trim();
+        const radius = parseInt(document.getElementById('location-radius')?.value || '100', 10);
+
+        if (!label) {
+            Toast.warning('Please enter a name for this location.');
+            return;
+        }
+
+        try {
+            const newPlace = await Storage.saveNamedLocation({
+                userId,
+                label,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+                radiusMeters: radius,
+                visibility: { mode: 'private', contactIds: [] }
+            });
+
+            Model.addPlace(newPlace);
+
+            // Update current match
+            const match = Geofence.findMatchingPlace(loc.latitude, loc.longitude, Model.getPlaces());
+            Model.setCurrentMatch(match);
+
+            closeSaveLocationModal();
+            Toast.success(`Saved "${label}"`);
+        } catch (err) {
+            console.error('[v2] Failed to save location:', err);
+            Toast.error('Failed to save location');
+        }
+    }
+
+    /**
+     * Handle click on a place item - open edit modal
+     */
+    function handlePlaceClick(placeId) {
+        const places = Model.getPlaces();
+        const place = places.find(p => p.id === placeId);
+        if (place) {
+            openEditPlaceModal(place);
+        }
+    }
+
+    /**
+     * Open the edit place modal
+     */
+    function openEditPlaceModal(place) {
+        editingPlace = place;
+        const modal = document.getElementById('edit-place-modal');
+
+        if (modal) {
+            modal.classList.remove('hidden');
+            document.getElementById('edit-place-error')?.classList.add('hidden');
+
+            // Populate form
+            const labelInput = document.getElementById('edit-place-label');
+            const radiusSelect = document.getElementById('edit-place-radius');
+
+            if (labelInput) labelInput.value = place.label;
+            if (radiusSelect) radiusSelect.value = place.radiusMeters.toString();
+
+            // Set visibility radio
+            const visibility = place.visibility || { mode: 'private', contactIds: [] };
+            const radio = document.querySelector(`#edit-place-form input[name="visibility"][value="${visibility.mode}"]`);
+            if (radio) radio.checked = true;
+
+            // Update contact selector
+            renderVisibilityContacts(visibility.contactIds || []);
+            updateVisibilityContactSelector();
+
+            labelInput?.focus();
+        }
+    }
+
+    /**
+     * Close the edit place modal
+     */
+    function closeEditPlaceModal() {
+        const modal = document.getElementById('edit-place-modal');
+        const form = document.getElementById('edit-place-form');
+        if (modal) {
+            modal.classList.add('hidden');
+            form?.reset();
+            editingPlace = null;
+        }
+    }
+
+    /**
+     * Handle edit place form submit
+     */
+    async function handleEditPlaceSubmit(e) {
+        e.preventDefault();
+
+        if (!editingPlace) {
+            closeEditPlaceModal();
+            return;
+        }
+
+        const label = document.getElementById('edit-place-label')?.value?.trim();
+        const radius = parseInt(document.getElementById('edit-place-radius')?.value || '100', 10);
+        const visibility = getVisibilityFromForm();
+
+        if (!label) {
+            const errorEl = document.getElementById('edit-place-error');
+            if (errorEl) {
+                errorEl.textContent = 'Please enter a name for this place.';
+                errorEl.classList.remove('hidden');
+            }
+            return;
+        }
+
+        try {
+            const updatedPlace = await Storage.saveNamedLocation({
+                ...editingPlace,
+                label,
+                radiusMeters: radius,
+                visibility
+            });
+
+            Model.updatePlace(editingPlace.id, updatedPlace);
+
+            // Update current match if editing the matched place
+            const match = Model.getCurrentMatch();
+            if (match && match.id === editingPlace.id) {
+                Model.setCurrentMatch(updatedPlace);
+            }
+
+            closeEditPlaceModal();
+            Toast.success('Place updated');
+        } catch (err) {
+            console.error('[v2] Failed to update place:', err);
+            Toast.error('Failed to update place');
+        }
+    }
+
+    /**
+     * Handle delete place button
+     */
+    async function handleDeletePlace() {
+        if (!editingPlace) return;
+
+        const confirmed = await ConfirmModal.show({
+            title: 'Delete Place',
+            message: `Delete "${editingPlace.label}"?`,
+            confirmText: 'Delete',
+            danger: true
+        });
+
+        if (confirmed) {
+            try {
+                await Storage.deleteNamedLocation(editingPlace.id);
+                Model.removePlace(editingPlace.id);
+
+                // Clear match if deleting the matched place
+                const match = Model.getCurrentMatch();
+                if (match && match.id === editingPlace.id) {
+                    Model.setCurrentMatch(null);
+                }
+
+                closeEditPlaceModal();
+                Toast.success('Place deleted');
+            } catch (err) {
+                console.error('[v2] Failed to delete place:', err);
+                Toast.error('Failed to delete place');
+            }
+        }
+    }
+
+    /**
+     * Get visibility settings from edit form
+     */
+    function getVisibilityFromForm() {
+        const form = document.getElementById('edit-place-form');
+        const mode = form?.querySelector('input[name="visibility"]:checked')?.value || 'private';
+        const contactIds = [];
+
+        if (mode === 'selected') {
+            form?.querySelectorAll('#visibility-contact-selector input:checked').forEach(cb => {
+                contactIds.push(cb.value);
+            });
+        }
+
+        return { mode, contactIds };
+    }
+
+    /**
+     * Render contact checkboxes for visibility selector
+     */
+    function renderVisibilityContacts(selectedIds) {
+        const container = document.getElementById('visibility-contact-selector');
+        if (!container) return;
+
+        const contacts = Model.getContacts();
+        if (!contacts || contacts.length === 0) {
+            container.innerHTML = '<p class="empty-state">No contacts to select</p>';
+            return;
+        }
+
+        container.innerHTML = contacts.map(contact => {
+            const contactId = contact.contactId || contact.id;
+            const isChecked = selectedIds.includes(contactId);
+            return `
+                <label class="contact-checkbox">
+                    <input type="checkbox" value="${contactId}" ${isChecked ? 'checked' : ''}>
+                    ${Model.escapeHtml(contact.name)}
+                </label>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Show/hide contact selector based on visibility mode
+     */
+    function updateVisibilityContactSelector() {
+        const form = document.getElementById('edit-place-form');
+        const container = document.getElementById('visibility-contact-selector');
+        if (!form || !container) return;
+
+        const mode = form.querySelector('input[name="visibility"]:checked')?.value;
+        container.style.display = mode === 'selected' ? 'block' : 'none';
+    }
+
+    // ===================
+    // Location Refresh
+    // ===================
 
     /**
      * Handle location refresh
