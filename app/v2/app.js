@@ -420,7 +420,8 @@
         try {
             // These will trigger events that update bindings
             await API.getContactsEncrypted();
-            await API.getContactRequests();
+            const requests = await API.getContactRequests();
+            Model.setContactRequests(requests);
         } catch (e) {
             console.error('[v2] Failed to refresh data:', e);
         }
@@ -902,7 +903,8 @@
     async function handleCancelRequest(requestId) {
         try {
             await API.cancelContactRequest(requestId);
-            await API.getContactRequests();
+            const requests = await API.getContactRequests();
+            Model.setContactRequests(requests);
         } catch (e) {
             console.error('[v2] Failed to cancel request:', e);
             Toast.error('Failed to cancel request');
