@@ -18,7 +18,7 @@
  * - Handler modules (app/v2/handlers/*.js)
  */
 
-/* global Model, Events, API, Bind, ViewManager, Storage, Identity, Crypto, Geofence, Toast */
+/* global Model, Events, API, Bind, ViewManager, Storage, Identity, Crypto, Geofence, Toast, BUILD_INFO */
 
 (function() {
     'use strict';
@@ -26,9 +26,6 @@
     // ===================
     // State
     // ===================
-
-    // Track current view for navigation
-    let currentView = 'welcome';
 
     // Cache for DOM elements
     const elements = {};
@@ -49,6 +46,9 @@
         // Enable debug logging during development
         Bind.setDebug(true);
 
+        // Register views with ViewManager
+        registerViews();
+
         // Set up declarative bindings (View layer)
         setupBindings();
 
@@ -62,6 +62,127 @@
         await checkInitialState();
 
         console.log('[v2] Initialized with', Bind.getBindingCount(), 'bindings');
+    }
+
+    /**
+     * Register views with ViewManager for lifecycle management
+     */
+    function registerViews() {
+        ViewManager.register('welcome', {
+            onEnter: () => {
+                // Update welcome screen with current location if available
+                const loc = Model.getLocation();
+                if (loc?.hierarchy) {
+                    renderWelcomeHierarchy();
+                }
+            },
+            onExit: () => {}
+        });
+
+        ViewManager.register('main', {
+            onEnter: () => {
+                // Refresh data when entering main view
+                if (API.isAuthenticated()) {
+                    refreshAllData();
+                }
+            },
+            onExit: () => {}
+        });
+
+        ViewManager.register('places', {
+            onEnter: () => {
+                // Trigger places list update
+                Events.emit('places:changed', {});
+            },
+            onExit: () => {}
+        });
+
+        ViewManager.register('contact-detail', {
+            onEnter: () => {
+                // Render contact detail
+                renderContactDetail();
+            },
+            onExit: () => {
+                // Clear selected contact
+                Model.setSelectedContact(null);
+            }
+        });
+
+        ViewManager.register('settings', {
+            onEnter: () => {
+                // Update settings info
+                updateSettingsInfo();
+            },
+            onExit: () => {}
+        });
+
+        ViewManager.register('delete-account', {
+            onEnter: () => {
+                // Clear form when entering
+                const passwordInput = document.getElementById('delete-account-password');
+                const errorDiv = document.getElementById('delete-account-error');
+                if (passwordInput) passwordInput.value = '';
+                if (errorDiv) errorDiv.classList.add('hidden');
+            },
+            onExit: () => {}
+        });
+    }
+
+    /**
+     * Render welcome screen hierarchy
+     */
+    function renderWelcomeHierarchy() {
+        const loc = Model.getLocation();
+        const el = document.getElementById('welcome-location');
+        if (el && loc?.hierarchy) {
+            const parts = [];
+            if (loc.hierarchy.neighborhood) parts.push(loc.hierarchy.neighborhood);
+            if (loc.hierarchy.city) parts.push(loc.hierarchy.city);
+            if (loc.hierarchy.state) parts.push(loc.hierarchy.state);
+            el.textContent = parts.join(', ') || 'Unknown location';
+        }
+    }
+
+    /**
+     * Render contact detail view
+     */
+    function renderContactDetail() {
+        const contact = Model.getSelectedContact();
+        if (!contact) return;
+
+        const nameEl = document.getElementById('contact-detail-name');
+        const locationEl = document.getElementById('contact-detail-location');
+        const permissionEl = document.getElementById('detail-permission-select');
+
+        if (nameEl) nameEl.textContent = contact.name || 'Unknown';
+        if (locationEl) {
+            const locText = Model.getContactLocationText?.(contact) || 'Location unknown';
+            locationEl.textContent = locText;
+        }
+        if (permissionEl && contact.permission) {
+            permissionEl.value = contact.permission;
+        }
+    }
+
+    /**
+     * Update settings view info
+     */
+    function updateSettingsInfo() {
+        const userEmail = API.getUserEmail?.() || '--';
+        const emailEl = document.getElementById('settings-user-email');
+        if (emailEl) emailEl.textContent = userEmail;
+
+        // Update version info
+        if (typeof BUILD_INFO !== 'undefined') {
+            const versionEl = document.getElementById('settings-version');
+            const buildEl = document.getElementById('settings-build');
+            if (versionEl) versionEl.textContent = `v${BUILD_INFO.version}`;
+            if (buildEl) {
+                const buildDate = new Date(BUILD_INFO.buildTime);
+                const dateStr = buildDate.toLocaleDateString();
+                buildEl.textContent = `${BUILD_INFO.gitCommit} (${dateStr})`;
+            }
+        }
     }
 
     /**
@@ -85,11 +206,9 @@
      */
     async function checkInitialState() {
         if (API.isAuthenticated()) {
-            showView('main');
-            // Refresh data
-            await refreshAllData();
+            ViewManager.navigate('main', {}, false);
         } else {
-            showView('welcome');
+            ViewManager.navigate('welcome', {}, false);
         }
     }
 
@@ -115,24 +234,10 @@
      *
      * This is where we define WHAT to render, not WHEN.
      * Bindings automatically update when Events emits relevant events.
+     *
+     * Note: View visibility is handled by ViewManager, not bindings.
      */
     function setupBindings() {
-        // --- View visibility bindings ---
-        Bind.visible('[data-view="welcome"]',
-            () => currentView === 'welcome',
-            ['auth:changed']
-        );
-
-        Bind.visible('[data-view="main"]',
-            () => currentView === 'main',
-            ['auth:changed']
-        );
-
-        Bind.visible('#tab-bar',
-            () => currentView === 'main' || currentView === 'places',
-            ['auth:changed']
-        );
-
         // --- Location bar bindings ---
         Bind.text('#location-bar-primary',
             () => {
@@ -257,25 +362,37 @@
      * Set up event handlers
      *
      * These handle user interactions and translate them to Model operations.
-     * NO direct DOM manipulation here - just Model updates.
+     * Navigation uses ViewManager for proper history management.
      */
     function setupEventHandlers() {
         // Tab navigation
         document.querySelectorAll('[data-tab]').forEach(tab => {
             tab.addEventListener('click', () => {
                 const viewName = tab.dataset.tab;
-                showView(viewName);
+                ViewManager.navigate(viewName);
             });
         });
 
         // Settings button
         document.getElementById('settings-btn')?.addEventListener('click', () => {
-            showView('settings');
+            ViewManager.navigate('settings');
         });
 
-        // Back buttons
+        // Back buttons - use ViewManager.goBack() for proper history
         document.getElementById('settings-back-btn')?.addEventListener('click', () => {
-            showView('main');
+            ViewManager.goBack();
+        });
+
+        document.getElementById('contact-detail-back-btn')?.addEventListener('click', () => {
+            ViewManager.goBack();
+        });
+
+        document.getElementById('delete-account-back-btn')?.addEventListener('click', () => {
+            ViewManager.goBack();
+        });
+
+        document.getElementById('delete-account-cancel-btn')?.addEventListener('click', () => {
+            ViewManager.goBack();
         });
 
         // Logout button
@@ -292,6 +409,19 @@
 
         // Refresh location button
         document.getElementById('refresh-location-btn')?.addEventListener('click', handleRefreshLocation);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // Close modals first, then navigate back
+                const openModal = document.querySelector('.modal:not(.hidden)');
+                if (openModal) {
+                    openModal.classList.add('hidden');
+                } else if (ViewManager.canGoBack()) {
+                    ViewManager.goBack();
+                }
+            }
+        });
     }
 
     // ===================
@@ -299,56 +429,27 @@
     // ===================
 
     /**
-     * Show a view by name
-     */
-    function showView(viewName) {
-        currentView = viewName;
-
-        // Hide all views
-        document.querySelectorAll('[data-view]').forEach(view => {
-            view.classList.add('hidden');
-        });
-
-        // Show target view
-        const targetView = document.querySelector(`[data-view="${viewName}"]`);
-        if (targetView) {
-            targetView.classList.remove('hidden');
-        }
-
-        // Update tab bar visibility
-        const showTabBar = ['main', 'places'].includes(viewName);
-        elements.tabBar?.classList.toggle('hidden', !showTabBar);
-
-        // Update active tab
-        document.querySelectorAll('[data-tab]').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.tab === viewName);
-        });
-
-        // Trigger binding updates
-        Events.emit('auth:changed', {});
-    }
-
-    /**
-     * Handle contact click
+     * Handle contact click - navigate to contact detail view
      */
     function handleContactClick(contactId) {
         const contacts = Model.getContacts();
         const contact = contacts.find(c => c.id === contactId);
         if (contact) {
             Model.setSelectedContact(contact);
-            showView('contact-detail');
+            ViewManager.navigate('contact-detail', { contactId });
         }
     }
 
     /**
-     * Handle logout
+     * Handle logout - clear auth and return to welcome
      */
     async function handleLogout() {
         try {
             await API.logout();
-            showView('welcome');
+            ViewManager.navigate('welcome');
         } catch (e) {
             console.error('[v2] Logout failed:', e);
+            Toast.error('Logout failed');
         }
     }
 
@@ -397,9 +498,10 @@
 
     // Expose for debugging
     window.V2App = {
-        showView,
         refreshAllData,
-        getBindingCount: () => Bind.getBindingCount()
+        getBindingCount: () => Bind.getBindingCount(),
+        navigate: ViewManager.navigate,
+        goBack: ViewManager.goBack
     };
 
 })();
