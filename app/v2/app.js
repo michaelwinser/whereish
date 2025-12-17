@@ -239,23 +239,76 @@
      */
     function setupBindings() {
         // --- Location bar bindings ---
+        // Primary shows: named location label OR most specific location level
         Bind.text('#location-bar-primary',
             () => {
                 const loc = Model.getLocation();
-                if (!loc || !loc.hierarchy) return 'Locating...';
-                return loc.hierarchy.neighborhood || loc.hierarchy.city || loc.hierarchy.state || 'Unknown';
+                const match = Model.getCurrentMatch();
+
+                // Handle loading state
+                if (!loc || !loc.hierarchy) {
+                    return 'Locating...';
+                }
+
+                // If we have a named location match, show its label
+                if (match) {
+                    return match.label;
+                }
+
+                // Otherwise show the most specific location
+                return Model.getLocationText(loc.hierarchy);
             },
-            ['location:changed', 'location:loading']
+            ['location:changed', 'location:loading', 'location:match:changed']
         );
 
+        // Secondary shows: actual location when there's a named match, hidden otherwise
         Bind.text('#location-bar-secondary',
             () => {
                 const loc = Model.getLocation();
-                if (!loc || !loc.hierarchy) return '';
-                const parts = [];
-                if (loc.hierarchy.city) parts.push(loc.hierarchy.city);
-                if (loc.hierarchy.state) parts.push(loc.hierarchy.state);
-                return parts.join(', ');
+                const match = Model.getCurrentMatch();
+
+                // Only show secondary when we have a match (to show actual location)
+                if (!match || !loc?.hierarchy) {
+                    return '';
+                }
+
+                return Model.getLocationText(loc.hierarchy);
+            },
+            ['location:changed', 'location:match:changed']
+        );
+
+        // Hide secondary when there's no named location match
+        Bind.class('#location-bar-secondary', 'hidden',
+            () => {
+                const match = Model.getCurrentMatch();
+                return !match;
+            },
+            ['location:match:changed', 'location:changed']
+        );
+
+        // Location error binding
+        Bind.visible('#location-error',
+            () => {
+                const loc = Model.getLocation();
+                return loc?.error ? true : false;
+            },
+            ['location:error']
+        );
+
+        Bind.text('#location-error-text',
+            () => {
+                const loc = Model.getLocation();
+                return loc?.error || '';
+            },
+            ['location:error']
+        );
+
+        // --- Welcome screen location binding ---
+        Bind.text('#welcome-location',
+            () => {
+                const loc = Model.getLocation();
+                if (!loc?.hierarchy) return '';
+                return Model.getLocationText(loc.hierarchy);
             },
             ['location:changed']
         );
@@ -467,21 +520,43 @@
                 });
             });
 
-            // Geocode coordinates
-            const hierarchy = await Geofence.geocodeLocation(
-                position.coords.latitude,
-                position.coords.longitude
-            );
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
 
+            // Geocode coordinates
+            const hierarchy = await Geofence.geocodeLocation(lat, lon);
+
+            // Update location in Model
             Model.setLocation({
                 hierarchy,
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
+                latitude: lat,
+                longitude: lon,
                 timestamp: new Date().toISOString()
             });
+
+            // Check for named location match
+            const places = Model.getPlaces();
+            const match = Geofence.findMatchingPlace(lat, lon, places);
+            Model.setCurrentMatch(match);
+
+            // Publish location to server if authenticated
+            if (API.isAuthenticated()) {
+                try {
+                    await API.publishLocationEncrypted({
+                        hierarchy,
+                        latitude: lat,
+                        longitude: lon,
+                        namedLocation: match?.label || null,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (pubErr) {
+                    console.warn('[v2] Failed to publish location:', pubErr);
+                }
+            }
         } catch (e) {
             console.error('[v2] Location refresh failed:', e);
             Model.setLocationError(e.message);
+            Toast.error('Failed to get location: ' + e.message);
         }
     }
 
