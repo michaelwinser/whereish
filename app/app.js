@@ -2594,7 +2594,7 @@
         }
 
         try {
-            const newLocation = await Storage.saveNamedLocation({
+            await Storage.saveNamedLocation({
                 userId: currentUserId,
                 label,
                 latitude: currentCoordinates.latitude,
@@ -2602,10 +2602,9 @@
                 radiusMeters: radius
             });
 
-            namedLocations.push(newLocation);
-
-            // Sync with Model
-            Model.addPlace(newLocation);
+            // Reload all places from storage to ensure consistency (avoids duplicates)
+            namedLocations = await Storage.getAllNamedLocations(currentUserId);
+            Model.setPlaces(namedLocations);
 
             currentMatch = Geofence.findBestMatch(
                 currentCoordinates.latitude,

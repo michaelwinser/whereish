@@ -988,7 +988,7 @@
         e.preventDefault();
 
         const loc = Model.getLocation();
-        if (!loc) {
+        if (!loc?.coordinates) {
             Toast.warning('No location available.');
             return;
         }
@@ -1008,19 +1008,21 @@
         }
 
         try {
-            const newPlace = await Storage.saveNamedLocation({
+            await Storage.saveNamedLocation({
                 userId,
                 label,
-                latitude: loc.latitude,
-                longitude: loc.longitude,
+                latitude: loc.coordinates.latitude,
+                longitude: loc.coordinates.longitude,
                 radiusMeters: radius,
                 visibility: { mode: 'private', contactIds: [] }
             });
 
-            Model.addPlace(newPlace);
+            // Reload all places from storage to ensure consistency (avoids duplicates)
+            const places = await Storage.getAllNamedLocations(userId);
+            Model.setPlaces(places);
 
             // Update current match
-            const match = Geofence.findMatchingPlace(loc.latitude, loc.longitude, Model.getPlaces());
+            const match = Geofence.findBestMatch(loc.coordinates.latitude, loc.coordinates.longitude, places);
             Model.setCurrentMatch(match);
 
             closeSaveLocationModal();
