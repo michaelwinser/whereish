@@ -30,7 +30,8 @@ async function handleAcceptRequest(requestId) {
         await API.acceptContactRequest(requestId);
         // Refresh contacts list
         await API.getContactsEncrypted();
-        await API.getContactRequests();
+        const requests = await API.getContactRequests();
+        Model.setContactRequests(requests);
     } catch (e) {
         console.error('[Handlers] Failed to accept request:', e);
     }
@@ -43,7 +44,8 @@ async function handleAcceptRequest(requestId) {
 async function handleDeclineRequest(requestId) {
     try {
         await API.declineContactRequest(requestId);
-        await API.getContactRequests();
+        const requests = await API.getContactRequests();
+        Model.setContactRequests(requests);
     } catch (e) {
         console.error('[Handlers] Failed to decline request:', e);
     }
@@ -56,7 +58,8 @@ async function handleDeclineRequest(requestId) {
 async function handleAddContact(email) {
     try {
         await API.sendContactRequest(email);
-        await API.getContactRequests();
+        const requests = await API.getContactRequests();
+        Model.setContactRequests(requests);
         return { success: true };
     } catch (e) {
         console.error('[Handlers] Failed to send request:', e);
