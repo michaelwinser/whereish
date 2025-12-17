@@ -18,7 +18,9 @@
  * - Handler modules (app/v2/handlers/*.js)
  */
 
-/* global Model, Events, API, Bind, ViewManager, Storage, Identity, Crypto, Geofence, Toast, BUILD_INFO */
+/* global Model, Events, API, Bind, ViewManager, Storage, Identity, Crypto, Geofence, Toast, ConfirmModal, BUILD_INFO */
+/* global renderContactsList, renderIncomingRequests, renderOutgoingRequests, renderPlacesList */
+/* global handleContactClick, handleAcceptRequest, handleDeclineRequest, handleAddContact, handleRemoveContact, handlePermissionChange */
 
 (function() {
     'use strict';
@@ -314,11 +316,29 @@
         );
 
         // --- Contacts list binding ---
-        // Note: renderContactsList is defined in render/contacts.js
-        // For now, use a simple placeholder
         Bind.html('#contacts-list',
             () => renderContactsList(),
-            ['contacts:changed']
+            ['contacts:changed', 'location:changed']
+        );
+
+        // --- Contact requests bindings ---
+        Bind.html('#incoming-requests',
+            () => renderIncomingRequests(),
+            ['contacts:requests:changed']
+        );
+
+        Bind.html('#outgoing-requests',
+            () => renderOutgoingRequests(),
+            ['contacts:requests:changed']
+        );
+
+        // Show pending requests section when there are requests
+        Bind.visible('#pending-requests',
+            () => {
+                const requests = Model.getContactRequests();
+                return (requests?.incoming?.length > 0) || (requests?.outgoing?.length > 0);
+            },
+            ['contacts:requests:changed']
         );
 
         // --- Places list binding ---
@@ -342,70 +362,7 @@
     // ===================
     // Render Functions
     // ===================
-
-    /**
-     * Render the contacts list
-     * TODO: Move to render/contacts.js
-     */
-    function renderContactsList() {
-        const contacts = Model.getContacts();
-
-        if (!contacts || contacts.length === 0) {
-            return '<p class="empty-state">No contacts yet</p>';
-        }
-
-        return contacts.map(contact => {
-            const initial = contact.name ? contact.name.charAt(0).toUpperCase() : '?';
-            const locationText = Model.getContactLocationText ? Model.getContactLocationText(contact) : 'Unknown';
-
-            return `
-                <div class="contact-item contact-item-simple" data-id="${escapeHtml(contact.id)}">
-                    <div class="contact-avatar">${escapeHtml(initial)}</div>
-                    <div class="contact-info">
-                        <div class="contact-name">${escapeHtml(contact.name)}</div>
-                        <div class="contact-location">${escapeHtml(locationText)}</div>
-                    </div>
-                    <div class="contact-chevron">&rsaquo;</div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    /**
-     * Render the places list
-     * TODO: Move to render/places.js
-     */
-    function renderPlacesList() {
-        const places = Model.getPlaces();
-
-        if (!places || places.length === 0) {
-            return '<p class="empty-state">No named locations yet</p>';
-        }
-
-        return places.map(place => {
-            const isActive = false; // TODO: check against current location
-
-            return `
-                <div class="named-location-item ${isActive ? 'active' : ''}" data-id="${escapeHtml(place.id)}">
-                    <div class="named-location-name">${escapeHtml(place.label)}</div>
-                    <div class="named-location-radius">${place.radiusMeters}m radius</div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    /**
-     * Escape HTML to prevent XSS
-     */
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
+    // Render functions are in v2/render/*.js modules
 
     // ===================
     // Controller Layer: Event Handlers
@@ -460,6 +417,84 @@
             }
         });
 
+        // Contact request buttons (delegated)
+        document.getElementById('incoming-requests')?.addEventListener('click', async (e) => {
+            const acceptBtn = e.target.closest('.accept-request-btn');
+            const declineBtn = e.target.closest('.decline-request-btn');
+
+            if (acceptBtn) {
+                const requestId = acceptBtn.dataset.id;
+                acceptBtn.disabled = true;
+                await handleAcceptRequest(requestId);
+            } else if (declineBtn) {
+                const requestId = declineBtn.dataset.id;
+                declineBtn.disabled = true;
+                await handleDeclineRequest(requestId);
+            }
+        });
+
+        document.getElementById('outgoing-requests')?.addEventListener('click', async (e) => {
+            const cancelBtn = e.target.closest('.cancel-request-btn');
+            if (cancelBtn) {
+                const requestId = cancelBtn.dataset.id;
+                cancelBtn.disabled = true;
+                await handleCancelRequest(requestId);
+            }
+        });
+
+        // Add contact button and modal
+        document.getElementById('add-contact-btn')?.addEventListener('click', () => {
+            showAddContactModal();
+        });
+
+        document.getElementById('add-contact-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById('contact-email');
+            const email = emailInput?.value?.trim();
+            if (email) {
+                const result = await handleAddContact(email);
+                if (result.success) {
+                    closeAddContactModal();
+                    Toast.success('Contact request sent');
+                } else {
+                    const errorEl = document.getElementById('add-contact-error');
+                    if (errorEl) {
+                        errorEl.textContent = result.error || 'Failed to send request';
+                        errorEl.classList.remove('hidden');
+                    }
+                }
+            }
+        });
+
+        document.getElementById('add-contact-close-btn')?.addEventListener('click', closeAddContactModal);
+        document.getElementById('add-contact-cancel-btn')?.addEventListener('click', closeAddContactModal);
+        document.getElementById('add-contact-modal')?.querySelector('.modal-backdrop')?.addEventListener('click', closeAddContactModal);
+
+        // Permission change in contact detail
+        document.getElementById('detail-permission-select')?.addEventListener('change', async (e) => {
+            const contact = Model.getSelectedContact();
+            if (contact) {
+                await handlePermissionChange(contact.id, e.target.value);
+            }
+        });
+
+        // Remove contact button
+        document.getElementById('remove-contact-btn')?.addEventListener('click', async () => {
+            const contact = Model.getSelectedContact();
+            if (contact) {
+                const confirmed = await ConfirmModal.show({
+                    title: 'Remove Contact',
+                    message: `Remove ${contact.name} from your contacts?`,
+                    confirmText: 'Remove',
+                    danger: true
+                });
+                if (confirmed) {
+                    await handleRemoveContact(contact.id);
+                    ViewManager.goBack();
+                }
+            }
+        });
+
         // Refresh location button
         document.getElementById('refresh-location-btn')?.addEventListener('click', handleRefreshLocation);
 
@@ -503,6 +538,47 @@
         } catch (e) {
             console.error('[v2] Logout failed:', e);
             Toast.error('Logout failed');
+        }
+    }
+
+    /**
+     * Handle canceling an outgoing contact request
+     */
+    async function handleCancelRequest(requestId) {
+        try {
+            await API.cancelContactRequest(requestId);
+            await API.getContactRequests();
+        } catch (e) {
+            console.error('[v2] Failed to cancel request:', e);
+            Toast.error('Failed to cancel request');
+        }
+    }
+
+    /**
+     * Show the add contact modal
+     */
+    function showAddContactModal() {
+        const modal = document.getElementById('add-contact-modal');
+        const emailInput = document.getElementById('contact-email');
+        const errorEl = document.getElementById('add-contact-error');
+
+        if (modal) {
+            modal.classList.remove('hidden');
+            emailInput?.focus();
+            if (errorEl) errorEl.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Close the add contact modal
+     */
+    function closeAddContactModal() {
+        const modal = document.getElementById('add-contact-modal');
+        const form = document.getElementById('add-contact-form');
+
+        if (modal) {
+            modal.classList.add('hidden');
+            form?.reset();
         }
     }
 
