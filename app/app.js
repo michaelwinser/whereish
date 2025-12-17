@@ -597,29 +597,50 @@
     // Google OAuth
     // ===================
 
+    let googleSignInInitialized = false;
+
     /**
      * Initialize Google Identity Services
+     * Uses retry logic since GIS script loads with async defer
      */
-    function initGoogleSignIn() {
-        // Check if GIS is loaded
+    function initGoogleSignIn(retryCount = 0) {
+        const MAX_RETRIES = 10;
+        const RETRY_DELAY = 200; // ms
+
+        // Check if GIS is loaded - retry if not yet available
         if (typeof google === 'undefined' || !google.accounts) {
-            console.log('Google Identity Services not loaded - offline or blocked');
+            if (retryCount < MAX_RETRIES) {
+                setTimeout(() => initGoogleSignIn(retryCount + 1), RETRY_DELAY);
+                return;
+            }
+            console.log('Google Identity Services not loaded after retries - offline or blocked');
             return;
         }
 
         // Initialize with client ID from meta tag or config
         const clientId = document.querySelector('meta[name="google-client-id"]')?.content;
-        if (!clientId) {
+        if (!clientId || clientId === '__GOOGLE_CLIENT_ID__') {
             console.log('Google Client ID not configured');
             return;
         }
 
-        google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleGoogleCallback,
-            auto_select: false,
-            use_fedcm_for_prompt: true  // Opt-in to FedCM
-        });
+        // Prevent double initialization
+        if (googleSignInInitialized) {
+            return;
+        }
+
+        try {
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleGoogleCallback,
+                auto_select: false,
+                use_fedcm_for_prompt: true  // Opt-in to FedCM
+            });
+            googleSignInInitialized = true;
+        } catch (e) {
+            console.error('Failed to initialize Google Sign-In:', e);
+            return;
+        }
 
         // Render the Google Sign-In button in the container
         const buttonContainer = document.getElementById('google-signin-container');
@@ -650,6 +671,19 @@
     function handleGoogleSignIn() {
         if (typeof google === 'undefined' || !google.accounts) {
             Toast.error('Google Sign-In not available');
+            return;
+        }
+
+        // If not yet initialized, trigger initialization and retry
+        if (!googleSignInInitialized) {
+            initGoogleSignIn();
+            setTimeout(() => {
+                if (googleSignInInitialized) {
+                    google.accounts.id.prompt();
+                } else {
+                    Toast.error('Google Sign-In initialization failed');
+                }
+            }, 100);
             return;
         }
 

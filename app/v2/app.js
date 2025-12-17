@@ -76,29 +76,53 @@
     // Track pending OAuth user for PIN setup
     let pendingOAuthUser = null;
 
+    // Track if Google Sign-In has been initialized
+    let googleSignInInitialized = false;
+
     /**
      * Initialize Google Identity Services
+     * Retries if GIS hasn't loaded yet (async script)
      */
-    function initGoogleSignIn() {
+    function initGoogleSignIn(retryCount = 0) {
+        const MAX_RETRIES = 10;
+        const RETRY_DELAY = 200; // ms
+
         // Check if GIS is loaded
         if (typeof google === 'undefined' || !google.accounts) {
-            console.log('[v2] Google Identity Services not loaded - offline or blocked');
+            if (retryCount < MAX_RETRIES) {
+                // GIS not loaded yet, retry after delay
+                setTimeout(() => initGoogleSignIn(retryCount + 1), RETRY_DELAY);
+                return;
+            }
+            console.log('[v2] Google Identity Services not loaded after retries - offline or blocked');
             return;
         }
 
         // Get client ID from meta tag
         const clientId = document.querySelector('meta[name="google-client-id"]')?.content;
-        if (!clientId) {
+        if (!clientId || clientId === '__GOOGLE_CLIENT_ID__') {
             console.log('[v2] Google Client ID not configured');
             return;
         }
 
-        google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleGoogleCallback,
-            auto_select: false,
-            use_fedcm_for_prompt: true
-        });
+        // Avoid double initialization
+        if (googleSignInInitialized) {
+            return;
+        }
+
+        try {
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleGoogleCallback,
+                auto_select: false,
+                use_fedcm_for_prompt: true
+            });
+            googleSignInInitialized = true;
+            console.log('[v2] Google Sign-In initialized');
+        } catch (e) {
+            console.error('[v2] Failed to initialize Google Sign-In:', e);
+            return;
+        }
 
         // Render the Google Sign-In button
         const buttonContainer = document.getElementById('google-signin-container');
@@ -119,8 +143,6 @@
                 }
             });
         }
-
-        console.log('[v2] Google Sign-In initialized');
     }
 
     /**
@@ -131,6 +153,21 @@
             Toast.error('Google Sign-In not available');
             return;
         }
+
+        // Ensure GIS is initialized before prompting
+        if (!googleSignInInitialized) {
+            initGoogleSignIn();
+            // Wait a bit for init to complete, then prompt
+            setTimeout(() => {
+                if (googleSignInInitialized) {
+                    google.accounts.id.prompt();
+                } else {
+                    Toast.error('Google Sign-In initialization failed');
+                }
+            }, 100);
+            return;
+        }
+
         google.accounts.id.prompt();
     }
 
