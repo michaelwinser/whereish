@@ -207,10 +207,54 @@
      * Check initial authentication state and show appropriate view
      */
     async function checkInitialState() {
+        // Check server health first
+        await checkServerHealth();
+
         if (API.isAuthenticated()) {
             ViewManager.navigate('main', {}, false);
         } else {
             ViewManager.navigate('welcome', {}, false);
+        }
+    }
+
+    /**
+     * Check server health and update status indicator
+     */
+    async function checkServerHealth() {
+        try {
+            const healthy = await API.checkHealth();
+            updateServerStatus(healthy);
+        } catch (e) {
+            console.error('[v2] Health check failed:', e);
+            updateServerStatus(false);
+        }
+    }
+
+    /**
+     * Update server status UI
+     */
+    function updateServerStatus(connected) {
+        Model.setServerConnected(connected);
+
+        const statusEl = document.getElementById('server-status');
+        const iconEl = statusEl?.querySelector('.server-status-icon');
+        const textEl = statusEl?.querySelector('.server-status-text');
+
+        if (!statusEl) return;
+
+        if (connected) {
+            statusEl.classList.add('connected');
+            statusEl.classList.add('hidden');
+            if (iconEl) iconEl.textContent = '✓';
+            if (textEl) textEl.textContent = 'Connected to server';
+        } else {
+            statusEl.classList.remove('connected');
+            statusEl.classList.remove('hidden');
+            if (iconEl) iconEl.textContent = '⚠️';
+            if (textEl) textEl.textContent = 'Backend server not connected';
+
+            // Hide contacts section when server not connected
+            document.getElementById('contacts-section')?.classList.add('hidden');
         }
     }
 
@@ -288,16 +332,16 @@
             ['location:match:changed', 'location:changed']
         );
 
-        // Location error binding
-        Bind.visible('#location-error',
+        // Location error binding (uses #error-message element)
+        Bind.visible('#error-message',
             () => {
                 const loc = Model.getLocation();
                 return loc?.error ? true : false;
             },
-            ['location:error']
+            ['location:error', 'location:changed']
         );
 
-        Bind.text('#location-error-text',
+        Bind.text('#error-message .error-text',
             () => {
                 const loc = Model.getLocation();
                 return loc?.error || '';
@@ -305,8 +349,8 @@
             ['location:error']
         );
 
-        // --- Welcome screen location binding ---
-        Bind.text('#welcome-location',
+        // --- Welcome screen location binding (class selector) ---
+        Bind.text('.welcome-location',
             () => {
                 const loc = Model.getLocation();
                 if (!loc?.hierarchy) return '';
