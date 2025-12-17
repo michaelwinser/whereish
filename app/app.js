@@ -415,7 +415,16 @@
      * Loads data from all sources (server + IndexedDB) in parallel.
      */
     async function initializeAuthenticatedState() {
-        const userId = API.getUserId?.() || null;
+        // First fetch current user to get user ID
+        let user;
+        try {
+            user = await API.getCurrentUser();
+        } catch (e) {
+            console.error('[v2] Failed to get current user:', e);
+            return;
+        }
+
+        const userId = user?.id || null;
         if (!userId) {
             console.warn('[v2] No user ID available for initialization');
             return;
