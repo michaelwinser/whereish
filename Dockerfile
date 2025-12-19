@@ -2,7 +2,7 @@
 # Serves both API and PWA from a single container
 
 # Build stage - compile Go binary
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
@@ -10,17 +10,17 @@ WORKDIR /build
 COPY server/go.mod server/go.sum ./
 RUN go mod download
 
-# Copy source and build
+# Copy source and build (CGO disabled - using pure Go SQLite)
 COPY server/ ./
-RUN CGO_ENABLED=1 go build -o whereish-server ./cmd/server
+RUN CGO_ENABLED=0 go build -o whereish-server ./cmd/server
 
 # Runtime stage - minimal image
 FROM alpine:latest
 
 WORKDIR /app
 
-# Install SQLite runtime dependencies
-RUN apk add --no-cache ca-certificates sqlite-libs
+# Install CA certificates for HTTPS
+RUN apk add --no-cache ca-certificates
 
 # Copy binary from builder
 COPY --from=builder /build/whereish-server /app/

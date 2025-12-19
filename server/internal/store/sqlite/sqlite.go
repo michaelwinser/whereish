@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"github.com/whereish/server/internal/store"
 )
 
@@ -20,7 +20,7 @@ type Store struct {
 
 // New creates a new SQLite store
 func New(dsn string) (*Store, error) {
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
