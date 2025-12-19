@@ -39,7 +39,11 @@ const Model = (function() {
         PERMISSION_LEVELS_LOADED: 'permissions:loaded',
 
         // Device events
-        DEVICES_CHANGED: 'devices:changed'
+        DEVICES_CHANGED: 'devices:changed',
+
+        // UI error events
+        ADD_CONTACT_ERROR_CHANGED: 'ui:addContactError:changed',
+        DELETE_ACCOUNT_ERROR_CHANGED: 'ui:deleteAccountError:changed'
     };
 
     // ===================
@@ -148,7 +152,11 @@ const Model = (function() {
 
         // Device state
         devices: [],
-        currentDeviceId: null
+        currentDeviceId: null,
+
+        // UI error state
+        addContactError: null,
+        deleteAccountError: null
     };
 
     // ===================
@@ -639,6 +647,44 @@ const Model = (function() {
     }
 
     // ===================
+    // UI Error State Management
+    // ===================
+
+    /**
+     * Get the add contact error message
+     * @returns {string|null} Error message or null
+     */
+    function getAddContactError() {
+        return state.addContactError;
+    }
+
+    /**
+     * Set the add contact error message
+     * @param {string|null} error - Error message or null to clear
+     */
+    function setAddContactError(error) {
+        state.addContactError = error;
+        Events.emit(EVENTS.ADD_CONTACT_ERROR_CHANGED, { error: state.addContactError });
+    }
+
+    /**
+     * Get the delete account error message
+     * @returns {string|null} Error message or null
+     */
+    function getDeleteAccountError() {
+        return state.deleteAccountError;
+    }
+
+    /**
+     * Set the delete account error message
+     * @param {string|null} error - Error message or null to clear
+     */
+    function setDeleteAccountError(error) {
+        state.deleteAccountError = error;
+        Events.emit(EVENTS.DELETE_ACCOUNT_ERROR_CHANGED, { error: state.deleteAccountError });
+    }
+
+    // ===================
     // State Management
     // ===================
 
@@ -660,6 +706,8 @@ const Model = (function() {
         state.permissionLevels = [];
         state.devices = [];
         state.currentDeviceId = null;
+        state.addContactError = null;
+        state.deleteAccountError = null;
 
         // Emit events so any listeners know state was cleared
         Events.emit(EVENTS.LOCATION_CHANGED, { coordinates: null, hierarchy: null });
@@ -753,6 +801,12 @@ const Model = (function() {
         setCurrentDeviceId: setCurrentDeviceId,
         getActiveDevice: getActiveDevice,
         isCurrentDeviceActive: isCurrentDeviceActive,
+
+        // UI error state
+        getAddContactError: getAddContactError,
+        setAddContactError: setAddContactError,
+        getDeleteAccountError: getDeleteAccountError,
+        setDeleteAccountError: setDeleteAccountError,
 
         // State management
         reset: reset

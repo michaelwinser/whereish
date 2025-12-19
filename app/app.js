@@ -316,9 +316,8 @@
             onEnter: () => {
                 // Clear form when entering
                 const passwordInput = document.getElementById('delete-account-password');
-                const errorDiv = document.getElementById('delete-account-error');
                 if (passwordInput) passwordInput.value = '';
-                if (errorDiv) errorDiv.classList.add('hidden');
+                Model.setDeleteAccountError(null);
             },
             onExit: () => {}
         });
@@ -744,6 +743,27 @@
             () => Model.isServerConnected(),
             ['server:status:changed']
         );
+
+        // --- Modal error bindings ---
+        Bind.visible('#add-contact-error',
+            () => Model.getAddContactError() !== null,
+            ['ui:addContactError:changed']
+        );
+
+        Bind.text('#add-contact-error',
+            () => Model.getAddContactError() || '',
+            ['ui:addContactError:changed']
+        );
+
+        Bind.visible('#delete-account-error',
+            () => Model.getDeleteAccountError() !== null,
+            ['ui:deleteAccountError:changed']
+        );
+
+        Bind.text('#delete-account-error',
+            () => Model.getDeleteAccountError() || '',
+            ['ui:deleteAccountError:changed']
+        );
     }
 
     // ===================
@@ -857,11 +877,7 @@
                     closeAddContactModal();
                     Toast.success('Contact request sent');
                 } else {
-                    const errorEl = document.getElementById('add-contact-error');
-                    if (errorEl) {
-                        errorEl.textContent = result.error || 'Failed to send request';
-                        errorEl.classList.remove('hidden');
-                    }
+                    Model.setAddContactError(result.error || 'Failed to send request');
                 }
             }
         });
@@ -1104,12 +1120,11 @@
     function showAddContactModal() {
         const modal = document.getElementById('add-contact-modal');
         const emailInput = document.getElementById('contact-email');
-        const errorEl = document.getElementById('add-contact-error');
 
         if (modal) {
             modal.classList.remove('hidden');
             emailInput?.focus();
-            if (errorEl) errorEl.classList.add('hidden');
+            Model.setAddContactError(null);
         }
     }
 
