@@ -55,23 +55,11 @@ module.exports = defineConfig({
     // },
   ],
 
-  /* Run local dev server before starting the tests */
-  webServer: [
-    {
-      // Static file server for the PWA client
-      command: '.venv/bin/python3 -m http.server 8081 -d app',
-      port: 8081,
-      reuseExistingServer: !process.env.CI,
-    },
-    {
-      // API server (use venv Python for dependencies)
-      command: 'DATABASE_PATH=test_client.db SECRET_KEY=test-secret .venv/bin/python3 -m server.app',
-      port: 8501,
-      reuseExistingServer: !process.env.CI,
-      env: {
-        PORT: '8501',
-        FLASK_DEBUG: 'false',
-      },
-    },
-  ],
+  /* Run static file server for PWA (tests mock API via routes) */
+  webServer: {
+    command: 'npx serve -l 8081 -s app',
+    cwd: __dirname,
+    port: 8081,
+    reuseExistingServer: !process.env.CI,
+  },
 });

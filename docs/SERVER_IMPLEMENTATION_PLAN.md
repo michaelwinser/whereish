@@ -108,7 +108,7 @@ From `NEW_SERVER_ARCHITECTURE.md`:
 ### 2.1 Project Structure
 
 ```
-server-go/
+server/
 ├── cmd/
 │   ├── server/         # Main server binary
 │   │   └── main.go
@@ -275,6 +275,7 @@ Thin wrapper exposing client library functionality:
 
 ```bash
 # Authentication
+whereish dev-login <email>  # Dev mode only: create test user and session
 whereish login              # Opens browser for Google OAuth
 whereish logout
 whereish whoami
@@ -288,17 +289,18 @@ whereish identity reset     # Dangerous: resets identity
 whereish contacts list
 whereish contacts add <email>
 whereish contacts remove <id>
-whereish contacts requests list
-whereish contacts requests accept <id>
-whereish contacts requests decline <id>
+whereish requests list
+whereish requests accept <id>
+whereish requests decline <id>
+whereish requests cancel <id>
 
 # Locations
-whereish location get                    # Get contacts' locations
-whereish location share <lat> <lon>      # Share location
-whereish location share --address "..."  # Geocode and share
+whereish locations get                    # Get contacts' locations
+whereish locations share <lat> <lon>      # Share location to all contacts
 
 # Devices
 whereish devices list
+whereish devices register <name>
 whereish devices revoke <id>
 
 # User data (for debugging)
@@ -306,19 +308,40 @@ whereish data get           # Fetch and decrypt user data blob
 whereish data set --file    # Encrypt and upload (dangerous)
 ```
 
-### 3.3 Testing with CLI
+### 3.3 Dev Mode Testing
+
+The `dev-login` command creates a test user and session without requiring Google OAuth.
+This requires `DEV_MODE=true` on the server.
+
+```bash
+# Server adds POST /api/dev/login endpoint when DEV_MODE=true
+# CLI calls this endpoint to get a session token
+
+whereish dev-login alice@test.com    # Creates user "alice@test.com" with session
+whereish whoami                       # Verify login worked
+```
+
+### 3.4 Testing with CLI
 
 The CLI enables manual and scripted testing:
 
 ```bash
-# Full flow test
-whereish login
-whereish identity backup    # Create identity with PIN
-whereish contacts add friend@example.com
-# (friend accepts)
-whereish location share 47.6062 -122.3321
-whereish contacts list      # Should show friend
-whereish location get       # Should show friend's location (if shared)
+# Full flow test (dev mode)
+whereish dev-login alice@test.com
+whereish identity backup              # Create identity with PIN
+whereish contacts add bob@test.com
+
+# In another terminal:
+whereish dev-login bob@test.com
+whereish requests list                # See request from alice
+whereish requests accept <id>
+
+# Back to alice:
+whereish locations share 47.6062 -122.3321
+whereish contacts list                # Should show bob
+
+# As bob:
+whereish locations get                # Should show alice's location
 ```
 
 ---
@@ -392,6 +415,70 @@ export class WhereishClient {
 - No data migration needed (clean start per architecture doc)
 - Can run new and old servers in parallel during transition
 - Feature flag to switch between old and new API
+
+---
+
+## Implementation Status
+
+*Last updated: December 2024*
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | OpenAPI Specification | ✅ Complete |
+| Phase 2 | Go Server + Storage Layer | ⚠️ Mostly Complete |
+| Phase 3 | Go Client Library + CLI | ✅ Complete |
+| Phase 4 | TypeScript Client Library | ✅ Complete |
+| Phase 5 | PWA Updates | ❌ Not Started |
+
+### Phase 2 Details
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| OpenAPI spec | ✅ | `api/openapi.yaml` |
+| Generated server code | ✅ | oapi-codegen |
+| All API handlers | ✅ | 21 endpoints implemented |
+| SQLite backend | ✅ | Full implementation with tests |
+| Postgres backend | ❌ | Not started |
+| Firestore backend | ❌ | Not started |
+| Store unit tests | ✅ | 32 tests |
+| Handler integration tests | ✅ | 16 tests |
+| Google OAuth | ✅ | Token verification |
+| Dev login (testing) | ✅ | DEV_MODE only |
+
+### Phase 3 Details
+
+| Component | Status |
+|-----------|--------|
+| Generated client | ✅ |
+| High-level client wrapper | ✅ |
+| CLI commands | ✅ |
+| Identity encryption (NaCl) | ✅ |
+| Location encryption | ✅ |
+| Smoketest script | ✅ |
+
+### Phase 4 Details
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Generated types | ✅ | `client-ts/generated/api.ts` |
+| TypeScript client | ✅ | `client-ts/client.ts` |
+| Type exports | ✅ | All schemas exported |
+| Build scripts | ✅ | `npm run build:client` |
+
+### What's Left
+
+**Required for Production:**
+1. Postgres backend - Needed for self-hosting at scale
+2. Firestore backend - Needed for Cloud Run deployment
+
+**Required for Full System:**
+3. Phase 4: TypeScript Client - Generate types from OpenAPI, create browser client
+4. Phase 5: PWA Updates - Integrate new API into existing PWA
+
+**Nice to Have:**
+5. Rate limiting - Not critical for initial release
+6. Monitoring/metrics - Can add later
+7. Browser-based OAuth in CLI - Currently uses dev-login
 
 ---
 

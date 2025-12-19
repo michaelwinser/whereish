@@ -9,10 +9,16 @@
     "test:client:unit": "npx playwright test tests/client/unit",
     "test:client:e2e": "npx playwright test tests/client/e2e",
     "test:ui": "npx playwright test --ui",
-    "test:debug": "npx playwright test --debug"
+    "test:debug": "npx playwright test --debug",
+    "generate:types": "openapi-typescript server/api/openapi.yaml -o client-ts/generated/api.ts",
+    "build:client": "cd client-ts && npx tsc",
+    "typecheck": "cd client-ts && npx tsc --noEmit"
   },
   "devDependencies": {
     "@apidevtools/swagger-cli": "^4.0.4",
-    "@playwright/test": "^1.40.0"
+    "@playwright/test": "^1.40.0",
+    "openapi-typescript": "^7.10.1",
+    "serve": "^14.2.5",
+    "typescript": "^5.9.3"
   }
 }

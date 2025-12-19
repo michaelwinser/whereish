@@ -4,17 +4,18 @@ This file provides context for Claude Code sessions working on the Whereish proj
 
 ## Project Overview
 
-Whereish is a privacy-first semantic location sharing PWA. Users share location at configurable granularity levels (city, neighborhood, etc.) rather than exact coordinates.
+Whereish is a privacy-first semantic location sharing PWA. Users share location at configurable granularity levels (city, neighborhood, etc.) rather than exact coordinates. Location data is encrypted client-side before transmission (E2E encryption).
 
 ## Key Directories
 
 | Directory | Purpose |
 |-----------|---------|
-| `app/` | PWA client (vanilla JS, no framework) |
-| `server/` | Flask backend API |
+| `app/` | PWA client (vanilla JS with custom reactive bindings) |
+| `server/` | Go backend API (OpenAPI-driven) |
+| `client-ts/` | TypeScript API client library |
 | `docs/` | Design documents, PRDs, architecture |
 | `reviews/` | Code reviews, audits, assessments |
-| `tests/` | Playwright (client) and pytest (server) tests |
+| `tests/client/` | Playwright client tests |
 | `scripts/` | Build and utility scripts |
 
 ## Before Starting Work
@@ -54,20 +55,23 @@ Before implementing significant features or changes:
 ## Development Commands
 
 ```bash
-make run          # Start dev server on :8080
-make test         # Run smoke tests + linting
+make run          # Start Go dev server on :8080
+make test         # Run lints
+make test-server  # Run Go tests
 make test-client  # Run Playwright tests
-make test-server  # Run pytest tests
-make build        # Build Docker image (updates build info)
-make bump-version # Bump version across all files
+make test-all     # Run all tests
+make build        # Build Go binaries
+make generate     # Regenerate code from OpenAPI spec
 ```
 
 ## Architecture Notes
 
-- **Model-View separation**: `model.js` handles state/logic, `app.js` handles DOM
-- **Event-driven**: Model emits events, views subscribe
+- **Model-View separation**: `model.js` handles state/logic, `app.js` handles DOM via bindings
+- **Reactive bindings**: `bind.js` provides declarative DOM updates from model events
+- **Event-driven**: Model emits events, bindings automatically update DOM
 - **Two permission systems**: Geographic granularity + named location visibility
-- **Version sync**: Client and server versions must match (see `APP_VERSION`)
+- **E2E encryption**: Location data encrypted with NaCl before transmission
+- **OpenAPI-first**: Server and clients generated from `server/api/openapi.yaml`
 
 ## Supply Chain Security
 
@@ -91,4 +95,4 @@ Current bundled dependencies:
 ## Current State
 
 See `reviews/CLAUDE_REVIEW.md` for the most recent comprehensive review.
-- Commits should reference the issue they are resolve (or working on) and the issue should not be closed before the commit.
+- Commits should reference the issue they are resolving (or working on) and the issue should not be closed before the commit.

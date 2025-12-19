@@ -2,35 +2,42 @@
 
 Quick reference for working on Whereish.
 
+## Prerequisites
+
+- Go 1.21+ (for server)
+- Node.js 18+ (for client tooling)
+- SQLite3
+
 ## Setup
 
 ```bash
-# Clone and set up (one time)
-make install-dev
-```
+# Clone and install Node dependencies
+git clone https://github.com/michaelwinser/whereish.git
+cd whereish
+npm install
 
-This creates a Python virtual environment (`.venv/`) and installs all dependencies including dev tools.
+# Install git hooks
+make install-hooks
+```
 
 ## Common Commands
 
 ```bash
-make pre-commit    # Run before committing (smoke + lint)
-make test          # Run all tests (smoke + lint)
-make test-smoke    # Fast smoke tests only (~7 sec)
 make run           # Run dev server on :8080
-make lint          # Run all linters
+make test          # Run lints
+make test-server   # Run Go tests
+make test-client   # Run Playwright tests
+make test-all      # Run all tests
+make build         # Build Go binaries
 make help          # Show all available targets
 ```
 
 ## Pre-commit Hook
 
-A git pre-commit hook runs `make pre-commit` before each commit. If tests fail, the commit is aborted.
+A git pre-commit hook runs tests before each commit. If tests fail, the commit is aborted.
 
-The hook is automatically installed by `make install-dev`. For new clones:
 ```bash
-make install-dev    # Installs deps + hooks
-# or just hooks:
-make install-hooks
+make install-hooks  # Install hooks
 ```
 
 To bypass (use sparingly):
@@ -40,82 +47,71 @@ git commit --no-verify
 
 The hook source is tracked in `scripts/hooks/pre-commit`.
 
-## How the Makefile Works
-
-### Automatic venv Detection
-
-The Makefile automatically uses `.venv/bin/python3` if it exists, otherwise falls back to system `python3`. You don't need to activate the venv manually when using Make.
-
-```bash
-# These all use the venv automatically
-make test
-make run-server
-make lint-python
-```
-
-Manual activation is only needed for running Python directly:
-
-```bash
-source .venv/bin/activate
-python3 some_script.py
-```
-
 ## Project Structure
 
 ```
-├── app/                  # PWA client (static files)
+├── app/                  # PWA client (vanilla JS)
 │   ├── index.html
-│   ├── app.js           # Main application logic
+│   ├── app.js           # Main controller
+│   ├── bind.js          # Reactive binding system
+│   ├── model.js         # Application state
 │   ├── api.js           # API client module
+│   ├── render/          # Render functions
+│   ├── handlers/        # Event handlers
 │   ├── views.js         # ViewManager for navigation
 │   ├── storage.js       # IndexedDB wrapper
-│   ├── geofence.js      # Location matching
 │   ├── style.css
 │   └── sw.js            # Service worker
 │
-├── server/              # Flask API server
-│   ├── app.py           # Main server code
-│   ├── run.py           # Dev server runner
-│   ├── requirements.txt
-│   └── requirements-dev.txt
+├── server/              # Go API server
+│   ├── api/
+│   │   └── openapi.yaml # API specification
+│   ├── cmd/
+│   │   ├── server/      # Server binary
+│   │   └── cli/         # CLI binary
+│   ├── internal/
+│   │   ├── api/         # HTTP handlers
+│   │   ├── auth/        # Authentication
+│   │   ├── config/      # Configuration
+│   │   └── store/       # Database layer
+│   └── pkg/
+│       ├── client/      # Go client library
+│       └── crypto/      # Encryption utilities
 │
-├── smoke_test.py        # Server smoke tests
+├── client-ts/           # TypeScript API client
+│
+├── tests/client/        # Playwright tests
+│
 ├── Makefile
-├── pyproject.toml       # Ruff (Python linter) config
 ├── eslint.config.mjs    # ESLint config
 └── .markdownlint.json   # Markdownlint config
 ```
 
 ## Testing
 
-### Smoke Tests (Fast)
+### Go Server Tests
 
 ```bash
-make test-smoke
+make test-server
+# or directly:
+cd server && go test ./...
 ```
 
-Runs in ~7 seconds:
-- Server API endpoint tests (health, auth, location, contacts)
-- JavaScript syntax validation
-
-### Full Test Suite
+### Client Tests (Playwright)
 
 ```bash
-make test
+make test-client
+# or directly:
+npx playwright test
 ```
 
-Runs smoke tests + all linters.
+### All Tests
+
+```bash
+make test-all
+```
 
 ## Linting
-
-### Python (ruff)
-
-```bash
-make lint-python
-```
-
-- Checks: pyflakes, pycodestyle, import sorting
-- Config: `pyproject.toml`
 
 ### JavaScript (eslint)
 
@@ -126,20 +122,19 @@ make lint-js
 - Checks: eslint recommended rules
 - Config: `eslint.config.mjs`
 
+### Go (go vet)
+
+```bash
+make lint-go
+```
+
 ### Markdown (markdownlint)
 
 ```bash
 make lint-md
 ```
 
-- Checks: markdownlint rules (relaxed for existing docs)
 - Config: `.markdownlint.json`
-
-### Fix Python Formatting
-
-```bash
-.venv/bin/python3 -m ruff format server/ smoke_test.py
-```
 
 ## Development Server
 
@@ -149,7 +144,37 @@ make run
 # Press Ctrl+C to stop
 ```
 
-This runs Flask with `SERVE_STATIC=true`, serving both API and PWA from a single server - same as production.
+This runs the Go server which serves both API and PWA static files.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | 8080 |
+| `DATABASE_URL` | SQLite database path | whereish.db |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | (required for auth) |
+| `DEV_MODE` | Enable dev endpoints | false |
+| `STATIC_DIR` | Static files directory | ../app |
+
+### Dev Mode
+
+Set `DEV_MODE=1` to enable:
+- `/api/dev/login` endpoint for testing without Google OAuth
+
+```bash
+DEV_MODE=1 make run
+```
+
+## Code Generation
+
+The server uses OpenAPI code generation:
+
+```bash
+make generate          # Regenerate all code
+make generate-server   # Server code only
+make generate-client   # Go client only
+make generate-types    # TypeScript types only
+```
 
 ## Service Worker Cache
 
@@ -161,7 +186,7 @@ const CACHE_NAME = 'whereish-v28';  // Increment this
 
 ## Code Style
 
-- **Python**: Single quotes, 100 char lines, sorted imports (enforced by ruff)
+- **Go**: Standard gofmt formatting
 - **JavaScript**: Browser globals, IIFE module pattern
 - **No unnecessary comments**: Code should be self-documenting
 - **No emojis in code**: Unless explicitly requested
@@ -169,6 +194,6 @@ const CACHE_NAME = 'whereish-v28';  // Increment this
 ## Cleanup
 
 ```bash
-make clean         # Remove __pycache__, .pyc, etc.
-make clean-all     # Also remove .venv
+make clean         # Remove build artifacts
+make clean-db      # Clear local database
 ```

@@ -3,15 +3,15 @@
 *.sqlite
 *.sqlite3
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-.venv/
+# Go
+server/bin/
+*.exe
+
+# Node
+node_modules/
+
+# TypeScript build output
+client-ts/dist/
 
 # IDE
 .idea/
@@ -30,9 +30,6 @@ Thumbs.db
 # Environment files
 .env
 .env.local
-
-# Node (if added later)
-node_modules/
 
 # Test artifacts
 test-results/

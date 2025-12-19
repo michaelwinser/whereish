@@ -10,6 +10,7 @@ A privacy-first location sharing app that shares **semantic labels** rather than
 - **Per-Contact Permissions** - Set different visibility levels for each contact (from "Planet Earth" to "Address")
 - **Named Places** - Define custom locations ("Home", "Work", "Soccer Field") with independent visibility controls
 - **Privacy by Design** - Coordinates processed on-device, only semantic labels shared
+- **End-to-End Encryption** - Location data encrypted client-side before transmission
 - **PWA** - Installable progressive web app works on any device
 
 ## Quick Start
@@ -22,7 +23,7 @@ git clone https://github.com/michaelwinser/whereish.git
 cd whereish
 
 # Run with docker-compose
-SECRET_KEY=$(openssl rand -hex 32) docker compose up -d
+GOOGLE_CLIENT_ID=your-id.apps.googleusercontent.com docker compose up -d
 ```
 
 Visit http://localhost:8080
@@ -30,20 +31,18 @@ Visit http://localhost:8080
 ### Development
 
 ```bash
-# Install dependencies
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# Install Node dependencies (for client tooling)
 npm install
 
-# Run the server
-python server/app.py
+# Run the Go server
+cd server && go run ./cmd/server
 
-# In another terminal, serve the PWA
-cd app && python3 -m http.server 8081
+# Or build and run
+make build
+./server/bin/whereish-server
 ```
 
-Visit http://localhost:8081
+Visit http://localhost:8080
 
 ## Documentation
 
@@ -58,22 +57,41 @@ Visit http://localhost:8081
 
 ## Tech Stack
 
-- **Frontend:** Vanilla JavaScript PWA with IndexedDB
-- **Backend:** Python/Flask REST API
-- **Database:** SQLite
+- **Frontend:** Vanilla JavaScript PWA with custom reactive binding system
+- **Backend:** Go REST API with OpenAPI specification
+- **Database:** SQLite (Postgres and Firestore planned)
 - **Geocoding:** Nominatim (OpenStreetMap)
+- **Encryption:** NaCl (TweetNaCl) for E2E encryption
+
+## Project Structure
+
+```
+whereish/
+├── app/              # PWA client (vanilla JS)
+├── server/           # Go server
+│   ├── api/          # OpenAPI specification
+│   ├── cmd/          # Server and CLI binaries
+│   ├── internal/     # Private packages
+│   └── pkg/          # Public packages (client lib)
+├── client-ts/        # TypeScript API client
+├── tests/client/     # Playwright client tests
+└── docs/             # Documentation
+```
 
 ## Testing
 
 ```bash
-# Run all tests
-make test-all
+# Run lints (quick check)
+make test
 
-# Server tests only (pytest)
+# Run Go server tests
 make test-server
 
-# Client tests only (Playwright)
+# Run client tests (Playwright)
 make test-client
+
+# Run all tests
+make test-all
 ```
 
 ## License

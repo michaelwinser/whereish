@@ -32,6 +32,9 @@
     // Cache for DOM elements
     const elements = {};
 
+    // Flag to track auth failures during initialization
+    let authFailedDuringInit = false;
+
     // ===================
     // Initialization
     // ===================
@@ -59,6 +62,14 @@
 
         // Set up event handlers (Controller layer)
         setupEventHandlers();
+
+        // Handle auth failures (401 from API) - must be before checkInitialState
+        Events.on('auth:unauthorized', () => {
+            console.log('[v2] Session expired, returning to welcome screen');
+            authFailedDuringInit = true;
+            Model.reset();
+            ViewManager.navigate('welcome', {}, false);
+        });
 
         // Initial app state check
         await checkInitialState();
@@ -398,11 +409,16 @@
         await checkServerHealth();
 
         if (API.isAuthenticated()) {
+            // Reset flag before attempting auth
+            authFailedDuringInit = false;
             // Load all data before showing main view
             await initializeAuthenticatedState();
-            ViewManager.navigate('main', {}, false);
-            // Trigger location refresh for authenticated users
-            handleRefreshLocation();
+            // Only navigate to main if auth didn't fail (401 handler sets flag)
+            if (!authFailedDuringInit) {
+                ViewManager.navigate('main', {}, false);
+                // Trigger location refresh for authenticated users
+                handleRefreshLocation();
+            }
         } else {
             ViewManager.navigate('welcome', {}, false);
             // Still try to get location for welcome screen
@@ -657,14 +673,33 @@
             ['location:error']
         );
 
-        // --- Welcome screen location binding (class selector) ---
-        Bind.text('.welcome-location',
+        // --- Welcome screen location binding ---
+        Bind.text('.welcome-hierarchy',
             () => {
                 const loc = Model.getLocation();
-                if (!loc?.hierarchy) return '';
+                if (!loc?.hierarchy) return 'Locating...';
                 return Model.getLocationText(loc.hierarchy);
             },
             ['location:changed']
+        );
+
+        // --- Location bar action buttons (enable when location available) ---
+        Bind.attr('#save-location-btn', 'disabled',
+            () => {
+                const loc = Model.getLocation();
+                // Disable if no location or still loading
+                return !loc?.hierarchy;
+            },
+            ['location:changed', 'location:loading']
+        );
+
+        Bind.attr('#refresh-btn', 'disabled',
+            () => {
+                const loc = Model.getLocation();
+                // Disable during loading, enable otherwise
+                return loc?.loading === true;
+            },
+            ['location:changed', 'location:loading']
         );
 
         // --- Contacts list binding ---

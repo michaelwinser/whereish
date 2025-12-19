@@ -1,21 +1,10 @@
 # Whereish Makefile
 # Run 'make help' to see available targets
 
-.PHONY: help test test-smoke test-server test-client test-all run check-env build docker-run clean clean-all clean-db clean-docker-db lint lint-python lint-js lint-md lint-poc venv install install-dev install-hooks pre-commit
+.PHONY: help test test-server test-client test-all run build docker-run clean lint lint-js lint-md lint-ui-sync install-hooks pre-commit
 
 # Default target
 .DEFAULT_GOAL := help
-
-# =============================================================================
-# Python Environment
-# =============================================================================
-
-VENV := .venv
-VENV_PYTHON := $(VENV)/bin/python3
-VENV_PIP := $(VENV)/bin/pip
-
-# Use venv python if it exists, otherwise system python3
-PYTHON := $(shell [ -f $(VENV_PYTHON) ] && echo $(VENV_PYTHON) || echo python3)
 
 # =============================================================================
 # Help
@@ -31,23 +20,6 @@ help: ## Show this help message
 # Setup
 # =============================================================================
 
-venv: ## Create Python virtual environment
-	@echo "Creating virtual environment..."
-	python3 -m venv $(VENV)
-	$(VENV_PIP) install --upgrade pip
-	@echo "✓ Virtual environment created at $(VENV)"
-	@echo "  Activate with: source $(VENV)/bin/activate"
-
-install: venv ## Install production dependencies
-	@echo "Installing dependencies..."
-	$(VENV_PIP) install -r server/requirements.txt
-	@echo "✓ Dependencies installed"
-
-install-dev: install install-hooks ## Install development dependencies
-	@echo "Installing dev dependencies..."
-	$(VENV_PIP) install -r server/requirements-dev.txt
-	@echo "✓ Dev dependencies installed"
-
 install-hooks: ## Install git hooks
 	@echo "Installing git hooks..."
 	@cp scripts/hooks/pre-commit .git/hooks/pre-commit
@@ -58,51 +30,26 @@ install-hooks: ## Install git hooks
 # Development
 # =============================================================================
 
-run: check-env ## Run dev server (API + static files on :8080)
+run: ## Run dev server (Go server + static files on :8080)
 	@echo "Starting Whereish on http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
-	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
-		cd server && SERVE_STATIC=true PORT=8080 $(PYTHON) run.py
+	@cd server && go run ./cmd/server
 
-check-env: ## Check required environment variables
-	@( \
-		if [ -f .env ]; then set -a && . ./.env && set +a; fi; \
-		if [ -z "$$GOOGLE_CLIENT_ID" ]; then \
-			echo "⚠️  GOOGLE_CLIENT_ID not set"; \
-			echo "   Set it in your environment or create a .env file:"; \
-			echo "   echo 'GOOGLE_CLIENT_ID=your-id.apps.googleusercontent.com' > .env"; \
-			echo ""; \
-		fi \
-	)
+run-client: ## Serve PWA client only (for testing without server)
+	@echo "Starting client on http://localhost:8080"
+	@cd app && python3 -m http.server 8080
 
 # =============================================================================
 # Testing
 # =============================================================================
 
-test: test-smoke lint ## Run all tests (smoke + lint)
+test: lint ## Run lints (quick check)
 
-pre-commit: test ## Run pre-commit checks (currently same as test)
+pre-commit: test ## Run pre-commit checks
 
-test-smoke: ## Run fast smoke tests (~7 seconds)
-	@echo "Running smoke tests..."
-	@# Server smoke tests
-	@if [ -f smoke_test.py ]; then \
-		$(PYTHON) smoke_test.py; \
-	else \
-		echo "  [SKIP] smoke_test.py not found (see Issue #5)"; \
-	fi
-	@# Client syntax check
-	@echo "Checking JavaScript syntax..."
-	@node --check app/storage.js
-	@node --check app/geofence.js
-	@node --check app/api.js
-	@node --check app/views.js
-	@node --check app/app.js
-	@echo "✓ JavaScript syntax OK"
-
-test-server: ## Run server tests (pytest)
+test-server: ## Run Go server tests
 	@echo "Running server tests..."
-	@$(PYTHON) -m pytest tests/server -v
+	@cd server && go test ./...
 	@echo "✓ Server tests OK"
 
 test-client: ## Run client tests (Playwright)
@@ -116,13 +63,7 @@ test-all: test-server test-client ## Run all tests (server + client)
 # Linting
 # =============================================================================
 
-lint: lint-python lint-js lint-md lint-ui-sync lint-poc ## Run all linters
-
-lint-python: ## Lint Python code with ruff
-	@echo "Linting Python..."
-	@$(PYTHON) -m ruff check server/ smoke_test.py
-	@$(PYTHON) -m ruff format --check server/ smoke_test.py
-	@echo "✓ Python lint OK"
+lint: lint-js lint-md lint-ui-sync ## Run all linters
 
 lint-js: ## Lint JavaScript code with eslint
 	@echo "Linting JavaScript..."
@@ -131,7 +72,7 @@ lint-js: ## Lint JavaScript code with eslint
 
 lint-md: ## Lint Markdown files
 	@echo "Linting Markdown..."
-	@npx markdownlint-cli@0.41.0 docs/*.md reviews/*.md '*.md' 'poc/*.md' 'poc/shared/*.md' 'poc/custom-binding/*.md'
+	@npx markdownlint-cli@0.41.0 docs/*.md reviews/*.md '*.md'
 	@echo "✓ Markdown lint OK"
 
 lint-ui-sync: ## Check UI sync pattern violations
@@ -139,26 +80,52 @@ lint-ui-sync: ## Check UI sync pattern violations
 	@./scripts/lint-ui-sync.sh
 	@echo "✓ UI sync check complete"
 
-lint-poc: ## Check MVC patterns in POC implementations
-	@echo "Checking POC MVC patterns..."
-	@./scripts/lint-poc.sh --all; EXIT_CODE=$$?; if [ $$EXIT_CODE -eq 2 ]; then exit 2; fi
-	@echo "✓ POC lint complete"
+lint-go: ## Lint Go code
+	@echo "Linting Go..."
+	@cd server && go vet ./...
+	@echo "✓ Go lint OK"
 
 # =============================================================================
-# Docker
+# Build
 # =============================================================================
 
-build: update-build-info ## Build Docker image (updates build info first)
+build: ## Build Go server binary
+	@echo "Building server..."
+	@cd server && go build -o bin/whereish-server ./cmd/server
+	@cd server && go build -o bin/whereish ./cmd/cli
+	@echo "✓ Build complete"
+
+build-docker: update-build-info ## Build Docker image
 	docker build -t whereish .
 
-docker-run: build check-env ## Run Docker container locally
+docker-run: build-docker ## Run Docker container locally
 	@echo "Starting Whereish container on http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
-	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
-		docker run --rm -p 8080:8080 -v whereish-data:/app/data \
-		-e SECRET_KEY=dev-secret-for-local-testing \
-		-e GOOGLE_CLIENT_ID="$$GOOGLE_CLIENT_ID" \
+	@docker run --rm -p 8080:8080 -v whereish-data:/app/data \
+		-e GOOGLE_CLIENT_ID="$${GOOGLE_CLIENT_ID}" \
+		-e DEV_MODE=true \
 		whereish
+
+# =============================================================================
+# Code Generation
+# =============================================================================
+
+generate: generate-server generate-client generate-types ## Generate all code
+
+generate-server: ## Generate Go server code from OpenAPI
+	@echo "Generating Go server code..."
+	@cd server && oapi-codegen -generate types,chi-server,spec -package api api/openapi.yaml > internal/api/generated.go
+	@echo "✓ Server code generated"
+
+generate-client: ## Generate Go client code from OpenAPI
+	@echo "Generating Go client code..."
+	@cd server && oapi-codegen -generate types,client -package client api/openapi.yaml > pkg/client/generated.go
+	@echo "✓ Client code generated"
+
+generate-types: ## Generate TypeScript types from OpenAPI
+	@echo "Generating TypeScript types..."
+	@npm run generate:types
+	@echo "✓ TypeScript types generated"
 
 # =============================================================================
 # Utility
@@ -166,32 +133,20 @@ docker-run: build check-env ## Run Docker container locally
 
 clean: ## Remove build artifacts and caches
 	@echo "Cleaning up..."
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type f -name ".DS_Store" -delete 2>/dev/null || true
-	rm -rf .ruff_cache 2>/dev/null || true
+	@rm -rf server/bin/
+	@rm -rf client-ts/dist/
+	@find . -type f -name ".DS_Store" -delete 2>/dev/null || true
 	@echo "✓ Clean complete"
-
-clean-all: clean ## Remove everything including venv
-	@echo "Removing virtual environment..."
-	rm -rf $(VENV)
-	@echo "✓ Full clean complete"
 
 clean-db: ## Clear the local development database
 	@echo "Removing local development database..."
-	rm -f server/whereish.db
+	@rm -f server/*.db
 	@echo "✓ Local database cleared"
 
 clean-docker-db: ## Clear the Docker database volume
 	@echo "Removing Docker database volume..."
-	-docker volume rm whereish-data 2>/dev/null || true
+	@-docker volume rm whereish-data 2>/dev/null || true
 	@echo "✓ Docker database cleared"
-
-kill-servers: ## Kill any running dev servers
-	@echo "Stopping servers..."
-	@-pkill -f "python run.py" 2>/dev/null || true
-	@-pkill -f "python -m http.server 8080" 2>/dev/null || true
-	@echo "✓ Servers stopped"
 
 # =============================================================================
 # Version Management

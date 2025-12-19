@@ -9,17 +9,17 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
-      - DATABASE_PATH=/app/data/whereish.db
-      - SERVE_STATIC=true
-      # Set BEHIND_PROXY=true if using nginx/traefik reverse proxy
-      - BEHIND_PROXY=${BEHIND_PROXY:-false}
+      - PORT=8080
+      - DATABASE_URL=/app/data/whereish.db
+      - STATIC_DIR=/app/static
       # Google OAuth - required for sign-in
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      # Optional: Enable dev mode for testing
+      # - DEV_MODE=true
     volumes:
       - whereish-data:/app/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3

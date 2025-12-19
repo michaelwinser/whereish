@@ -262,15 +262,15 @@ analyze_changes() {
     fi
 
     # High-risk file patterns
-    if echo "$files" | grep -qE 'app\.py'; then
-        add_points 5 "app.py modified (core server)"
+    if echo "$files" | grep -qE 'server/cmd/|server/internal/'; then
+        add_points 5 "server code modified"
     fi
 
-    if echo "$files" | grep -qE 'api\.js|/api/'; then
-        add_points 5 "API code modified"
+    if echo "$files" | grep -qE 'api\.js|app\.js|/api/'; then
+        add_points 5 "API/app code modified"
     fi
 
-    if echo "$files" | grep -qE 'Makefile|\.config\.'; then
+    if echo "$files" | grep -qE 'Makefile|Dockerfile|docker-compose'; then
         add_points 5 "build/config modified"
     fi
 
@@ -283,16 +283,14 @@ analyze_changes() {
 
     # Content analysis (check diff content in code files only)
     # Use git diff with file filter to avoid matching documentation
-    local py_diff
-    py_diff=$(git diff --cached -- '*.py' 2>/dev/null || echo "")
-    local sql_diff
-    sql_diff=$(git diff --cached -- '*.sql' 2>/dev/null || echo "")
+    local go_diff
+    go_diff=$(git diff --cached -- '*.go' 2>/dev/null || echo "")
 
-    if echo "$py_diff" | grep -qE '^\+.*@app\.route'; then
-        add_points 5 "API endpoint added"
+    if echo "$go_diff" | grep -qE '^\+.*func \(.*\) (Get|Post|Put|Delete|Patch)'; then
+        add_points 5 "API handler added"
     fi
 
-    if echo "$sql_diff" | grep -qE '^\+.*(CREATE TABLE|ALTER TABLE)'; then
+    if echo "$go_diff" | grep -qE '^\+.*(CREATE TABLE|ALTER TABLE)'; then
         add_points 10 "schema DDL detected"
     fi
 
